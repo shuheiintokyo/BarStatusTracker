@@ -14,7 +14,7 @@ class BarViewModel: ObservableObject {
     private let firebaseManager = FirebaseManager()
     
     // Biometric authentication manager
-    @StateObject private var biometricAuth = BiometricAuthManager()
+    private var biometricAuth = BiometricAuthManager()
     
     init() {
         setupFirebaseConnection()
