@@ -1,7 +1,7 @@
 import WidgetKit
 import SwiftUI
 
-// Simple home screen widget (optional - can be deleted if not needed)
+// Simple home screen widget with modern containerBackground
 struct BarStatusTrackerWidgets: Widget {
     let kind: String = "BarStatusTrackerWidgets"
 
@@ -54,5 +54,6 @@ struct BarStatusTrackerWidgetsEntryView: View {
                 .foregroundColor(.secondary)
         }
         .padding()
+        .containerBackground(.fill.tertiary, for: .widget)
     }
 }
