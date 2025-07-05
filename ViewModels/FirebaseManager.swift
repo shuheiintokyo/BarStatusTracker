@@ -14,7 +14,6 @@ class FirebaseManager: ObservableObject {
     
     // MARK: - Bar Data Operations
     
-    // Fetch all bars with real-time updates
     func fetchBars() {
         isLoading = true
         
@@ -39,27 +38,8 @@ class FirebaseManager: ObservableObject {
         }
     }
     
-    // Update bar status (legacy method - kept for compatibility)
-    func updateBarStatus(barId: String, newStatus: BarStatus) {
-        let barRef = db.collection("bars").document(barId)
-        
-        barRef.updateData([
-            "status": newStatus.rawValue,
-            "lastUpdated": Timestamp(date: Date())
-        ]) { [weak self] error in
-            if let error = error {
-                DispatchQueue.main.async {
-                    self?.errorMessage = "Error updating status: \(error.localizedDescription)"
-                }
-            }
-        }
-    }
-    
-    // Update entire bar with auto-transition fields (new method)
     func updateBarWithAutoTransition(bar: Bar) {
         let barRef = db.collection("bars").document(bar.id)
-        
-        // Convert bar to dictionary (includes all auto-transition fields)
         let barData = bar.toDictionary()
         
         barRef.updateData(barData) { [weak self] error in
@@ -71,13 +51,12 @@ class FirebaseManager: ObservableObject {
             } else {
                 print("✅ Successfully updated \(bar.name) in Firebase")
                 if bar.isAutoTransitionActive {
-                    print("   ⏰ Auto-transition active: \(bar.status.displayName) → \(bar.pendingStatus?.displayName ?? "unknown") in \(bar.timeUntilAutoTransition ?? 0) seconds")
+                    print("   ⏰ Auto-transition active: \(bar.status.displayName) → \(bar.pendingStatus?.displayName ?? "unknown")")
                 }
             }
         }
     }
     
-    // Update bar description
     func updateBarDescription(barId: String, newDescription: String) {
         let barRef = db.collection("bars").document(barId)
         
@@ -95,7 +74,6 @@ class FirebaseManager: ObservableObject {
     
     // MARK: - Authentication
     
-    // Authenticate bar owner
     func authenticateBarOwner(barName: String, password: String, completion: @escaping (Result<Bar, Error>) -> Void) {
         if let bar = bars.first(where: { $0.username.lowercased() == barName.lowercased() && $0.password == password }) {
             completion(.success(bar))

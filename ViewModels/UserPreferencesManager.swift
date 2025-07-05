@@ -3,7 +3,6 @@ import SwiftUI
 
 class UserPreferencesManager: ObservableObject {
     @Published var userPreferences: UserPreferences
-    @Published var hasNotificationPermission = false
     
     init() {
         // Load from UserDefaults
@@ -15,7 +14,7 @@ class UserPreferencesManager: ObservableObject {
         }
     }
     
-    // MARK: - Favorites Management
+    // MARK: - Favorites Management (Local Only)
     
     func isFavorite(barId: String) -> Bool {
         return userPreferences.favoriteBarIDs.contains(barId)
@@ -29,16 +28,16 @@ class UserPreferencesManager: ObservableObject {
         }
     }
     
-    func addFavorite(barId: String) {
+    private func addFavorite(barId: String) {
         userPreferences.favoriteBarIDs.insert(barId)
         savePreferences()
-        print("⭐ Added \(barId) to favorites")
+        print("⭐ Added \(barId) to local favorites")
     }
     
-    func removeFavorite(barId: String) {
+    private func removeFavorite(barId: String) {
         userPreferences.favoriteBarIDs.remove(barId)
         savePreferences()
-        print("💔 Removed \(barId) from favorites")
+        print("💔 Removed \(barId) from local favorites")
     }
     
     func getFavoriteBarIds() -> Set<String> {
@@ -51,13 +50,5 @@ class UserPreferencesManager: ObservableObject {
         if let data = try? JSONEncoder().encode(userPreferences) {
             UserDefaults.standard.set(data, forKey: "UserPreferences")
         }
-    }
-    
-    // Simple notification placeholder (no Firebase Messaging needed)
-    func scheduleLocalNotification(title: String, body: String, barId: String) {
-        print("📱 Notification: \(title) - \(body)")
-        
-        // Future enhancement: Add local notifications here
-        // For now, just print to console for testing
     }
 }

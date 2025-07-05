@@ -2,15 +2,16 @@ import SwiftUI
 
 struct FavoriteButton: View {
     let barId: String
-    @ObservedObject var userPreferencesManager: UserPreferencesManager
+    @ObservedObject var barViewModel: BarViewModel
     
     private var isFavorite: Bool {
-        userPreferencesManager.isFavorite(barId: barId)
+        barViewModel.userPreferencesManager.isFavorite(barId: barId)
     }
     
     var body: some View {
         Button(action: {
-            userPreferencesManager.toggleFavorite(barId: barId)
+            // Use BarViewModel's method which updates both local and Firebase
+            barViewModel.toggleFavorite(barId: barId)
         }) {
             Image(systemName: isFavorite ? "heart.fill" : "heart")
                 .font(.title2)
@@ -20,18 +21,17 @@ struct FavoriteButton: View {
     }
 }
 
-// Simplified floating favorite button
 struct FloatingFavoriteButton: View {
     let barId: String
-    @ObservedObject var userPreferencesManager: UserPreferencesManager
+    @ObservedObject var barViewModel: BarViewModel
     
     private var isFavorite: Bool {
-        userPreferencesManager.isFavorite(barId: barId)
+        barViewModel.userPreferencesManager.isFavorite(barId: barId)
     }
     
     var body: some View {
         Button(action: {
-            userPreferencesManager.toggleFavorite(barId: barId)
+            barViewModel.toggleFavorite(barId: barId)
         }) {
             VStack(spacing: 4) {
                 Image(systemName: isFavorite ? "heart.fill" : "heart")
@@ -52,23 +52,23 @@ struct FloatingFavoriteButton: View {
     }
 }
 
-// Simple analytics view placeholder
+// Updated analytics view with Firebase favorite counts
 struct BarAnalyticsView: View {
     let bar: Bar
-    @ObservedObject var userPreferencesManager: UserPreferencesManager
+    @ObservedObject var barViewModel: BarViewModel
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("Followers")
+                    Text("Total Favorites")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    Text("\(followersCount)")
+                    Text("\(totalFavorites)")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.red)
                 }
                 
                 Spacer()
@@ -78,9 +78,38 @@ struct BarAnalyticsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    Text("Recently")
+                    Text(formatLastUpdated(bar.lastUpdated))
                         .font(.caption)
                         .fontWeight(.medium)
+                }
+            }
+            
+            // Show auto-transition info if active
+            if bar.isAutoTransitionActive {
+                HStack {
+                    Image(systemName: "timer")
+                        .foregroundColor(.orange)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Auto-transition active")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                        
+                        if let pendingStatus = bar.pendingStatus {
+                            Text("Will change to: \(pendingStatus.displayName)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    if let timeRemaining = barViewModel.getTimeRemainingText(for: bar) {
+                        Text(timeRemaining)
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                    }
                 }
             }
         }
@@ -89,7 +118,14 @@ struct BarAnalyticsView: View {
         .cornerRadius(10)
     }
     
-    private var followersCount: Int {
-        return userPreferencesManager.isFavorite(barId: bar.id) ? 1 : 0
+    private var totalFavorites: Int {
+        // Get total favorites from Firebase
+        return barViewModel.getFavoriteCount(for: bar.id)
+    }
+    
+    private func formatLastUpdated(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }

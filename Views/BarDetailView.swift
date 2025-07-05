@@ -39,21 +39,23 @@ struct BarDetailView: View {
                                 }
                             }
                             
-                            // Auto-transition info (if active)
+                            // Real-time auto-transition info (if active)
                             if bar.isAutoTransitionActive, let pendingStatus = bar.pendingStatus {
                                 HStack {
                                     Image(systemName: "clock.fill")
                                         .foregroundColor(.orange)
                                     
-                                    Text("Will automatically change to \(pendingStatus.displayName)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    if let timeRemaining = barViewModel.getTimeRemainingText(for: bar) {
-                                        Text("in \(timeRemaining)")
+                                    VStack(alignment: .leading) {
+                                        Text("Will automatically change to \(pendingStatus.displayName)")
                                             .font(.caption)
-                                            .fontWeight(.medium)
-                                            .foregroundColor(.orange)
+                                            .foregroundColor(.secondary)
+                                        
+                                        if let timeRemaining = barViewModel.getTimeRemainingText(for: bar) {
+                                            Text("Time remaining: \(timeRemaining)")
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                                .foregroundColor(.orange)
+                                        }
                                     }
                                 }
                                 .padding(.vertical, 4)
@@ -65,6 +67,31 @@ struct BarDetailView: View {
                         }
                         
                         Divider()
+                        
+                        // Favorites info (simplified)
+                        if !isOwnerMode {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Your Favorites")
+                                    .font(.headline)
+                                
+                                HStack {
+                                    Image(systemName: "heart.fill")
+                                        .foregroundColor(.red)
+                                    
+                                    if barViewModel.userPreferencesManager.isFavorite(barId: bar.id) {
+                                        Text("You have favorited this bar")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("Tap the heart to add to favorites")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            
+                            Divider()
+                        }
                         
                         // Description
                         VStack(alignment: .leading, spacing: 10) {
@@ -105,7 +132,7 @@ struct BarDetailView: View {
                                 
                                 BarAnalyticsView(
                                     bar: bar,
-                                    userPreferencesManager: barViewModel.userPreferencesManager
+                                    barViewModel: barViewModel
                                 )
                             }
                         }
@@ -123,7 +150,7 @@ struct BarDetailView: View {
                             Spacer()
                             FloatingFavoriteButton(
                                 barId: bar.id,
-                                userPreferencesManager: barViewModel.userPreferencesManager
+                                barViewModel: barViewModel
                             )
                             .padding(.trailing, 20)
                             .padding(.bottom, 20)
