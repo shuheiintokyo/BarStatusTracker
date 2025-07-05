@@ -23,6 +23,11 @@
 		05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C3C2E18C09400A69687 /* BarStatus.swift */; };
 		05A13C532E18C63200A69687 /* Bar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C3B2E18C08F00A69687 /* Bar.swift */; };
 		05A13C552E18D83C00A69687 /* BiometricAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C542E18D82E00A69687 /* BiometricAuthManager.swift */; };
+		05A13C572E18EC0B00A69687 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 05A13C562E18EC0B00A69687 /* GoogleService-Info.plist */; };
+		05A13C5A2E18EDAD00A69687 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 05A13C592E18EDAD00A69687 /* FirebaseAuth */; };
+		05A13C5C2E18EDAD00A69687 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 05A13C5B2E18EDAD00A69687 /* FirebaseCore */; };
+		05A13C5E2E18EDAD00A69687 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 05A13C5D2E18EDAD00A69687 /* FirebaseFirestore */; };
+		05A13C602E18F1D500A69687 /* FirebaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +67,8 @@
 		05A13C462E18C0F400A69687 /* SocialLinksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialLinksView.swift; sourceTree = "<group>"; };
 		05A13C472E18C13900A69687 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		05A13C542E18D82E00A69687 /* BiometricAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuthManager.swift; sourceTree = "<group>"; };
+		05A13C562E18EC0B00A69687 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -82,6 +89,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				05A13C5C2E18EDAD00A69687 /* FirebaseCore in Frameworks */,
+				05A13C5A2E18EDAD00A69687 /* FirebaseAuth in Frameworks */,
+				05A13C5E2E18EDAD00A69687 /* FirebaseFirestore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -110,6 +120,7 @@
 				05A13C382E18C05100A69687 /* Views */,
 				05A13C372E18C04800A69687 /* Models */,
 				05A13C192E18BBE900A69687 /* BarStatusTrackerApp.swift */,
+				05A13C562E18EC0B00A69687 /* GoogleService-Info.plist */,
 				05A13C182E18BBE900A69687 /* Assets.xcassets */,
 				05A13C1A2E18BBE900A69687 /* ContentView.swift */,
 				05A13BFD2E18B67A00A69687 /* BarStatusTrackerTests */,
@@ -153,6 +164,7 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */,
 				05A13C542E18D82E00A69687 /* BiometricAuthManager.swift */,
 				05A13C3E2E18C0A400A69687 /* BarViewModel.swift */,
 			);
@@ -186,6 +198,9 @@
 			);
 			name = BarStatusTracker;
 			packageProductDependencies = (
+				05A13C592E18EDAD00A69687 /* FirebaseAuth */,
+				05A13C5B2E18EDAD00A69687 /* FirebaseCore */,
+				05A13C5D2E18EDAD00A69687 /* FirebaseFirestore */,
 			);
 			productName = BarStatusTracker;
 			productReference = 05A13BED2E18B67900A69687 /* BarStatusTracker.app */;
@@ -269,6 +284,9 @@
 			);
 			mainGroup = 05A13BE42E18B67900A69687;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				05A13C582E18EDAD00A69687 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 05A13BEE2E18B67900A69687 /* Products */;
 			projectDirPath = "";
@@ -287,6 +305,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				05A13C1B2E18BBE900A69687 /* Assets.xcassets in Resources */,
+				05A13C572E18EC0B00A69687 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -323,6 +342,7 @@
 				05A13C512E18C62800A69687 /* User.swift in Sources */,
 				05A13C4D2E18C5D800A69687 /* BarGridItem.swift in Sources */,
 				05A13C552E18D83C00A69687 /* BiometricAuthManager.swift in Sources */,
+				05A13C602E18F1D500A69687 /* FirebaseManager.swift in Sources */,
 				05A13C502E18C61F00A69687 /* BarViewModel.swift in Sources */,
 				05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */,
 				05A13C4C2E18C5CF00A69687 /* EditDescriptionView.swift in Sources */,
@@ -644,6 +664,35 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		05A13C582E18EDAD00A69687 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.15.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		05A13C592E18EDAD00A69687 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 05A13C582E18EDAD00A69687 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		05A13C5B2E18EDAD00A69687 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 05A13C582E18EDAD00A69687 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		05A13C5D2E18EDAD00A69687 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 05A13C582E18EDAD00A69687 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 05A13BE52E18B67900A69687 /* Project object */;
 }
