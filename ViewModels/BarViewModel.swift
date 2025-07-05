@@ -10,43 +10,61 @@ class BarViewModel: ObservableObject {
     @Published var loggedInBar: Bar? = nil
     @Published var isOwnerMode = false
     
+    // Firebase manager
+    private let firebaseManager = FirebaseManager()
+    
     // Biometric authentication manager
     @StateObject private var biometricAuth = BiometricAuthManager()
     
     init() {
-        loadSampleData()
-        setupBiometricAuth()
+        setupFirebaseConnection()
     }
     
-    func loadSampleData() {
-        bars = [
-            Bar(name: "The Cozy Corner", latitude: 37.7749, longitude: -122.4194, address: "123 Main St", status: .open, description: "A warm, welcoming neighborhood bar with craft cocktails and local beer.", password: "1234"),
-            Bar(name: "Sunset Tavern", latitude: 37.7849, longitude: -122.4094, address: "456 Oak Ave", status: .closingSoon, description: "Perfect spot to watch the sunset with friends.", password: "5678"),
-            Bar(name: "The Underground", latitude: 37.7649, longitude: -122.4294, address: "789 Pine St", status: .closed, description: "Speakeasy-style bar with vintage cocktails.", password: "9012"),
-            Bar(name: "Harbor Lights", latitude: 37.7549, longitude: -122.4394, address: "321 Beach Blvd", status: .openingSoon, description: "Waterfront bar with live music every weekend.", password: "3456"),
-            Bar(name: "City View Lounge", latitude: 37.7949, longitude: -122.3994, address: "654 Hill St", status: .open, description: "Rooftop bar with panoramic city views.", password: "7890"),
-            Bar(name: "The Local Pub", latitude: 37.7449, longitude: -122.4494, address: "987 First St", status: .closed, description: "Traditional pub with hearty food and cold beer.", password: "2468")
-        ]
+    // MARK: - Firebase Integration
+    
+    private func setupFirebaseConnection() {
+        // Connect to Firebase data
+        firebaseManager.$bars
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$bars)
+        
+        firebaseManager.$isLoading
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isLoading)
+        
+        // Setup biometric auth
+        setupBiometricAuth()
     }
     
     // Setup biometric authentication
     private func setupBiometricAuth() {
-        // Check if there are saved credentials and auto-authenticate if possible
+        // Check if there are saved credentials
         if biometricAuth.savedBarID != nil {
             // Auto-login will be handled by the UI when user chooses biometric option
         }
     }
     
+    // MARK: - Authentication
+    
     // Traditional username/password authentication
     func authenticateBar(username: String, password: String) -> Bool {
-        if let bar = bars.first(where: { $0.username.lowercased() == username.lowercased() && $0.password == password }) {
-            loggedInBar = bar
-            isOwnerMode = true
-            // Save credentials for future biometric authentication
-            biometricAuth.saveCredentials(barID: bar.id.uuidString, barName: bar.name)
-            return true
+        // Use Firebase authentication
+        firebaseManager.authenticateBarOwner(barName: username, password: password) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let bar):
+                    self?.loggedInBar = bar
+                    self?.isOwnerMode = true
+                    // Save credentials for future biometric authentication
+                    self?.biometricAuth.saveCredentials(barID: bar.id, barName: bar.name)
+                case .failure:
+                    break // Handle error in UI
+                }
+            }
         }
-        return false
+        
+        // Return temporary result - real result comes via the completion handler
+        return firebaseManager.bars.contains { $0.username.lowercased() == username.lowercased() && $0.password == password }
     }
     
     // Biometric authentication
@@ -54,7 +72,7 @@ class BarViewModel: ObservableObject {
         biometricAuth.authenticateWithBiometrics { [weak self] success, error in
             if success, let savedBarID = self?.biometricAuth.savedBarID {
                 // Find the bar with the saved ID
-                if let bar = self?.bars.first(where: { $0.id.uuidString == savedBarID }) {
+                if let bar = self?.bars.first(where: { $0.id == savedBarID }) {
                     self?.loggedInBar = bar
                     self?.isOwnerMode = true
                     completion(true, nil)
@@ -83,7 +101,6 @@ class BarViewModel: ObservableObject {
     func logout() {
         loggedInBar = nil
         isOwnerMode = false
-        // Don't clear biometric credentials on logout - user might want to use them again
     }
     
     // Full logout (clears biometric credentials too)
@@ -93,39 +110,51 @@ class BarViewModel: ObservableObject {
         biometricAuth.clearCredentials()
     }
     
+    // Switch to guest view (stay logged in but show all bars)
+    func switchToGuestView() {
+        isOwnerMode = false
+    }
+    
+    // Switch back to owner view
+    func switchToOwnerView() {
+        if loggedInBar != nil {
+            isOwnerMode = true
+        }
+    }
+    
     // Check if current user can edit this bar
     func canEdit(bar: Bar) -> Bool {
         guard let loggedInBar = loggedInBar else { return false }
         return loggedInBar.id == bar.id
     }
     
-    // Update bar status (only if owner)
+    // MARK: - Firebase Data Operations
+    
+    // Update bar status (only if owner) - now uses Firebase
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else { return }
         
-        if let index = bars.firstIndex(where: { $0.id == bar.id }) {
-            bars[index].status = newStatus
-            bars[index].lastUpdated = Date()
-            
-            // Update logged in bar reference
-            if loggedInBar?.id == bar.id {
-                loggedInBar = bars[index]
-            }
+        // Update in Firebase
+        firebaseManager.updateBarStatus(barId: bar.id, newStatus: newStatus)
+        
+        // Update local logged-in bar reference
+        if loggedInBar?.id == bar.id {
+            loggedInBar?.status = newStatus
+            loggedInBar?.lastUpdated = Date()
         }
     }
     
-    // Update bar description (only if owner)
+    // Update bar description (only if owner) - now uses Firebase
     func updateBarDescription(_ bar: Bar, newDescription: String) {
         guard canEdit(bar: bar) else { return }
         
-        if let index = bars.firstIndex(where: { $0.id == bar.id }) {
-            bars[index].description = newDescription
-            bars[index].lastUpdated = Date()
-            
-            // Update logged in bar reference
-            if loggedInBar?.id == bar.id {
-                loggedInBar = bars[index]
-            }
+        // Update in Firebase
+        firebaseManager.updateBarDescription(barId: bar.id, newDescription: newDescription)
+        
+        // Update local logged-in bar reference
+        if loggedInBar?.id == bar.id {
+            loggedInBar?.description = newDescription
+            loggedInBar?.lastUpdated = Date()
         }
     }
     
@@ -137,24 +166,11 @@ class BarViewModel: ObservableObject {
     // Get only the logged-in bar for owners
     func getOwnerBars() -> [Bar] {
         guard let loggedInBar = loggedInBar else { return [] }
-        // Find the most up-to-date version of the logged-in bar
+        // Find the most up-to-date version of the logged-in bar from Firebase
         if let currentBar = bars.first(where: { $0.id == loggedInBar.id }) {
             return [currentBar]
         }
         return [loggedInBar]
     }
-    
-    // Switch to guest view (stay logged in but show all bars)
-    func switchToGuestView() {
-        isOwnerMode = false
-    }
-
-    // Switch back to owner view
-    func switchToOwnerView() {
-        if loggedInBar != nil {
-            isOwnerMode = true
-        }
-    }
-    
-    
 }
+
