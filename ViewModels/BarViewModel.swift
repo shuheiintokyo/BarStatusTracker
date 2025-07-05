@@ -6,12 +6,16 @@ class BarViewModel: ObservableObject {
     @Published var selectedBar: Bar?
     @Published var showingDetail = false
     
-    // New authentication properties
+    // Authentication properties
     @Published var loggedInBar: Bar? = nil
     @Published var isOwnerMode = false
     
+    // Biometric authentication manager
+    @StateObject private var biometricAuth = BiometricAuthManager()
+    
     init() {
         loadSampleData()
+        setupBiometricAuth()
     }
     
     func loadSampleData() {
@@ -25,20 +29,68 @@ class BarViewModel: ObservableObject {
         ]
     }
     
-    // Authentication function
+    // Setup biometric authentication
+    private func setupBiometricAuth() {
+        // Check if there are saved credentials and auto-authenticate if possible
+        if biometricAuth.savedBarID != nil {
+            // Auto-login will be handled by the UI when user chooses biometric option
+        }
+    }
+    
+    // Traditional username/password authentication
     func authenticateBar(username: String, password: String) -> Bool {
         if let bar = bars.first(where: { $0.username.lowercased() == username.lowercased() && $0.password == password }) {
             loggedInBar = bar
             isOwnerMode = true
+            // Save credentials for future biometric authentication
+            biometricAuth.saveCredentials(barID: bar.id.uuidString, barName: bar.name)
             return true
         }
         return false
+    }
+    
+    // Biometric authentication
+    func authenticateWithBiometrics(completion: @escaping (Bool, String?) -> Void) {
+        biometricAuth.authenticateWithBiometrics { [weak self] success, error in
+            if success, let savedBarID = self?.biometricAuth.savedBarID {
+                // Find the bar with the saved ID
+                if let bar = self?.bars.first(where: { $0.id.uuidString == savedBarID }) {
+                    self?.loggedInBar = bar
+                    self?.isOwnerMode = true
+                    completion(true, nil)
+                } else {
+                    // Saved bar not found, clear credentials
+                    self?.biometricAuth.clearCredentials()
+                    completion(false, "Saved bar not found")
+                }
+            } else {
+                completion(false, error)
+            }
+        }
+    }
+    
+    // Check if biometric authentication is available and set up
+    var canUseBiometricAuth: Bool {
+        return biometricAuth.savedBarID != nil && biometricAuth.biometricType != .none
+    }
+    
+    // Get biometric authentication info for UI
+    var biometricAuthInfo: (iconName: String, displayName: String) {
+        return (biometricAuth.biometricIconName, biometricAuth.biometricDisplayName)
     }
     
     // Logout function
     func logout() {
         loggedInBar = nil
         isOwnerMode = false
+        // Don't clear biometric credentials on logout - user might want to use them again
+    }
+    
+    // Full logout (clears biometric credentials too)
+    func fullLogout() {
+        loggedInBar = nil
+        isOwnerMode = false
+        biometricAuth.clearCredentials()
     }
     
     // Check if current user can edit this bar
@@ -83,7 +135,6 @@ class BarViewModel: ObservableObject {
     }
     
     // Get only the logged-in bar for owners
-    // Get only the logged-in bar for owners
     func getOwnerBars() -> [Bar] {
         guard let loggedInBar = loggedInBar else { return [] }
         // Find the most up-to-date version of the logged-in bar
@@ -92,4 +143,18 @@ class BarViewModel: ObservableObject {
         }
         return [loggedInBar]
     }
+    
+    // Switch to guest view (stay logged in but show all bars)
+    func switchToGuestView() {
+        isOwnerMode = false
+    }
+
+    // Switch back to owner view
+    func switchToOwnerView() {
+        if loggedInBar != nil {
+            isOwnerMode = true
+        }
+    }
+    
+    
 }

@@ -22,6 +22,7 @@
 		05A13C512E18C62800A69687 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C472E18C13900A69687 /* User.swift */; };
 		05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C3C2E18C09400A69687 /* BarStatus.swift */; };
 		05A13C532E18C63200A69687 /* Bar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C3B2E18C08F00A69687 /* Bar.swift */; };
+		05A13C552E18D83C00A69687 /* BiometricAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C542E18D82E00A69687 /* BiometricAuthManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +61,7 @@
 		05A13C452E18C0E800A69687 /* StatusControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusControlView.swift; sourceTree = "<group>"; };
 		05A13C462E18C0F400A69687 /* SocialLinksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialLinksView.swift; sourceTree = "<group>"; };
 		05A13C472E18C13900A69687 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		05A13C542E18D82E00A69687 /* BiometricAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BiometricAuthManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -151,6 +153,7 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				05A13C542E18D82E00A69687 /* BiometricAuthManager.swift */,
 				05A13C3E2E18C0A400A69687 /* BarViewModel.swift */,
 			);
 			path = ViewModels;
@@ -319,6 +322,7 @@
 				05A13C4F2E18C5E300A69687 /* SocialLinksView.swift in Sources */,
 				05A13C512E18C62800A69687 /* User.swift in Sources */,
 				05A13C4D2E18C5D800A69687 /* BarGridItem.swift in Sources */,
+				05A13C552E18D83C00A69687 /* BiometricAuthManager.swift in Sources */,
 				05A13C502E18C61F00A69687 /* BarViewModel.swift in Sources */,
 				05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */,
 				05A13C4C2E18C5CF00A69687 /* EditDescriptionView.swift in Sources */,
@@ -481,8 +485,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2U6HGW7K5L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "This app uses Face ID to securely authenticate bar owners for quick access to their bar controls.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -508,8 +514,10 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2U6HGW7K5L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "This app uses Face ID to securely authenticate bar owners for quick access to their bar controls.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
