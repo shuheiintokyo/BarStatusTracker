@@ -3,8 +3,6 @@ import SwiftUI
 struct StatusControlView: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
-    @State private var timeRemaining: String = ""
-    @State private var timer: Timer?
     
     // Get the current bar status from the view model to ensure real-time updates
     private var currentBar: Bar? {
@@ -37,12 +35,6 @@ struct StatusControlView: View {
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
-        .onAppear {
-            startTimerUpdates()
-        }
-        .onDisappear {
-            stopTimerUpdates()
-        }
     }
     
     @ViewBuilder
@@ -85,10 +77,12 @@ struct StatusControlView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     
-                    Text(timeRemaining)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.orange)
+                    if let timeRemainingText = barViewModel.getTimeRemainingText(for: currentBar) {
+                        Text(timeRemainingText)
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                    }
                 }
             }
         }
@@ -99,27 +93,6 @@ struct StatusControlView: View {
                 .stroke(Color.orange.opacity(0.3), lineWidth: 1)
         )
         .cornerRadius(8)
-    }
-    
-    private func startTimerUpdates() {
-        updateTimeRemaining()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            updateTimeRemaining()
-        }
-    }
-    
-    private func stopTimerUpdates() {
-        timer?.invalidate()
-        timer = nil
-    }
-    
-    private func updateTimeRemaining() {
-        if let current = currentBar,
-           let timeRemainingText = barViewModel.getTimeRemainingText(for: current) {
-            timeRemaining = timeRemainingText
-        } else {
-            timeRemaining = ""
-        }
     }
 }
 

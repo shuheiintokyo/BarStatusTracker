@@ -2,6 +2,15 @@ import Foundation
 import CoreLocation
 import FirebaseFirestore
 
+// MARK: - SocialLinks (Make sure this exists)
+struct SocialLinks: Codable {
+    var instagram: String = ""
+    var twitter: String = ""
+    var facebook: String = ""
+    var website: String = ""
+}
+
+// MARK: - Bar Model with Auto-Timer Support
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
     let name: String
@@ -174,11 +183,4 @@ struct Bar: Identifiable, Codable {
         
         return bar
     }
-}
-
-struct SocialLinks: Codable {
-    var instagram: String = ""
-    var twitter: String = ""
-    var facebook: String = ""
-    var website: String = ""
 }

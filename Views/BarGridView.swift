@@ -26,10 +26,15 @@ struct BarGridView: View {
             } else {
                 LazyVGrid(columns: columns, spacing: 15) {
                     ForEach(barsToDisplay) { bar in
-                        BarGridItem(bar: bar, isOwnerMode: isOwnerMode) {
-                            barViewModel.selectedBar = bar
-                            barViewModel.showingDetail = true
-                        }
+                        BarGridItem(
+                            bar: bar,
+                            isOwnerMode: isOwnerMode,
+                            userPreferencesManager: barViewModel.userPreferencesManager,
+                            onTap: {
+                                barViewModel.selectedBar = bar
+                                barViewModel.showingDetail = true
+                            }
+                        )
                     }
                 }
                 .padding()
@@ -37,3 +42,5 @@ struct BarGridView: View {
         }
     }
 }
+
+// BarGridItem is now in Components/BarGridItem.swift - do not define it here

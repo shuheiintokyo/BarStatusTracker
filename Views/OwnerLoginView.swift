@@ -97,14 +97,14 @@ struct OwnerLoginView: View {
                             )
                         
                         SecureField("4-Digit Password", text: $password)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: password) { newValue in
-                                // Limit to 4 digits
-                                if newValue.count > 4 {
-                                    password = String(newValue.prefix(4))
-                                }
-                            }
+                                                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                                                    .keyboardType(.numberPad)
+                                                    .onChange(of: password) { _, newValue in
+                                                        // Limit to 4 digits
+                                                        if newValue.count > 4 {
+                                                            password = String(newValue.prefix(4))
+                                                        }
+                                                    }
                     }
                     
                     Button(action: {

@@ -1,5 +1,5 @@
 import SwiftUI
-import Foundation
+import Combine
 
 class BarViewModel: ObservableObject {
     @Published var bars: [Bar] = []
@@ -16,6 +16,9 @@ class BarViewModel: ObservableObject {
     
     // Biometric authentication manager
     private var biometricAuth = BiometricAuthManager()
+    
+    // User preferences manager for favorites
+    @Published var userPreferencesManager = UserPreferencesManager()
     
     // Timer for checking auto-transitions
     private var autoTransitionTimer: Timer?
@@ -41,12 +44,20 @@ class BarViewModel: ObservableObject {
     private func checkForAutoTransitions() {
         let barsNeedingTransition = bars.filter { $0.shouldAutoTransition }
         
+        if barsNeedingTransition.count > 0 {
+            print("🔄 Found \(barsNeedingTransition.count) bars needing auto-transition")
+        }
+        
         for var bar in barsNeedingTransition {
+            let oldStatus = bar.status
             if bar.executeAutoTransition() {
                 print("🔄 Auto-transitioning \(bar.name) to \(bar.status.displayName)")
                 
                 // Update in Firebase
                 firebaseManager.updateBarWithAutoTransition(bar: bar)
+                
+                // Send notifications to users who favorited this bar
+                sendStatusChangeNotifications(bar: bar, oldStatus: oldStatus, newStatus: bar.status)
                 
                 // Update local logged-in bar reference if needed
                 if loggedInBar?.id == bar.id {
@@ -167,12 +178,13 @@ class BarViewModel: ObservableObject {
         return loggedInBar.id == bar.id
     }
     
-    // MARK: - Enhanced Status Operations
+    // MARK: - Enhanced Status Operations with Notifications
     
-    // Update bar status with auto-transition logic
+    // Update bar status with auto-transition logic and notifications
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else { return }
         
+        let oldStatus = bar.status
         var updatedBar = bar
         
         // Cancel any existing auto-transition
@@ -183,7 +195,7 @@ class BarViewModel: ObservableObject {
         case .openingSoon:
             // Set status to opening soon and start 60-minute timer to "open"
             updatedBar.status = .openingSoon
-            updatedBar.startAutoTransition(to: .open, in: 1)
+            updatedBar.startAutoTransition(to: .open, in: 60)
             
             // Schedule notification for owner
             scheduleBarOwnerNotification(for: updatedBar, message: "Auto-open timer set for 60 minutes")
@@ -193,7 +205,7 @@ class BarViewModel: ObservableObject {
         case .closingSoon:
             // Set status to closing soon and start 60-minute timer to "closed"
             updatedBar.status = .closingSoon
-            updatedBar.startAutoTransition(to: .closed, in: 1)
+            updatedBar.startAutoTransition(to: .closed, in: 60)
             
             // Schedule notification for owner
             scheduleBarOwnerNotification(for: updatedBar, message: "Auto-close timer set for 60 minutes")
@@ -209,6 +221,9 @@ class BarViewModel: ObservableObject {
         
         // Update in Firebase with all auto-transition fields
         firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
+        
+        // Send notifications to users who favorited this bar
+        sendStatusChangeNotifications(bar: updatedBar, oldStatus: oldStatus, newStatus: newStatus)
         
         // Update local logged-in bar reference
         if loggedInBar?.id == bar.id {
@@ -254,9 +269,35 @@ class BarViewModel: ObservableObject {
     // MARK: - Notification Support
     
     private func scheduleBarOwnerNotification(for bar: Bar, message: String) {
-        // This will be enhanced when we add push notifications
-        // For now, just print to console
-        print("📱 Notification for \(bar.name): \(message)")
+        // For bar owners - could be enhanced with push notifications later
+        print("📱 Owner Notification for \(bar.name): \(message)")
+    }
+    
+    private func sendStatusChangeNotifications(bar: Bar, oldStatus: BarStatus, newStatus: BarStatus) {
+        // Simple notification for users who favorited this bar
+        if userPreferencesManager.isFavorite(barId: bar.id) {
+            let notificationMessage = createNotificationMessage(barName: bar.name, oldStatus: oldStatus, newStatus: newStatus)
+            userPreferencesManager.scheduleLocalNotification(
+                title: notificationMessage.title,
+                body: notificationMessage.body,
+                barId: bar.id
+            )
+            
+            print("🔔 Sending notification: \(notificationMessage.title) - \(notificationMessage.body)")
+        }
+    }
+    
+    private func createNotificationMessage(barName: String, oldStatus: BarStatus, newStatus: BarStatus) -> (title: String, body: String) {
+        switch newStatus {
+        case .open:
+            return ("🍻 \(barName) is now open!", "Time to grab a drink!")
+        case .openingSoon:
+            return ("🕐 \(barName) is opening soon", "Opening in 1 hour - get ready!")
+        case .closingSoon:
+            return ("⏰ Last call at \(barName)", "Closing in 1 hour - hurry over!")
+        case .closed:
+            return ("😴 \(barName) is now closed", "See you next time!")
+        }
     }
     
     // MARK: - Firebase Data Operations
