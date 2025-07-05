@@ -3,6 +3,8 @@ import SwiftUI
 struct StatusControlView: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
+    @State private var timeRemaining: String = ""
+    @State private var timer: Timer?
     
     // Get the current bar status from the view model to ensure real-time updates
     private var currentBar: Bar? {
@@ -10,36 +12,159 @@ struct StatusControlView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 15) {
             Text("Update Status")
                 .font(.headline)
             
+            // Auto-transition status display (if active)
+            if let current = currentBar, current.isAutoTransitionActive {
+                autoTransitionStatusView(for: current)
+            }
+            
+            // Status control buttons
             HStack(spacing: 10) {
                 ForEach(BarStatus.allCases, id: \.self) { status in
-                    Button(action: {
-                        barViewModel.updateBarStatus(bar, newStatus: status)
-                    }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: status.icon)
-                                .font(.title3)
-                            Text(status.displayName)
-                                .font(.caption2)
+                    StatusButton(
+                        status: status,
+                        currentStatus: currentBar?.status ?? bar.status,
+                        action: {
+                            barViewModel.updateBarStatus(currentBar ?? bar, newStatus: status)
                         }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(status == (currentBar?.status ?? bar.status) ? status.color : Color.gray.opacity(0.2))
-                        )
-                        .foregroundColor(status == (currentBar?.status ?? bar.status) ? .white : .primary)
-                    }
-                    .scaleEffect(status == (currentBar?.status ?? bar.status) ? 1.05 : 1.0)
-                    .animation(.easeInOut(duration: 0.2), value: currentBar?.status)
+                    )
                 }
             }
         }
         .padding()
         .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
+        .onAppear {
+            startTimerUpdates()
+        }
+        .onDisappear {
+            stopTimerUpdates()
+        }
+    }
+    
+    @ViewBuilder
+    private func autoTransitionStatusView(for currentBar: Bar) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "clock.fill")
+                    .foregroundColor(.orange)
+                
+                Text("Auto-Transition Active")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                Spacer()
+                
+                Button("Cancel Timer") {
+                    barViewModel.cancelAutoTransition(for: currentBar)
+                }
+                .font(.caption)
+                .foregroundColor(.red)
+            }
+            
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Current: \(currentBar.status.displayName)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if let pendingStatus = currentBar.pendingStatus {
+                        Text("Will change to: \(pendingStatus.displayName)")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Time Remaining:")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    Text(timeRemaining)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.orange)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.orange.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+        )
+        .cornerRadius(8)
+    }
+    
+    private func startTimerUpdates() {
+        updateTimeRemaining()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            updateTimeRemaining()
+        }
+    }
+    
+    private func stopTimerUpdates() {
+        timer?.invalidate()
+        timer = nil
+    }
+    
+    private func updateTimeRemaining() {
+        if let current = currentBar,
+           let timeRemainingText = barViewModel.getTimeRemainingText(for: current) {
+            timeRemaining = timeRemainingText
+        } else {
+            timeRemaining = ""
+        }
+    }
+}
+
+struct StatusButton: View {
+    let status: BarStatus
+    let currentStatus: BarStatus
+    let action: () -> Void
+    
+    private var isSelected: Bool {
+        status == currentStatus
+    }
+    
+    private var buttonText: String {
+        switch status {
+        case .openingSoon:
+            return "Opening\nSoon (60m)"
+        case .open:
+            return "Open\nNow"
+        case .closingSoon:
+            return "Closing\nSoon (60m)"
+        case .closed:
+            return "Closed\nNow"
+        }
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: status.icon)
+                    .font(.title3)
+                
+                Text(buttonText)
+                    .font(.caption2)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? status.color : Color.gray.opacity(0.2))
+            )
+            .foregroundColor(isSelected ? .white : .primary)
+        }
+        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isSelected)
     }
 }

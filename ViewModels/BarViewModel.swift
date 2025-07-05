@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 class BarViewModel: ObservableObject {
     @Published var bars: [Bar] = []
@@ -16,8 +17,46 @@ class BarViewModel: ObservableObject {
     // Biometric authentication manager
     private var biometricAuth = BiometricAuthManager()
     
+    // Timer for checking auto-transitions
+    private var autoTransitionTimer: Timer?
+    
     init() {
         setupFirebaseConnection()
+        startAutoTransitionMonitoring()
+    }
+    
+    deinit {
+        autoTransitionTimer?.invalidate()
+    }
+    
+    // MARK: - Auto-Transition Logic
+    
+    private func startAutoTransitionMonitoring() {
+        // Check for auto-transitions every 30 seconds
+        autoTransitionTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+            self?.checkForAutoTransitions()
+        }
+    }
+    
+    private func checkForAutoTransitions() {
+        let barsNeedingTransition = bars.filter { $0.shouldAutoTransition }
+        
+        for var bar in barsNeedingTransition {
+            if bar.executeAutoTransition() {
+                print("🔄 Auto-transitioning \(bar.name) to \(bar.status.displayName)")
+                
+                // Update in Firebase
+                firebaseManager.updateBarWithAutoTransition(bar: bar)
+                
+                // Update local logged-in bar reference if needed
+                if loggedInBar?.id == bar.id {
+                    loggedInBar = bar
+                }
+                
+                // Send notification to bar owner
+                scheduleBarOwnerNotification(for: bar, message: "Your bar status automatically changed to \(bar.status.displayName)")
+            }
+        }
     }
     
     // MARK: - Firebase Integration
@@ -128,21 +167,99 @@ class BarViewModel: ObservableObject {
         return loggedInBar.id == bar.id
     }
     
-    // MARK: - Firebase Data Operations
+    // MARK: - Enhanced Status Operations
     
-    // Update bar status (only if owner) - now uses Firebase
+    // Update bar status with auto-transition logic
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else { return }
         
-        // Update in Firebase
-        firebaseManager.updateBarStatus(barId: bar.id, newStatus: newStatus)
+        var updatedBar = bar
+        
+        // Cancel any existing auto-transition
+        updatedBar.cancelAutoTransition()
+        
+        // Check if this status should trigger an auto-transition
+        switch newStatus {
+        case .openingSoon:
+            // Set status to opening soon and start 60-minute timer to "open"
+            updatedBar.status = .openingSoon
+            updatedBar.startAutoTransition(to: .open, in: 1)
+            
+            // Schedule notification for owner
+            scheduleBarOwnerNotification(for: updatedBar, message: "Auto-open timer set for 60 minutes")
+            
+            print("🕐 \(bar.name) set to Opening Soon - will auto-open in 60 minutes")
+            
+        case .closingSoon:
+            // Set status to closing soon and start 60-minute timer to "closed"
+            updatedBar.status = .closingSoon
+            updatedBar.startAutoTransition(to: .closed, in: 1)
+            
+            // Schedule notification for owner
+            scheduleBarOwnerNotification(for: updatedBar, message: "Auto-close timer set for 60 minutes")
+            
+            print("🕐 \(bar.name) set to Closing Soon - will auto-close in 60 minutes")
+            
+        case .open, .closed:
+            // Manual status change - no auto-transition needed
+            updatedBar.status = newStatus
+            print("✋ \(bar.name) manually set to \(newStatus.displayName)")
+            
+        }
+        
+        // Update in Firebase with all auto-transition fields
+        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
         
         // Update local logged-in bar reference
         if loggedInBar?.id == bar.id {
-            loggedInBar?.status = newStatus
-            loggedInBar?.lastUpdated = Date()
+            loggedInBar = updatedBar
         }
     }
+    
+    // Cancel auto-transition for a bar
+    func cancelAutoTransition(for bar: Bar) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.cancelAutoTransition()
+        
+        // Update in Firebase
+        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
+        
+        // Update local logged-in bar reference
+        if loggedInBar?.id == bar.id {
+            loggedInBar = updatedBar
+        }
+        
+        print("❌ Auto-transition cancelled for \(bar.name)")
+    }
+    
+    // Get time remaining for auto-transition (for UI display)
+    func getTimeRemainingText(for bar: Bar) -> String? {
+        guard let timeRemaining = bar.timeUntilAutoTransition,
+              timeRemaining > 0 else {
+            return nil
+        }
+        
+        let minutes = Int(timeRemaining / 60)
+        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+    
+    // MARK: - Notification Support
+    
+    private func scheduleBarOwnerNotification(for bar: Bar, message: String) {
+        // This will be enhanced when we add push notifications
+        // For now, just print to console
+        print("📱 Notification for \(bar.name): \(message)")
+    }
+    
+    // MARK: - Firebase Data Operations
     
     // Update bar description (only if owner) - now uses Firebase
     func updateBarDescription(_ bar: Bar, newDescription: String) {
@@ -173,4 +290,3 @@ class BarViewModel: ObservableObject {
         return [loggedInBar]
     }
 }
-

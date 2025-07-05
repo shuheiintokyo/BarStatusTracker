@@ -39,7 +39,7 @@ class FirebaseManager: ObservableObject {
         }
     }
     
-    // Update bar status
+    // Update bar status (legacy method - kept for compatibility)
     func updateBarStatus(barId: String, newStatus: BarStatus) {
         let barRef = db.collection("bars").document(barId)
         
@@ -50,6 +50,28 @@ class FirebaseManager: ObservableObject {
             if let error = error {
                 DispatchQueue.main.async {
                     self?.errorMessage = "Error updating status: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+    
+    // Update entire bar with auto-transition fields (new method)
+    func updateBarWithAutoTransition(bar: Bar) {
+        let barRef = db.collection("bars").document(bar.id)
+        
+        // Convert bar to dictionary (includes all auto-transition fields)
+        let barData = bar.toDictionary()
+        
+        barRef.updateData(barData) { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Error updating bar: \(error.localizedDescription)"
+                }
+                print("❌ Firebase update error: \(error.localizedDescription)")
+            } else {
+                print("✅ Successfully updated \(bar.name) in Firebase")
+                if bar.isAutoTransitionActive {
+                    print("   ⏰ Auto-transition active: \(bar.status.displayName) → \(bar.pendingStatus?.displayName ?? "unknown") in \(bar.timeUntilAutoTransition ?? 0) seconds")
                 }
             }
         }
