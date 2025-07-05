@@ -83,8 +83,13 @@ class BarViewModel: ObservableObject {
     }
     
     // Get only the logged-in bar for owners
+    // Get only the logged-in bar for owners
     func getOwnerBars() -> [Bar] {
         guard let loggedInBar = loggedInBar else { return [] }
+        // Find the most up-to-date version of the logged-in bar
+        if let currentBar = bars.first(where: { $0.id == loggedInBar.id }) {
+            return [currentBar]
+        }
         return [loggedInBar]
     }
 }
