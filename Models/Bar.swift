@@ -12,12 +12,16 @@ struct Bar: Identifiable, Codable {
     var lastUpdated: Date
     var ownerID: String?
     
+    // New authentication fields
+    let username: String        // Will be the bar name
+    let password: String        // 4-digit password
+    
     enum CodingKeys: String, CodingKey {
-        case name, address, status, description, socialLinks, lastUpdated, ownerID
+        case name, address, status, description, socialLinks, lastUpdated, ownerID, username, password
         case latitude, longitude
     }
     
-    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil) {
+    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, password: String) {
         self.name = name
         self.location = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         self.address = address
@@ -26,6 +30,8 @@ struct Bar: Identifiable, Codable {
         self.socialLinks = socialLinks
         self.lastUpdated = Date()
         self.ownerID = ownerID
+        self.username = name        // Username is the bar name
+        self.password = password    // 4-digit password
     }
     
     init(from decoder: Decoder) throws {
@@ -37,6 +43,8 @@ struct Bar: Identifiable, Codable {
         socialLinks = try container.decode(SocialLinks.self, forKey: .socialLinks)
         lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
         ownerID = try container.decodeIfPresent(String.self, forKey: .ownerID)
+        username = try container.decode(String.self, forKey: .username)
+        password = try container.decode(String.self, forKey: .password)
         
         let latitude = try container.decode(Double.self, forKey: .latitude)
         let longitude = try container.decode(Double.self, forKey: .longitude)
@@ -54,6 +62,8 @@ struct Bar: Identifiable, Codable {
         try container.encode(socialLinks, forKey: .socialLinks)
         try container.encode(lastUpdated, forKey: .lastUpdated)
         try container.encodeIfPresent(ownerID, forKey: .ownerID)
+        try container.encode(username, forKey: .username)
+        try container.encode(password, forKey: .password)
     }
 }
 

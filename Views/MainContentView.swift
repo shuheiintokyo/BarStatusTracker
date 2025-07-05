@@ -3,7 +3,6 @@ import SwiftUI
 struct MainContentView: View {
     @StateObject private var barViewModel = BarViewModel()
     @State private var showingOwnerLogin = false
-    @State private var isOwnerMode = false
     
     var body: some View {
         NavigationView {
@@ -17,28 +16,36 @@ struct MainContentView: View {
                     Spacer()
                     
                     Button(action: {
-                        if isOwnerMode {
-                            isOwnerMode = false
+                        if barViewModel.isOwnerMode {
+                            barViewModel.logout()
                         } else {
                             showingOwnerLogin = true
                         }
                     }) {
-                        Image(systemName: isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
-                            .font(.title2)
+                        HStack {
+                            Image(systemName: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
+                                .font(.title2)
+                            
+                            if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
+                                Text(loggedInBar.name)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 .padding()
                 
-                // Map Grid View
-                BarGridView(barViewModel: barViewModel, isOwnerMode: isOwnerMode)
+                // Grid View
+                BarGridView(barViewModel: barViewModel, isOwnerMode: barViewModel.isOwnerMode)
             }
         }
         .sheet(isPresented: $showingOwnerLogin) {
-            OwnerLoginView(isOwnerMode: $isOwnerMode)
+            OwnerLoginView(barViewModel: barViewModel, showingOwnerLogin: $showingOwnerLogin)
         }
         .sheet(isPresented: $barViewModel.showingDetail) {
             if let selectedBar = barViewModel.selectedBar {
-                BarDetailView(bar: selectedBar, barViewModel: barViewModel, isOwnerMode: isOwnerMode)
+                BarDetailView(bar: selectedBar, barViewModel: barViewModel, isOwnerMode: barViewModel.isOwnerMode)
             }
         }
     }
