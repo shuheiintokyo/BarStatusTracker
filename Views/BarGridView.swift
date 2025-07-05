@@ -29,7 +29,7 @@ struct BarGridView: View {
                         BarGridItem(
                             bar: bar,
                             isOwnerMode: isOwnerMode,
-                            userPreferencesManager: barViewModel.userPreferencesManager,
+                            barViewModel: barViewModel,  // Changed from userPreferencesManager: barViewModel.userPreferencesManager
                             onTap: {
                                 barViewModel.selectedBar = bar
                                 barViewModel.showingDetail = true
@@ -42,5 +42,3 @@ struct BarGridView: View {
         }
     }
 }
-
-// BarGridItem is now in Components/BarGridItem.swift - do not define it here

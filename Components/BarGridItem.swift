@@ -3,7 +3,7 @@ import SwiftUI
 struct BarGridItem: View {
     let bar: Bar
     let isOwnerMode: Bool
-    @ObservedObject var userPreferencesManager: UserPreferencesManager
+    @ObservedObject var barViewModel: BarViewModel  // Changed from userPreferencesManager
     let onTap: () -> Void
     
     var body: some View {
@@ -14,7 +14,7 @@ struct BarGridItem: View {
                     Spacer()
                     
                     if !isOwnerMode {
-                        FavoriteButton(barId: bar.id, userPreferencesManager: userPreferencesManager)
+                        FavoriteButton(barId: bar.id, barViewModel: barViewModel)  // Now correctly passing barViewModel
                     }
                 }
                 .frame(height: 20)
