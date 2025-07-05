@@ -8,8 +8,12 @@ class FirebaseManager: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
+    // Published property to track favorite counts for all bars
+    @Published var favoriteCounts: [String: Int] = [:]
+    
     init() {
         setupInitialData()
+        setupFavoriteCountsListener()
     }
     
     // MARK: - Bar Data Operations
@@ -70,6 +74,135 @@ class FirebaseManager: ObservableObject {
                 }
             }
         }
+    }
+    
+    // MARK: - Favorites System
+    
+    func toggleFavorite(barId: String, deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
+        // First check if favorite already exists
+        db.collection("favorites")
+            .whereField("barId", isEqualTo: barId)
+            .whereField("deviceId", isEqualTo: deviceId)
+            .getDocuments { [weak self] querySnapshot, error in
+                
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                if let documents = querySnapshot?.documents, !documents.isEmpty {
+                    // Favorite exists, check if it's active
+                    let document = documents.first!
+                    let data = document.data()
+                    let isActive = data["isActive"] as? Bool ?? false
+                    
+                    // Toggle the active status
+                    self?.updateFavoriteStatus(documentId: document.documentID, isActive: !isActive) { result in
+                        switch result {
+                        case .success:
+                            completion(.success(!isActive))
+                        case .failure(let error):
+                            completion(.failure(error))
+                        }
+                    }
+                } else {
+                    // No favorite exists, create new one
+                    self?.createFavorite(barId: barId, deviceId: deviceId) { result in
+                        switch result {
+                        case .success:
+                            completion(.success(true))
+                        case .failure(let error):
+                            completion(.failure(error))
+                        }
+                    }
+                }
+            }
+    }
+    
+    private func createFavorite(barId: String, deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let favoriteData: [String: Any] = [
+            "barId": barId,
+            "deviceId": deviceId,
+            "isActive": true,
+            "createdAt": Timestamp(date: Date()),
+            "lastUpdated": Timestamp(date: Date())
+        ]
+        
+        db.collection("favorites").addDocument(data: favoriteData) { error in
+            if let error = error {
+                completion(.failure(error))
+                print("❌ Error creating favorite: \(error.localizedDescription)")
+            } else {
+                completion(.success(()))
+                print("✅ Successfully created favorite for bar: \(barId)")
+            }
+        }
+    }
+    
+    private func updateFavoriteStatus(documentId: String, isActive: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("favorites").document(documentId).updateData([
+            "isActive": isActive,
+            "lastUpdated": Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                completion(.failure(error))
+                print("❌ Error updating favorite status: \(error.localizedDescription)")
+            } else {
+                completion(.success(()))
+                print("✅ Successfully updated favorite status to: \(isActive)")
+            }
+        }
+    }
+    
+    func checkIfUserFavoritedBar(barId: String, deviceId: String, completion: @escaping (Bool) -> Void) {
+        db.collection("favorites")
+            .whereField("barId", isEqualTo: barId)
+            .whereField("deviceId", isEqualTo: deviceId)
+            .whereField("isActive", isEqualTo: true)
+            .getDocuments { querySnapshot, error in
+                
+                if let error = error {
+                    print("❌ Error checking favorite status: \(error.localizedDescription)")
+                    completion(false)
+                    return
+                }
+                
+                let isFavorited = !(querySnapshot?.documents.isEmpty ?? true)
+                completion(isFavorited)
+            }
+    }
+    
+    private func setupFavoriteCountsListener() {
+        // Listen to all active favorites and count them by barId
+        db.collection("favorites")
+            .whereField("isActive", isEqualTo: true)
+            .addSnapshotListener { [weak self] querySnapshot, error in
+                
+                if let error = error {
+                    print("❌ Error listening to favorites: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let documents = querySnapshot?.documents else { return }
+                
+                // Count favorites by barId
+                var counts: [String: Int] = [:]
+                for document in documents {
+                    let data = document.data()
+                    if let barId = data["barId"] as? String {
+                        counts[barId] = (counts[barId] ?? 0) + 1
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    self?.favoriteCounts = counts
+                    print("📊 Updated favorite counts: \(counts)")
+                }
+            }
+    }
+    
+    func getFavoriteCount(for barId: String) -> Int {
+        return favoriteCounts[barId] ?? 0
     }
     
     // MARK: - Authentication

@@ -30,6 +30,9 @@ class BarViewModel: ObservableObject {
         setupFirebaseConnection()
         startAutoTransitionMonitoring()
         startUIUpdateTimer()
+        
+        // Connect user preferences to Firebase manager
+        userPreferencesManager.setFirebaseManager(firebaseManager)
     }
     
     deinit {
@@ -93,7 +96,12 @@ class BarViewModel: ObservableObject {
         // Connect to Firebase data
         firebaseManager.$bars
             .receive(on: DispatchQueue.main)
-            .assign(to: &$bars)
+            .sink { [weak self] bars in
+                self?.bars = bars
+                // Sync favorite statuses when bars are loaded
+                self?.syncFavoritesForAllBars()
+            }
+            .store(in: &cancellables)
         
         firebaseManager.$isLoading
             .receive(on: DispatchQueue.main)
@@ -101,6 +109,13 @@ class BarViewModel: ObservableObject {
         
         // Setup biometric auth
         setupBiometricAuth()
+    }
+    
+    private var cancellables = Set<AnyCancellable>()
+    
+    private func syncFavoritesForAllBars() {
+        let barIds = bars.map { $0.id }
+        userPreferencesManager.syncAllFavoriteStatuses(for: barIds)
     }
     
     // Setup biometric authentication
@@ -253,16 +268,27 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Simple Favorites (Local Only for Now)
+    // MARK: - Firebase-Integrated Favorites System
     
     func toggleFavorite(barId: String) {
-        userPreferencesManager.toggleFavorite(barId: barId)
-        objectWillChange.send()
+        userPreferencesManager.toggleFavorite(barId: barId) { [weak self] isNowFavorited in
+            // The UI will automatically update through @Published properties
+            // Optionally trigger an additional UI refresh
+            DispatchQueue.main.async {
+                self?.objectWillChange.send()
+            }
+            
+            print("🔄 Favorite toggle completed for \(barId): \(isNowFavorited)")
+        }
     }
     
     func getFavoriteCount(for barId: String) -> Int {
-        // Simple version: return 1 if user has favorited, 0 otherwise
-        return userPreferencesManager.isFavorite(barId: barId) ? 1 : 0
+        // Get real count from Firebase
+        return firebaseManager.getFavoriteCount(for: barId)
+    }
+    
+    func isFavorite(barId: String) -> Bool {
+        return userPreferencesManager.isFavorite(barId: barId)
     }
     
     // MARK: - Data Operations
@@ -288,5 +314,12 @@ class BarViewModel: ObservableObject {
             return [currentBar]
         }
         return [loggedInBar]
+    }
+    
+    // MARK: - Debug Methods
+    
+    func debugFavorites() {
+        userPreferencesManager.debugPrintStatus()
+        print("📊 Firebase favorite counts: \(firebaseManager.favoriteCounts)")
     }
 }

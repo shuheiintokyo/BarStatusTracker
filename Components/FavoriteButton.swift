@@ -3,19 +3,37 @@ import SwiftUI
 struct FavoriteButton: View {
     let barId: String
     @ObservedObject var barViewModel: BarViewModel
+    @State private var isAnimating = false
     
     private var isFavorite: Bool {
-        barViewModel.userPreferencesManager.isFavorite(barId: barId)
+        barViewModel.isFavorite(barId: barId)
     }
     
     var body: some View {
         Button(action: {
-            // Use BarViewModel's method which updates both local and Firebase
+            // Add haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+            // Animate the button
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isAnimating = true
+            }
+            
+            // Toggle favorite
             barViewModel.toggleFavorite(barId: barId)
+            
+            // Reset animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    isAnimating = false
+                }
+            }
         }) {
             Image(systemName: isFavorite ? "heart.fill" : "heart")
                 .font(.title2)
                 .foregroundColor(isFavorite ? .red : .gray)
+                .scaleEffect(isAnimating ? 1.2 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -24,19 +42,39 @@ struct FavoriteButton: View {
 struct FloatingFavoriteButton: View {
     let barId: String
     @ObservedObject var barViewModel: BarViewModel
+    @State private var isAnimating = false
     
     private var isFavorite: Bool {
-        barViewModel.userPreferencesManager.isFavorite(barId: barId)
+        barViewModel.isFavorite(barId: barId)
     }
     
     var body: some View {
         Button(action: {
+            // Add haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+            // Animate the button
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                isAnimating = true
+            }
+            
+            // Toggle favorite
             barViewModel.toggleFavorite(barId: barId)
+            
+            // Reset animation
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isAnimating = false
+                }
+            }
         }) {
             VStack(spacing: 4) {
                 Image(systemName: isFavorite ? "heart.fill" : "heart")
                     .font(.title)
                     .foregroundColor(.white)
+                    .scaleEffect(isAnimating ? 1.3 : 1.0)
+                    .rotationEffect(.degrees(isAnimating ? 10 : 0))
                 
                 Text(isFavorite ? "Favorited" : "Favorite")
                     .font(.caption2)
@@ -46,13 +84,14 @@ struct FloatingFavoriteButton: View {
             .background(
                 Circle()
                     .fill(isFavorite ? Color.red : Color.gray)
-                    .shadow(radius: 4)
+                    .shadow(radius: isAnimating ? 8 : 4)
+                    .scaleEffect(isAnimating ? 1.1 : 1.0)
             )
         }
     }
 }
 
-// Updated analytics view with Firebase favorite counts
+// Updated analytics view with real Firebase favorite counts
 struct BarAnalyticsView: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
@@ -65,10 +104,31 @@ struct BarAnalyticsView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    Text("\(totalFavorites)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.red)
+                    HStack(spacing: 4) {
+                        Image(systemName: "heart.fill")
+                            .foregroundColor(.red)
+                            .font(.caption)
+                        
+                        Text("\(totalFavorites)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    }
+                    
+                    // Show loading state if count is 0 but we're still loading
+                    if totalFavorites == 0 && barViewModel.isLoading {
+                        Text("Loading...")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    } else if totalFavorites == 0 {
+                        Text("Be the first to like!")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text(totalFavorites == 1 ? "person likes this" : "people like this")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
@@ -112,6 +172,37 @@ struct BarAnalyticsView: View {
                     }
                 }
             }
+            
+            // Engagement metrics
+            HStack {
+                VStack(alignment: .leading) {
+                    Text("Engagement")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 12) {
+                        HStack(spacing: 2) {
+                            Image(systemName: "eye.fill")
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            Text("Views")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        HStack(spacing: 2) {
+                            Image(systemName: "heart.fill")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                            Text("\(totalFavorites) likes")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
         }
         .padding()
         .background(Color.blue.opacity(0.05))
@@ -119,7 +210,7 @@ struct BarAnalyticsView: View {
     }
     
     private var totalFavorites: Int {
-        // Get total favorites from Firebase
+        // Get real count from Firebase
         return barViewModel.getFavoriteCount(for: bar.id)
     }
     
@@ -127,5 +218,66 @@ struct BarAnalyticsView: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// Quick Stats View for Owner Dashboard
+struct BarQuickStatsView: View {
+    let bar: Bar
+    @ObservedObject var barViewModel: BarViewModel
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            // Favorites Count
+            VStack {
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .foregroundColor(.red)
+                    Text("\(barViewModel.getFavoriteCount(for: bar.id))")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                }
+                Text("Favorites")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Divider()
+                .frame(height: 40)
+            
+            // Status Indicator
+            VStack {
+                Image(systemName: bar.status.icon)
+                    .font(.title2)
+                    .foregroundColor(bar.status.color)
+                Text(bar.status.displayName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            if bar.isAutoTransitionActive {
+                Divider()
+                    .frame(height: 40)
+                
+                // Timer Info
+                VStack {
+                    Image(systemName: "timer")
+                        .font(.title2)
+                        .foregroundColor(.orange)
+                    
+                    if let timeRemaining = barViewModel.getTimeRemainingText(for: bar) {
+                        Text(timeRemaining)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
     }
 }
