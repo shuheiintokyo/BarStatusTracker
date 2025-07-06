@@ -159,7 +159,7 @@ struct CreateBarView: View {
                         SecureField("Enter 4-digit password", text: $password)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .keyboardType(.numberPad)
-                            .onChange(of: password) { _, newValue in
+                            .onChange(of: password) { oldValue, newValue in
                                 if newValue.count > 4 {
                                     password = String(newValue.prefix(4))
                                 }
@@ -305,7 +305,7 @@ struct CreateBarView: View {
                         InfoRow(label: "Password", value: "••••")
                         
                         if !description.isEmpty {
-                            InfoRow(label: "Description", value: description.prefix(50) + (description.count > 50 ? "..." : ""))
+                            InfoRow(label: "Description", value: String(description.prefix(50)) + (description.count > 50 ? "..." : ""))
                         }
                         
                         // Operating days summary
@@ -429,19 +429,14 @@ struct DayHoursEditor: View {
     }
 }
 
-// MARK: - Time Slider
+// MARK: - Time Slider (Fixed)
 struct TimeSlider: View {
     @Binding var time: String
     let range: ClosedRange<Int>
     
     private var hourValue: Int {
-        get {
-            let components = time.split(separator: ":")
-            return Int(components.first ?? "18") ?? 18
-        }
-        set {
-            time = String(format: "%02d:00", newValue)
-        }
+        let components = time.split(separator: ":")
+        return Int(components.first ?? "18") ?? 18
     }
     
     var body: some View {
@@ -449,7 +444,10 @@ struct TimeSlider: View {
             Slider(
                 value: Binding(
                     get: { Double(hourValue) },
-                    set: { hourValue = Int($0) }
+                    set: { newValue in
+                        // Directly modify the time binding instead of using the computed property setter
+                        time = String(format: "%02d:00", Int(newValue))
+                    }
                 ),
                 in: Double(range.lowerBound)...Double(range.upperBound),
                 step: 1
@@ -494,4 +492,3 @@ struct InfoRow: View {
         }
     }
 }
-

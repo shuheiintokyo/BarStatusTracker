@@ -16,7 +16,7 @@ struct StatusControlView: View {
             
             // Auto-transition status display (if active)
             if let current = currentBar, current.isAutoTransitionActive {
-                autoTransitionStatusView(for: current)
+                AutoTransitionStatusView(bar: current, barViewModel: barViewModel)
             }
             
             // Status control buttons
@@ -36,9 +36,30 @@ struct StatusControlView: View {
         .background(Color.gray.opacity(0.1))
         .cornerRadius(10)
     }
+}
+
+// MARK: - Auto Transition Status View (Separate Component)
+struct AutoTransitionStatusView: View {
+    let bar: Bar
+    @ObservedObject var barViewModel: BarViewModel
     
-    @ViewBuilder
-    private func autoTransitionStatusView(for currentBar: Bar) -> some View {
+    private var timeRemainingText: String? {
+        guard let timeRemaining = bar.timeUntilAutoTransition,
+              timeRemaining > 0 else {
+            return nil
+        }
+        
+        let minutes = Int(timeRemaining / 60)
+        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+    
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "clock.fill")
@@ -51,7 +72,8 @@ struct StatusControlView: View {
                 Spacer()
                 
                 Button("Cancel Timer") {
-                    barViewModel.cancelAutoTransition(for: currentBar)
+                    // Call the method that actually exists on BarViewModel
+                    cancelAutoTransition()
                 }
                 .font(.caption)
                 .foregroundColor(.red)
@@ -59,11 +81,11 @@ struct StatusControlView: View {
             
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Current: \(currentBar.status.displayName)")
+                    Text("Current: \(bar.status.displayName)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    if let pendingStatus = currentBar.pendingStatus {
+                    if let pendingStatus = bar.pendingStatus {
                         Text("Will change to: \(pendingStatus.displayName)")
                             .font(.caption)
                             .fontWeight(.medium)
@@ -77,8 +99,8 @@ struct StatusControlView: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                     
-                    if let timeRemainingText = barViewModel.getTimeRemainingText(for: currentBar) {
-                        Text(timeRemainingText)
+                    if let timeRemaining = timeRemainingText {
+                        Text(timeRemaining)
                             .font(.caption)
                             .fontWeight(.bold)
                             .foregroundColor(.orange)
@@ -93,6 +115,10 @@ struct StatusControlView: View {
                 .stroke(Color.orange.opacity(0.3), lineWidth: 1)
         )
         .cornerRadius(8)
+    }
+    
+    private func cancelAutoTransition() {
+        barViewModel.cancelAutoTransition(for: bar)
     }
 }
 

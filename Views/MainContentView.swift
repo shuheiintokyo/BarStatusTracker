@@ -40,9 +40,9 @@ struct MainContentView: View {
         } message: {
             Text(biometricError)
         }
-        // Auto-show detail page after Face ID login
-        .onChange(of: barViewModel.isOwnerMode) { isOwnerMode in
-            if isOwnerMode && autoShowingDetail, let loggedInBar = barViewModel.loggedInBar {
+        // Auto-show detail page after Face ID login - FIXED
+        .onChange(of: barViewModel.isOwnerMode) { oldValue, newValue in
+            if newValue && autoShowingDetail, let loggedInBar = barViewModel.loggedInBar {
                 // Delay slightly to ensure the view is ready
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     barViewModel.selectedBar = loggedInBar
@@ -193,7 +193,7 @@ struct MainContentView: View {
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(12)
                 
-                // Auto-transition info (if active)
+                // Auto-transition info (if active) - FIXED
                 if loggedInBar.isAutoTransitionActive, let pendingStatus = loggedInBar.pendingStatus {
                     HStack {
                         Image(systemName: "clock.fill")
@@ -210,12 +210,8 @@ struct MainContentView: View {
                         
                         Spacer()
                         
-                        if let timeRemaining = barViewModel.getTimeRemainingText(for: loggedInBar) {
-                            Text(timeRemaining)
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .foregroundColor(.orange)
-                        }
+                        // FIXED: Create a local variable to avoid dynamic member lookup issues
+                        TimeRemainingView(bar: loggedInBar, barViewModel: barViewModel)
                     }
                     .padding()
                     .background(Color.orange.opacity(0.1))
@@ -387,6 +383,41 @@ struct MainContentView: View {
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
             window.rootViewController?.present(alert, animated: true)
+        }
+    }
+}
+
+// MARK: - Helper View to Fix Dynamic Member Lookup Issue
+// MARK: - Helper View to Fix Dynamic Member Lookup Issue
+struct TimeRemainingView: View {
+    let bar: Bar
+    let barViewModel: BarViewModel
+    
+    private var timeRemainingText: String? {
+        // Calculate time remaining directly from the bar's properties
+        guard let timeRemaining = bar.timeUntilAutoTransition,
+              timeRemaining > 0 else {
+            return nil
+        }
+        
+        let minutes = Int(timeRemaining / 60)
+        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+    
+    var body: some View {
+        Group {
+            if let timeRemaining = timeRemainingText {
+                Text(timeRemaining)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.orange)
+            }
         }
     }
 }

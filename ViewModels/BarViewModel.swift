@@ -244,10 +244,11 @@ class BarViewModel: ObservableObject {
     
     // MARK: - Status Operations (Simplified)
     
+    // MARK: - Status Operations (Simplified) - FIXED
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else { return }
         
-        let oldStatus = bar.status
+        // Remove the unused oldStatus variable and update the logging
         var updatedBar = bar
         
         // Cancel any existing auto-transition
@@ -280,39 +281,6 @@ class BarViewModel: ObservableObject {
         
         // Force UI update
         objectWillChange.send()
-    }
-    
-    func cancelAutoTransition(for bar: Bar) {
-        guard canEdit(bar: bar) else { return }
-        
-        var updatedBar = bar
-        updatedBar.cancelAutoTransition()
-        
-        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
-        
-        if loggedInBar?.id == bar.id {
-            loggedInBar = updatedBar
-        }
-        
-        objectWillChange.send()
-        print("❌ Auto-transition cancelled for \(bar.name)")
-    }
-    
-    // Get time remaining for auto-transition (for UI display)
-    func getTimeRemainingText(for bar: Bar) -> String? {
-        guard let timeRemaining = bar.timeUntilAutoTransition,
-              timeRemaining > 0 else {
-            return nil
-        }
-        
-        let minutes = Int(timeRemaining / 60)
-        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
-        
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
-        }
     }
     
     // MARK: - Firebase-Integrated Favorites System
@@ -396,5 +364,37 @@ class BarViewModel: ObservableObject {
     func debugFavorites() {
         userPreferencesManager.debugPrintStatus()
         print("📊 Firebase favorite counts: \(firebaseManager.favoriteCounts)")
+    }
+    
+    func getTimeRemainingText(for bar: Bar) -> String? {
+        guard let timeRemaining = bar.timeUntilAutoTransition,
+              timeRemaining > 0 else {
+            return nil
+        }
+        
+        let minutes = Int(timeRemaining / 60)
+        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+    
+    func cancelAutoTransition(for bar: Bar) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.cancelAutoTransition()
+        
+        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
+        
+        if loggedInBar?.id == bar.id {
+            loggedInBar = updatedBar
+        }
+        
+        objectWillChange.send()
+        print("❌ Auto-transition cancelled for \(bar.name)")
     }
 }
