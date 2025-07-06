@@ -223,7 +223,11 @@ struct CreateBarView: View {
                             day: day,
                             dayHours: Binding(
                                 get: { operatingHours.getDayHours(for: day) },
-                                set: { operatingHours.setDayHours(for: day, hours: $0) }
+                                set: { newValue in
+                                    var updated = operatingHours
+                                    updated.setDayHours(for: day, hours: newValue)
+                                    operatingHours = updated
+                                }
                             )
                         )
                     }
@@ -349,6 +353,7 @@ struct CreateBarView: View {
             address: address,
             status: .closed,
             description: description,
+            username: barName,
             password: password,
             operatingHours: operatingHours
         )
@@ -489,3 +494,4 @@ struct InfoRow: View {
         }
     }
 }
+

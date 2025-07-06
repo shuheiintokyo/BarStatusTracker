@@ -316,9 +316,3 @@ struct OwnerLoginView: View {
     }
 }
 
-//// Helper extension for monospaced font
-//extension Text {
-//    func fontFamily(_ family: Font.Design) -> Text {
-//        self.font(.system(.caption, design: family))
-//    }
-//}

@@ -146,8 +146,8 @@ struct Bar: Identifiable, Codable {
     var ownerID: String?
     
     // Authentication fields
-    let username: String
-    let password: String
+    var username: String
+    var password: String
     
     // Operating hours
     var operatingHours: OperatingHours = OperatingHours()
@@ -194,7 +194,7 @@ struct Bar: Identifiable, Codable {
         return operatingHours.getDayHours(for: today)
     }
     
-    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, password: String, operatingHours: OperatingHours = OperatingHours()) {
+    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours()) {
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
@@ -204,7 +204,7 @@ struct Bar: Identifiable, Codable {
         self.socialLinks = socialLinks
         self.lastUpdated = Date()
         self.ownerID = ownerID
-        self.username = name // Username is the bar name
+        self.username = username
         self.password = password
         self.operatingHours = operatingHours
     }
@@ -296,7 +296,7 @@ struct Bar: Identifiable, Codable {
             operatingHours = OperatingHours.fromDictionary(hoursDict)
         }
         
-        var bar = Bar(name: name, latitude: latitude, longitude: longitude, address: address, status: status, description: description, password: password, operatingHours: operatingHours)
+        var bar = Bar(name: name, latitude: latitude, longitude: longitude, address: address, status: status, description: description, username: username, password: password, operatingHours: operatingHours)
         bar.id = documentId
         
         // Social links
@@ -346,3 +346,4 @@ struct Bar: Identifiable, Codable {
         }
     }
 }
+

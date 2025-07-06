@@ -565,3 +565,17 @@ extension Text {
         self.font(.system(.caption, design: family))
     }
 }
+
+// MARK: - Basic Analytics Section
+struct BasicAnalyticsSection: View {
+    let analyticsData: [String: Any]
+    var body: some View {
+        VStack(alignment: .leading) {
+            ForEach(analyticsData.keys.sorted(), id: \.self) { key in
+                Text("\(key): \(String(describing: analyticsData[key]!))")
+                    .font(.caption)
+            }
+        }
+    }
+}
+

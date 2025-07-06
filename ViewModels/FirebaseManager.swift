@@ -405,9 +405,9 @@ class FirebaseManager: ObservableObject {
     
     private func addSampleBars() {
         let sampleBars = [
-            Bar(name: "The Cozy Corner", latitude: 35.6762, longitude: 139.6503, address: "123 Shibuya, Tokyo", status: .open, description: "A warm, welcoming neighborhood bar with craft cocktails and local beer.", password: "1234"),
-            Bar(name: "Sunset Tavern", latitude: 35.6586, longitude: 139.7454, address: "456 Ginza, Tokyo", status: .closingSoon, description: "Perfect spot to watch the sunset with friends.", password: "5678"),
-            Bar(name: "The Underground", latitude: 35.7090, longitude: 139.7319, address: "789 Shinjuku, Tokyo", status: .closed, description: "Speakeasy-style bar with vintage cocktails.", password: "9012")
+            Bar(name: "The Cozy Corner", latitude: 35.6762, longitude: 139.6503, address: "123 Shibuya, Tokyo", status: .open, description: "A warm, welcoming neighborhood bar with craft cocktails and local beer.", username: "The Cozy Corner", password: "1234"),
+            Bar(name: "Sunset Tavern", latitude: 35.6586, longitude: 139.7454, address: "456 Ginza, Tokyo", status: .closingSoon, description: "Perfect spot to watch the sunset with friends.", username: "Sunset Tavern", password: "5678"),
+            Bar(name: "The Underground", latitude: 35.7090, longitude: 139.7319, address: "789 Shinjuku, Tokyo", status: .closed, description: "Speakeasy-style bar with vintage cocktails.", username: "The Underground", password: "9012")
         ]
         
         for bar in sampleBars {
@@ -432,3 +432,4 @@ enum AuthError: Error, LocalizedError {
         }
     }
 }
+
