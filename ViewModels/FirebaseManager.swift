@@ -11,9 +11,17 @@ class FirebaseManager: ObservableObject {
     // Published property to track favorite counts for all bars
     @Published var favoriteCounts: [String: Int] = [:]
     
+    // Basic device analytics
+    private let deviceAnalytics = BasicDeviceAnalytics()
+    
     init() {
         setupInitialData()
         setupFavoriteCountsListener()
+        
+        // Try to get location (optional)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            self.deviceAnalytics.requestLocationPermission()
+        }
     }
     
     // MARK: - Bar Data Operations
@@ -76,7 +84,7 @@ class FirebaseManager: ObservableObject {
         }
     }
     
-    // MARK: - Favorites System
+    // MARK: - Enhanced Favorites System with Basic Analytics
     
     func toggleFavorite(barId: String, deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
         // First check if favorite already exists
@@ -106,8 +114,8 @@ class FirebaseManager: ObservableObject {
                         }
                     }
                 } else {
-                    // No favorite exists, create new one
-                    self?.createFavorite(barId: barId, deviceId: deviceId) { result in
+                    // No favorite exists, create new one with analytics
+                    self?.createFavoriteWithBasicAnalytics(barId: barId, deviceId: deviceId) { result in
                         switch result {
                         case .success:
                             completion(.success(true))
@@ -119,8 +127,10 @@ class FirebaseManager: ObservableObject {
             }
     }
     
-    private func createFavorite(barId: String, deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        let favoriteData: [String: Any] = [
+    private func createFavoriteWithBasicAnalytics(barId: String, deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        
+        // Basic favorite data
+        var favoriteData: [String: Any] = [
             "barId": barId,
             "deviceId": deviceId,
             "isActive": true,
@@ -128,13 +138,25 @@ class FirebaseManager: ObservableObject {
             "lastUpdated": Timestamp(date: Date())
         ]
         
+        // Add device info (always available)
+        favoriteData["deviceInfo"] = deviceAnalytics.deviceInfo.toDictionary()
+        
+        // Add location info (if available)
+        if let locationInfo = deviceAnalytics.locationInfo {
+            favoriteData["locationInfo"] = locationInfo.toDictionary()
+            print("📍 Adding location to favorite: \(locationInfo.summary)")
+        } else {
+            print("📍 No location available (optional)")
+        }
+        
         db.collection("favorites").addDocument(data: favoriteData) { error in
             if let error = error {
                 completion(.failure(error))
                 print("❌ Error creating favorite: \(error.localizedDescription)")
             } else {
                 completion(.success(()))
-                print("✅ Successfully created favorite for bar: \(barId)")
+                print("✅ Successfully created favorite with analytics for bar: \(barId)")
+                print("📱 Device: \(self.deviceAnalytics.deviceInfo.summary)")
             }
         }
     }
@@ -203,6 +225,58 @@ class FirebaseManager: ObservableObject {
     
     func getFavoriteCount(for barId: String) -> Int {
         return favoriteCounts[barId] ?? 0
+    }
+    
+    // MARK: - Basic Analytics for Bar Owners
+    func getBasicAnalytics(for barId: String, completion: @escaping ([String: Any]) -> Void) {
+        db.collection("favorites")
+            .whereField("barId", isEqualTo: barId)
+            .whereField("isActive", isEqualTo: true)
+            .getDocuments { querySnapshot, error in
+                
+                guard let documents = querySnapshot?.documents else {
+                    completion([:])
+                    return
+                }
+                
+                var analytics: [String: Any] = [:]
+                var countries: [String: Int] = [:]
+                var cities: [String: Int] = [:]
+                var deviceTypes: [String: Int] = [:]
+                
+                for document in documents {
+                    let data = document.data()
+                    
+                    // Count by location (if available)
+                    if let locationInfo = data["locationInfo"] as? [String: Any] {
+                        if let country = locationInfo["country"] as? String, !country.isEmpty {
+                            countries[country] = (countries[country] ?? 0) + 1
+                        }
+                        if let city = locationInfo["city"] as? String, !city.isEmpty {
+                            cities[city] = (cities[city] ?? 0) + 1
+                        }
+                    }
+                    
+                    // Count by device type
+                    if let deviceInfo = data["deviceInfo"] as? [String: Any] {
+                        if let deviceType = deviceInfo["deviceType"] as? String {
+                            deviceTypes[deviceType] = (deviceTypes[deviceType] ?? 0) + 1
+                        }
+                    }
+                }
+                
+                analytics = [
+                    "totalFavorites": documents.count,
+                    "countries": countries,
+                    "cities": cities,
+                    "deviceTypes": deviceTypes,
+                    "hasLocationData": !countries.isEmpty,
+                    "lastUpdated": Date()
+                ]
+                
+                print("📊 Basic analytics for \(barId): \(analytics)")
+                completion(analytics)
+            }
     }
     
     // MARK: - Authentication

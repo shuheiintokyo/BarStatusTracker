@@ -291,6 +291,12 @@ class BarViewModel: ObservableObject {
         return userPreferencesManager.isFavorite(barId: barId)
     }
     
+    // MARK: - Basic Analytics
+    
+    func getBasicAnalytics(for barId: String, completion: @escaping ([String: Any]) -> Void) {
+        firebaseManager.getBasicAnalytics(for: barId, completion: completion)
+    }
+    
     // MARK: - Data Operations
     
     func updateBarDescription(_ bar: Bar, newDescription: String) {

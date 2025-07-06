@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */; };
 		05A13C1B2E18BBE900A69687 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05A13C182E18BBE900A69687 /* Assets.xcassets */; };
 		05A13C1C2E18BBE900A69687 /* BarStatusTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C192E18BBE900A69687 /* BarStatusTrackerApp.swift */; };
 		05A13C1D2E18BBE900A69687 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C1A2E18BBE900A69687 /* ContentView.swift */; };
@@ -64,6 +65,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicDeviceAnalytics.swift; sourceTree = "<group>"; };
 		05A13BED2E18B67900A69687 /* BarStatusTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarStatusTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A13BFA2E18B67A00A69687 /* BarStatusTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarStatusTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A13C042E18B67A00A69687 /* BarStatusTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarStatusTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -191,6 +193,7 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */,
 				05A13C642E1953B400A69687 /* UserPreferencesManager.swift */,
 				05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */,
 				05A13C542E18D82E00A69687 /* BiometricAuthManager.swift */,
@@ -388,6 +391,7 @@
 				05A13C492E18C5BC00A69687 /* BarGridView.swift in Sources */,
 				05A13C482E18C5A200A69687 /* MainContentView.swift in Sources */,
 				05A13C632E19536D00A69687 /* UserPreferences.swift in Sources */,
+				0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */,
 				05A13C4F2E18C5E300A69687 /* SocialLinksView.swift in Sources */,
 				05A13C512E18C62800A69687 /* User.swift in Sources */,
 				05A13C4D2E18C5D800A69687 /* BarGridItem.swift in Sources */,

@@ -7,7 +7,8 @@ struct BarDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var editingDescription = ""
     @State private var showingEditDescription = false
-    @State private var showingDetailedAnalytics = false
+    @State private var basicAnalytics: [String: Any] = [:]
+    @State private var isLoadingAnalytics = false
     
     var body: some View {
         NavigationView {
@@ -147,59 +148,28 @@ struct BarDetailView: View {
                             }
                         }
                         
-                        // Enhanced Analytics for bar owners
+                        // Basic Analytics for bar owners
                         if isOwnerMode {
                             VStack(alignment: .leading, spacing: 15) {
                                 HStack {
-                                    Text("Analytics Dashboard")
+                                    Text("Customer Analytics")
                                         .font(.headline)
                                     
                                     Spacer()
                                     
-                                    Button("View Details") {
-                                        showingDetailedAnalytics = true
-                                    }
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                                }
-                                
-                                BarQuickStatsView(bar: bar, barViewModel: barViewModel)
-                                
-                                BarAnalyticsView(bar: bar, barViewModel: barViewModel)
-                                
-                                // Additional owner insights
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Owner Insights")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    
-                                    HStack {
-                                        VStack(alignment: .leading) {
-                                            Text("Total Favorites")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            Text("\(barViewModel.getFavoriteCount(for: bar.id))")
-                                                .font(.title3)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.red)
+                                    if isLoadingAnalytics {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Button("Refresh") {
+                                            loadBasicAnalytics()
                                         }
-                                        
-                                        Spacer()
-                                        
-                                        VStack(alignment: .trailing) {
-                                            Text("Your Bar Status")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                            Text(bar.status.displayName)
-                                                .font(.title3)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(bar.status.color)
-                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
                                     }
                                 }
-                                .padding()
-                                .background(Color.green.opacity(0.05))
-                                .cornerRadius(10)
+                                
+                                BasicAnalyticsSection(analyticsData: basicAnalytics)
                             }
                         }
                         
@@ -231,16 +201,10 @@ struct BarDetailView: View {
                         dismiss()
                     }
                 }
-                
-                // Debug button for development (can be removed in production)
+            }
+            .onAppear {
                 if isOwnerMode {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button("Debug") {
-                            barViewModel.debugFavorites()
-                        }
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    }
+                    loadBasicAnalytics()
                 }
             }
         }
@@ -249,193 +213,213 @@ struct BarDetailView: View {
                 barViewModel.updateBarDescription(bar, newDescription: newDescription)
             }
         }
-        .sheet(isPresented: $showingDetailedAnalytics) {
-            DetailedAnalyticsView(bar: bar, barViewModel: barViewModel)
+    }
+    
+    private func loadBasicAnalytics() {
+        isLoadingAnalytics = true
+        
+        // Get basic analytics through BarViewModel
+        barViewModel.getBasicAnalytics(for: bar.id) { data in
+            DispatchQueue.main.async {
+                self.basicAnalytics = data
+                self.isLoadingAnalytics = false
+            }
         }
     }
 }
 
-// Detailed Analytics View for Bar Owners
-struct DetailedAnalyticsView: View {
-    let bar: Bar
-    @ObservedObject var barViewModel: BarViewModel
-    @Environment(\.dismiss) private var dismiss
+// MARK: - Basic Analytics Section
+struct BasicAnalyticsSection: View {
+    let analyticsData: [String: Any]
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("\(bar.name) Analytics")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                        
-                        Text("Detailed insights for your bar")
+        VStack(alignment: .leading, spacing: 15) {
+            
+            if analyticsData.isEmpty {
+                Text("No analytics data yet. Analytics will appear after customers like your bar.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(10)
+            } else {
+                
+                // Total favorites
+                if let totalFavorites = analyticsData["totalFavorites"] as? Int {
+                    HStack {
+                        Image(systemName: "heart.fill")
+                            .foregroundColor(.red)
+                        Text("Total Favorites: \(totalFavorites)")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
                     }
-                    
-                    // Key Metrics
-                    VStack(alignment: .leading, spacing: 15) {
-                        Text("Key Metrics")
-                            .font(.headline)
-                        
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 15) {
-                            MetricCard(
-                                title: "Total Favorites",
-                                value: "\(barViewModel.getFavoriteCount(for: bar.id))",
-                                icon: "heart.fill",
-                                color: .red
-                            )
-                            
-                            MetricCard(
-                                title: "Current Status",
-                                value: bar.status.displayName,
-                                icon: bar.status.icon,
-                                color: bar.status.color
-                            )
-                            
-                            MetricCard(
-                                title: "Last Updated",
-                                value: formatTime(bar.lastUpdated),
-                                icon: "clock.fill",
-                                color: .blue
-                            )
-                            
-                            MetricCard(
-                                title: "Auto-Timer",
-                                value: bar.isAutoTransitionActive ? "Active" : "Inactive",
-                                icon: "timer",
-                                color: bar.isAutoTransitionActive ? .orange : .gray
-                            )
-                        }
-                    }
-                    
-                    // Real-time Info
-                    if bar.isAutoTransitionActive {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Auto-Transition Status")
-                                .font(.headline)
-                            
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Image(systemName: "arrow.right.circle.fill")
-                                        .foregroundColor(.orange)
-                                    Text("Will change to: \(bar.pendingStatus?.displayName ?? "Unknown")")
-                                        .font(.subheadline)
-                                }
-                                
-                                if let timeRemaining = barViewModel.getTimeRemainingText(for: bar) {
-                                    HStack {
-                                        Image(systemName: "clock")
-                                            .foregroundColor(.orange)
-                                        Text("Time remaining: \(timeRemaining)")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .background(Color.orange.opacity(0.1))
-                            .cornerRadius(10)
-                        }
-                    }
-                    
-                    // User Engagement
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("User Engagement")
-                            .font(.headline)
-                        
-                        Text("People who have favorited your bar will receive notifications when you update your status.")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                        
+                }
+                
+                // Device types
+                if let deviceTypes = analyticsData["deviceTypes"] as? [String: Int], !deviceTypes.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Image(systemName: "bell.fill")
+                            Image(systemName: "iphone")
                                 .foregroundColor(.blue)
-                            Text("\(barViewModel.getFavoriteCount(for: bar.id)) users will be notified of status changes")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            Text("Device Types")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                         }
-                        .padding()
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(10)
-                    }
-                    
-                    // Tips for Bar Owners
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Tips to Increase Engagement")
-                            .font(.headline)
                         
-                        VStack(alignment: .leading, spacing: 8) {
-                            TipRow(icon: "pencil", text: "Keep your description updated with current offerings")
-                            TipRow(icon: "clock", text: "Use auto-timers to keep customers informed")
-                            TipRow(icon: "heart", text: "Respond to customer engagement")
-                            TipRow(icon: "globe", text: "Add social media links to stay connected")
+                        ForEach(deviceTypes.sorted(by: { $0.value > $1.value }), id: \.key) { device, count in
+                            HStack {
+                                Text("• \(device)")
+                                    .font(.body)
+                                Spacer()
+                                Text("\(count)")
+                                    .font(.body)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.blue)
+                            }
+                            .padding(.leading)
                         }
-                        .padding()
-                        .background(Color.green.opacity(0.05))
-                        .cornerRadius(10)
                     }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(10)
                 }
-                .padding()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
+                
+                // Countries (if location data available)
+                if let countries = analyticsData["countries"] as? [String: Int], !countries.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "globe")
+                                .foregroundColor(.green)
+                            Text("Countries")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        
+                        ForEach(countries.sorted(by: { $0.value > $1.value }), id: \.key) { country, count in
+                            HStack {
+                                Text("\(countryFlag(for: country)) \(country)")
+                                    .font(.body)
+                                Spacer()
+                                Text("\(count)")
+                                    .font(.body)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.green)
+                            }
+                            .padding(.leading)
+                        }
                     }
+                    .padding()
+                    .background(Color.green.opacity(0.05))
+                    .cornerRadius(10)
                 }
+                
+                // Cities (if location data available)
+                if let cities = analyticsData["cities"] as? [String: Int], !cities.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.orange)
+                            Text("Cities")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        
+                        ForEach(cities.sorted(by: { $0.value > $1.value }).prefix(5), id: \.key) { city, count in
+                            HStack {
+                                Text("• \(city)")
+                                    .font(.body)
+                                Spacer()
+                                Text("\(count)")
+                                    .font(.body)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.orange)
+                            }
+                            .padding(.leading)
+                        }
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.05))
+                    .cornerRadius(10)
+                }
+                
+                // No location data message
+                if let hasLocationData = analyticsData["hasLocationData"] as? Bool, !hasLocationData {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "location.slash")
+                                .foregroundColor(.gray)
+                            Text("Location Analytics")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                        }
+                        
+                        Text("Some customers haven't shared location data. This is normal and doesn't affect other features.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.leading)
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(10)
+                }
+                
+                // Tips section
+                TipsSection()
             }
         }
     }
     
-    private func formatTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+    private func countryFlag(for country: String) -> String {
+        let flagMap = [
+            "Japan": "🇯🇵",
+            "United States": "🇺🇸",
+            "United Kingdom": "🇬🇧",
+            "Australia": "🇦🇺",
+            "Canada": "🇨🇦",
+            "Germany": "🇩🇪",
+            "France": "🇫🇷",
+            "Italy": "🇮🇹",
+            "Spain": "🇪🇸",
+            "South Korea": "🇰🇷"
+        ]
+        return flagMap[country] ?? "🌍"
     }
 }
 
-struct MetricCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-    
+// MARK: - Tips Section
+struct TipsSection: View {
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(color)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "lightbulb.fill")
+                    .foregroundColor(.yellow)
+                Text("Tips to Get More Favorites")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+            }
             
-            Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
-            
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 6) {
+                TipRow(text: "Update your status regularly to keep customers informed")
+                TipRow(text: "Add interesting descriptions about your daily specials")
+                TipRow(text: "Use auto-timers to let customers know when you're opening/closing")
+                TipRow(text: "Respond to customer engagement and build community")
+            }
+            .padding(.leading)
         }
-        .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(12)
+        .background(Color.yellow.opacity(0.05))
+        .cornerRadius(10)
     }
 }
 
 struct TipRow: View {
-    let icon: String
     let text: String
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundColor(.green)
-                .frame(width: 20)
+        HStack(alignment: .top, spacing: 8) {
+            Text("•")
+                .foregroundColor(.yellow)
+                .fontWeight(.bold)
             
             Text(text)
                 .font(.caption)
