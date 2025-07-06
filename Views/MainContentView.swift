@@ -6,152 +6,21 @@ struct MainContentView: View {
     @State private var showingBiometricAlert = false
     @State private var biometricError = ""
     @State private var autoShowingDetail = false
+    @State private var showingCreateBar = false
     
     var body: some View {
         NavigationView {
             VStack {
                 // Header
-                HStack {
-                    Text("Bar Status Tracker")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Spacer()
-                    
-                    // Authentication buttons
-                    HStack(spacing: 12) {
-                        // Biometric authentication button (if available)
-                        if barViewModel.canUseBiometricAuth {
-                            Button(action: {
-                                authenticateWithBiometrics()
-                            }) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: barViewModel.biometricAuthInfo.iconName)
-                                        .font(.title2)
-                                        .foregroundColor(.blue)
-                                    Text("Quick Access")
-                                        .font(.caption2)
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                        }
-                        
-                        // Main login/logout button
-                        Button(action: {
-                            if barViewModel.isOwnerMode {
-                                showLogoutOptions()
-                            } else {
-                                showingOwnerLogin = true
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
-                                    .font(.title2)
-                                
-                                if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(loggedInBar.name)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text("Tap to logout")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                .padding()
+                headerSection
                 
                 // Show message for owners or grid for guests
                 if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
                     // Owner mode - show welcome message and quick access
-                    VStack(spacing: 20) {
-                        Text("Welcome back!")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        
-                        Text("You're logged in as the owner of \(loggedInBar.name)")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        // Main control button
-                        Button(action: {
-                            barViewModel.selectedBar = loggedInBar
-                            barViewModel.showingDetail = true
-                        }) {
-                            HStack {
-                                Image(systemName: "building.2")
-                                    .font(.title2)
-                                Text("Go to \(loggedInBar.name) Controls")
-                                    .font(.headline)
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [.blue, .purple]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .cornerRadius(12)
-                        }
-                        .padding(.horizontal)
-                        
-                        // View all bars button
-                        Button(action: {
-                            // Temporarily switch to guest view while staying logged in
-                            barViewModel.switchToGuestView()
-                        }) {
-                            HStack {
-                                Image(systemName: "map")
-                                    .font(.title2)
-                                Text("View All Bars in Town")
-                                    .font(.headline)
-                            }
-                            .foregroundColor(.blue)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.blue, lineWidth: 2)
-                            )
-                            .cornerRadius(12)
-                        }
-                        .padding(.horizontal)
-                        
-                        Spacer()
-                    }
-                    .padding(.top, 50)
+                    ownerModeSection(loggedInBar: loggedInBar)
                 } else {
                     // Guest mode - show all bars
-                    VStack {
-                        // Show owner info if logged in but in guest view
-                        if barViewModel.loggedInBar != nil {
-                            HStack {
-                                Image(systemName: "info.circle.fill")
-                                    .foregroundColor(.blue)
-                                Text("Viewing as guest - you're still logged in")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                                Button("Back to Owner View") {
-                                    barViewModel.switchToOwnerView()
-                                }
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                            }
-                            .padding(.horizontal)
-                            .padding(.bottom, 8)
-                        }
-                        
-                        BarGridView(barViewModel: barViewModel, isOwnerMode: false)
-                    }
+                    guestModeSection
                 }
             }
         }
@@ -162,6 +31,9 @@ struct MainContentView: View {
             if let selectedBar = barViewModel.selectedBar {
                 BarDetailView(bar: selectedBar, barViewModel: barViewModel, isOwnerMode: barViewModel.isOwnerMode)
             }
+        }
+        .sheet(isPresented: $showingCreateBar) {
+            CreateBarView(barViewModel: barViewModel)
         }
         .alert("Authentication Error", isPresented: $showingBiometricAlert) {
             Button("OK") { }
@@ -180,6 +52,310 @@ struct MainContentView: View {
             }
         }
     }
+    
+    // MARK: - Header Section
+    var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Bar Status Tracker")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                if !barViewModel.isOwnerMode && barViewModel.getAllBars().isEmpty {
+                    Text("Create your first bar!")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else if barViewModel.isOwnerMode {
+                    Text("Owner Dashboard")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Find bars in your area")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            // Authentication buttons
+            authenticationButtons
+        }
+        .padding()
+    }
+    
+    // MARK: - Authentication Buttons
+    var authenticationButtons: some View {
+        HStack(spacing: 12) {
+            // Create bar button (always visible in guest mode)
+            if !barViewModel.isOwnerMode {
+                Button(action: {
+                    showingCreateBar = true
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.purple)
+                        Text("New Bar")
+                            .font(.caption2)
+                            .foregroundColor(.purple)
+                    }
+                }
+            }
+            
+            // Biometric authentication button (if available)
+            if barViewModel.canUseBiometricAuth && !barViewModel.isOwnerMode {
+                Button(action: {
+                    authenticateWithBiometrics()
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: barViewModel.biometricAuthInfo.iconName)
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                        Text("Quick Access")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                    }
+                }
+            }
+            
+            // Main login/logout button
+            Button(action: {
+                if barViewModel.isOwnerMode {
+                    showLogoutOptions()
+                } else {
+                    showingOwnerLogin = true
+                }
+            }) {
+                HStack {
+                    Image(systemName: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
+                        .font(.title2)
+                    
+                    if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(loggedInBar.name)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text("Tap to logout")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Owner Mode Section
+    func ownerModeSection(loggedInBar: Bar) -> some View {
+        VStack(spacing: 20) {
+            Text("Welcome back!")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("You're logged in as the owner of \(loggedInBar.name)")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            // Quick status overview
+            VStack(spacing: 12) {
+                HStack {
+                    Image(systemName: loggedInBar.status.icon)
+                        .font(.title)
+                        .foregroundColor(loggedInBar.status.color)
+                    
+                    VStack(alignment: .leading) {
+                        Text("Current Status")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Text(loggedInBar.status.displayName)
+                            .font(.headline)
+                            .fontWeight(.medium)
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing) {
+                        Text("Favorites")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        HStack {
+                            Text("\(barViewModel.getFavoriteCount(for: loggedInBar.id))")
+                                .font(.headline)
+                                .fontWeight(.bold)
+                            Image(systemName: "heart.fill")
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+                
+                // Auto-transition info (if active)
+                if loggedInBar.isAutoTransitionActive, let pendingStatus = loggedInBar.pendingStatus {
+                    HStack {
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(.orange)
+                        
+                        VStack(alignment: .leading) {
+                            Text("Auto-transition active")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Text("Will change to \(pendingStatus.displayName)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if let timeRemaining = barViewModel.getTimeRemainingText(for: loggedInBar) {
+                            Text(timeRemaining)
+                                .font(.caption)
+                                .fontWeight(.bold)
+                                .foregroundColor(.orange)
+                        }
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal)
+            
+            // Main control button
+            Button(action: {
+                barViewModel.selectedBar = loggedInBar
+                barViewModel.showingDetail = true
+            }) {
+                HStack {
+                    Image(systemName: "building.2")
+                        .font(.title2)
+                    Text("Go to \(loggedInBar.name) Controls")
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.blue, .purple]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
+            
+            // View all bars button
+            Button(action: {
+                // Temporarily switch to guest view while staying logged in
+                barViewModel.switchToGuestView()
+            }) {
+                HStack {
+                    Image(systemName: "map")
+                        .font(.title2)
+                    Text("View All Bars in Town")
+                        .font(.headline)
+                }
+                .foregroundColor(.blue)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.blue, lineWidth: 2)
+                )
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+        .padding(.top, 30)
+    }
+    
+    // MARK: - Guest Mode Section
+    var guestModeSection: some View {
+        VStack {
+            // Show owner info if logged in but in guest view
+            if barViewModel.loggedInBar != nil {
+                HStack {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.blue)
+                    Text("Viewing as guest - you're still logged in")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Back to Owner View") {
+                        barViewModel.switchToOwnerView()
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+            }
+            
+            // Show empty state or bar grid
+            if barViewModel.getAllBars().isEmpty && !barViewModel.isLoading {
+                emptyStateView
+            } else {
+                BarGridView(barViewModel: barViewModel, isOwnerMode: false)
+            }
+        }
+    }
+    
+    // MARK: - Empty State View
+    var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "building.2.crop.circle")
+                .font(.system(size: 80))
+                .foregroundColor(.gray.opacity(0.5))
+            
+            VStack(spacing: 8) {
+                Text("No Bars Yet!")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                Text("Be the first to add a bar to the community")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Button(action: {
+                showingCreateBar = true
+            }) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                    Text("Create Your First Bar")
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.purple, .blue]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+            }
+            .padding(.horizontal, 40)
+            
+            Spacer()
+        }
+        .padding()
+        .padding(.top, 50)
+    }
+    
+    // MARK: - Helper Methods
     
     // Biometric authentication with auto-navigation
     private func authenticateWithBiometrics() {

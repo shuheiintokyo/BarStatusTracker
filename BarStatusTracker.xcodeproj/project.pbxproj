@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */; };
+		0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E39E2E1A12C700C367FF /* CreateBarView.swift */; };
 		05A13C1B2E18BBE900A69687 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05A13C182E18BBE900A69687 /* Assets.xcassets */; };
 		05A13C1C2E18BBE900A69687 /* BarStatusTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C192E18BBE900A69687 /* BarStatusTrackerApp.swift */; };
 		05A13C1D2E18BBE900A69687 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C1A2E18BBE900A69687 /* ContentView.swift */; };
@@ -66,6 +67,7 @@
 
 /* Begin PBXFileReference section */
 		0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicDeviceAnalytics.swift; sourceTree = "<group>"; };
+		0597E39E2E1A12C700C367FF /* CreateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBarView.swift; sourceTree = "<group>"; };
 		05A13BED2E18B67900A69687 /* BarStatusTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarStatusTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A13BFA2E18B67A00A69687 /* BarStatusTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarStatusTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A13C042E18B67A00A69687 /* BarStatusTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarStatusTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -181,6 +183,7 @@
 		05A13C382E18C05100A69687 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				0597E39E2E1A12C700C367FF /* CreateBarView.swift */,
 				05A13C432E18C0D300A69687 /* EditDescriptionView.swift */,
 				05A13C422E18C0C900A69687 /* OwnerLoginView.swift */,
 				05A13C412E18C0BE00A69687 /* BarDetailView.swift */,
@@ -399,6 +402,7 @@
 				05A13C602E18F1D500A69687 /* FirebaseManager.swift in Sources */,
 				05A13C502E18C61F00A69687 /* BarViewModel.swift in Sources */,
 				05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */,
+				0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */,
 				05A13C4C2E18C5CF00A69687 /* EditDescriptionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

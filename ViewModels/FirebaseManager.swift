@@ -24,6 +24,64 @@ class FirebaseManager: ObservableObject {
         }
     }
     
+    // MARK: - Bar Creation and Deletion
+    
+    func createBar(_ bar: Bar, completion: @escaping (Bool, String) -> Void) {
+        let barData = bar.toDictionary()
+        
+        db.collection("bars").document(bar.id).setData(barData) { error in
+            if let error = error {
+                print("❌ Error creating bar: \(error.localizedDescription)")
+                completion(false, "Failed to create bar: \(error.localizedDescription)")
+            } else {
+                print("✅ Successfully created bar: \(bar.name)")
+                completion(true, "Bar created successfully!")
+            }
+        }
+    }
+    
+    func deleteBar(barId: String, completion: @escaping (Bool, String) -> Void) {
+        let barRef = db.collection("bars").document(barId)
+        
+        // First delete all favorites for this bar
+        db.collection("favorites")
+            .whereField("barId", isEqualTo: barId)
+            .getDocuments { [weak self] querySnapshot, error in
+                
+                if let error = error {
+                    print("❌ Error fetching favorites for deletion: \(error.localizedDescription)")
+                    completion(false, "Failed to delete bar: \(error.localizedDescription)")
+                    return
+                }
+                
+                // Delete all favorite documents
+                let batch = self?.db.batch()
+                querySnapshot?.documents.forEach { document in
+                    batch?.deleteDocument(document.reference)
+                }
+                
+                // Commit favorite deletions
+                batch?.commit { error in
+                    if let error = error {
+                        print("❌ Error deleting favorites: \(error.localizedDescription)")
+                        completion(false, "Failed to delete bar favorites: \(error.localizedDescription)")
+                        return
+                    }
+                    
+                    // Now delete the bar itself
+                    barRef.delete { error in
+                        if let error = error {
+                            print("❌ Error deleting bar: \(error.localizedDescription)")
+                            completion(false, "Failed to delete bar: \(error.localizedDescription)")
+                        } else {
+                            print("✅ Successfully deleted bar and its favorites")
+                            completion(true, "Bar deleted successfully")
+                        }
+                    }
+                }
+            }
+    }
+    
     // MARK: - Bar Data Operations
     
     func fetchBars() {
@@ -80,6 +138,42 @@ class FirebaseManager: ObservableObject {
                 DispatchQueue.main.async {
                     self?.errorMessage = "Error updating description: \(error.localizedDescription)"
                 }
+            } else {
+                print("✅ Successfully updated description for bar: \(barId)")
+            }
+        }
+    }
+    
+    func updateBarOperatingHours(barId: String, operatingHours: OperatingHours) {
+        let barRef = db.collection("bars").document(barId)
+        
+        barRef.updateData([
+            "operatingHours": operatingHours.toDictionary(),
+            "lastUpdated": Timestamp(date: Date())
+        ]) { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Error updating operating hours: \(error.localizedDescription)"
+                }
+            } else {
+                print("✅ Successfully updated operating hours for bar: \(barId)")
+            }
+        }
+    }
+    
+    func updateBarPassword(barId: String, newPassword: String) {
+        let barRef = db.collection("bars").document(barId)
+        
+        barRef.updateData([
+            "password": newPassword,
+            "lastUpdated": Timestamp(date: Date())
+        ]) { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Error updating password: \(error.localizedDescription)"
+                }
+            } else {
+                print("✅ Successfully updated password for bar: \(barId)")
             }
         }
     }
@@ -298,11 +392,14 @@ class FirebaseManager: ObservableObject {
                 return
             }
             
+            // Always fetch bars, whether or not we add sample data
+            self?.fetchBars()
+            
+            // Only add sample data if completely empty (for new installations)
             if querySnapshot?.documents.isEmpty == true {
+                print("🆕 First time setup - adding sample bars")
                 self?.addSampleBars()
             }
-            
-            self?.fetchBars()
         }
     }
     
@@ -310,18 +407,15 @@ class FirebaseManager: ObservableObject {
         let sampleBars = [
             Bar(name: "The Cozy Corner", latitude: 35.6762, longitude: 139.6503, address: "123 Shibuya, Tokyo", status: .open, description: "A warm, welcoming neighborhood bar with craft cocktails and local beer.", password: "1234"),
             Bar(name: "Sunset Tavern", latitude: 35.6586, longitude: 139.7454, address: "456 Ginza, Tokyo", status: .closingSoon, description: "Perfect spot to watch the sunset with friends.", password: "5678"),
-            Bar(name: "The Underground", latitude: 35.7090, longitude: 139.7319, address: "789 Shinjuku, Tokyo", status: .closed, description: "Speakeasy-style bar with vintage cocktails.", password: "9012"),
-            Bar(name: "Harbor Lights", latitude: 35.6284, longitude: 139.7384, address: "321 Minato, Tokyo", status: .openingSoon, description: "Waterfront bar with live music every weekend.", password: "3456"),
-            Bar(name: "City View Lounge", latitude: 35.6938, longitude: 139.7036, address: "654 Harajuku, Tokyo", status: .open, description: "Rooftop bar with panoramic city views.", password: "7890"),
-            Bar(name: "The Local Pub", latitude: 35.7023, longitude: 139.7745, address: "987 Asakusa, Tokyo", status: .closed, description: "Traditional pub with hearty food and cold beer.", password: "2468")
+            Bar(name: "The Underground", latitude: 35.7090, longitude: 139.7319, address: "789 Shinjuku, Tokyo", status: .closed, description: "Speakeasy-style bar with vintage cocktails.", password: "9012")
         ]
         
         for bar in sampleBars {
             db.collection("bars").document(bar.id).setData(bar.toDictionary()) { error in
                 if let error = error {
-                    print("Error adding bar \(bar.name): \(error)")
+                    print("Error adding sample bar \(bar.name): \(error)")
                 } else {
-                    print("Added bar: \(bar.name)")
+                    print("Added sample bar: \(bar.name)")
                 }
             }
         }

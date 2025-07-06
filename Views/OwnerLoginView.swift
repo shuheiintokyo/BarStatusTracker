@@ -10,6 +10,8 @@ struct OwnerLoginView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
+    @State private var showingDeleteConfirmation = false
+    @State private var barToDelete: Bar?
     
     var body: some View {
         NavigationView {
@@ -97,14 +99,14 @@ struct OwnerLoginView: View {
                             )
                         
                         SecureField("4-Digit Password", text: $password)
-                                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                                    .keyboardType(.numberPad)
-                                                    .onChange(of: password) { _, newValue in
-                                                        // Limit to 4 digits
-                                                        if newValue.count > 4 {
-                                                            password = String(newValue.prefix(4))
-                                                        }
-                                                    }
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.numberPad)
+                            .onChange(of: password) { _, newValue in
+                                // Limit to 4 digits
+                                if newValue.count > 4 {
+                                    password = String(newValue.prefix(4))
+                                }
+                            }
                     }
                     
                     Button(action: {
@@ -131,35 +133,102 @@ struct OwnerLoginView: View {
                     .disabled(username.isEmpty || password.count != 4 || isLoading)
                 }
                 
-                // Test Credentials Section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Test Credentials:")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                    
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(barViewModel.getAllBars(), id: \.id) { bar in
-                                HStack {
-                                    Text("• \(bar.name)")
+                // Delete Bar Section (for existing bars)
+                if !barViewModel.getAllBars().isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Bar Management")
+                                .font(.headline)
+                            Spacer()
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                        }
+                        
+                        Text("If you own a bar and want to remove it from the app:")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        ScrollView {
+                            VStack(spacing: 8) {
+                                ForEach(barViewModel.getAllBars(), id: \.id) { bar in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(bar.name)
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            Text("Password: \(bar.password)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                                .fontFamily(.monospaced)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Button("Delete") {
+                                            barToDelete = bar
+                                            showingDeleteConfirmation = true
+                                        }
                                         .font(.caption)
-                                        .foregroundColor(.primary)
-                                    Spacer()
-                                    Text("Password: \(bar.password)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .fontFamily(.monospaced)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(Color.red)
+                                        .cornerRadius(6)
+                                    }
+                                    .padding(.vertical, 4)
                                 }
-                                .padding(.vertical, 2)
                             }
                         }
+                        .frame(maxHeight: 120)
                     }
-                    .frame(maxHeight: 120)
+                    .padding()
+                    .background(Color.red.opacity(0.05))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                    )
                 }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(10)
-                .border(Color.blue.opacity(0.2), width: 1)
+                
+                // Test Credentials Section (only show sample bars)
+                let sampleBars = barViewModel.getAllBars().filter {
+                    ["The Cozy Corner", "Sunset Tavern", "The Underground"].contains($0.name)
+                }
+                
+                if !sampleBars.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Test Credentials (Sample Bars):")
+                            .font(.headline)
+                            .padding(.bottom, 4)
+                        
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 6) {
+                                ForEach(sampleBars, id: \.id) { bar in
+                                    HStack {
+                                        Text("• \(bar.name)")
+                                            .font(.caption)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                        Text("Password: \(bar.password)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .fontFamily(.monospaced)
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+                        }
+                        .frame(maxHeight: 80)
+                    }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                    )
+                }
                 
                 Spacer()
             }
@@ -177,6 +246,20 @@ struct OwnerLoginView: View {
             Button("OK") { }
         } message: {
             Text(alertMessage)
+        }
+        .alert("Delete Bar", isPresented: $showingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                barToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                if let bar = barToDelete {
+                    deleteBar(bar)
+                }
+            }
+        } message: {
+            if let bar = barToDelete {
+                Text("Are you sure you want to permanently delete '\(bar.name)'? This action cannot be undone. All customer favorites and data will be lost.")
+            }
         }
     }
     
@@ -213,11 +296,29 @@ struct OwnerLoginView: View {
             }
         }
     }
-}
-
-// Helper extension for monospaced font
-extension Text {
-    func fontFamily(_ family: Font.Design) -> Text {
-        self.font(.system(.caption, design: family))
+    
+    // Delete bar
+    private func deleteBar(_ bar: Bar) {
+        barViewModel.deleteBar(bar) { success, message in
+            DispatchQueue.main.async {
+                alertMessage = message
+                showingAlert = true
+                barToDelete = nil
+                
+                if success {
+                    // If we successfully deleted the bar, dismiss the login view
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
+
+//// Helper extension for monospaced font
+//extension Text {
+//    func fontFamily(_ family: Font.Design) -> Text {
+//        self.font(.system(.caption, design: family))
+//    }
+//}

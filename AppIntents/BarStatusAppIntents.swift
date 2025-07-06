@@ -60,6 +60,13 @@ struct CheckBarStatusIntent: AppIntent {
             }
         }
         
+        // Add today's regular hours if available
+        if bar.isOpenToday {
+            message += ". Regular hours today: \(bar.todaysHours.displayText)"
+        } else {
+            message += ". Normally closed today"
+        }
+        
         // Add popularity info from Firebase
         let favoriteCount = barViewModel.getFavoriteCount(for: bar.id)
         if favoriteCount > 0 {
@@ -93,6 +100,48 @@ struct GetOpenBarsIntent: AppIntent {
         }
         
         let message = "Open bars: " + barNames.joined(separator: ", ")
+        
+        return .result(dialog: IntentDialog(message))
+    }
+}
+
+@available(iOS 16.0, *)
+struct CheckBarHoursIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check Bar Hours"
+    static var description = IntentDescription("Check a bar's regular operating hours")
+    
+    @Parameter(title: "Bar Name")
+    var barName: String
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        let bars = barViewModel.getAllBars()
+        
+        guard let bar = bars.first(where: { $0.name.lowercased().contains(barName.lowercased()) }) else {
+            throw AppIntentError.barNotFound
+        }
+        
+        // Get today's hours
+        let todayMessage: String
+        if bar.isOpenToday {
+            todayMessage = "Today: \(bar.todaysHours.displayText)"
+        } else {
+            todayMessage = "Closed today"
+        }
+        
+        // Get this week's schedule
+        let openDays = WeekDay.allCases.filter { bar.operatingHours.getDayHours(for: $0).isOpen }
+        
+        let weekMessage: String
+        if openDays.isEmpty {
+            weekMessage = "No regular hours set"
+        } else {
+            let dayNames = openDays.map { $0.shortName }.joined(separator: ", ")
+            weekMessage = "Usually open: \(dayNames)"
+        }
+        
+        let message = "\(bar.name) - \(todayMessage). \(weekMessage)"
         
         return .result(dialog: IntentDialog(message))
     }
@@ -200,6 +249,60 @@ struct GetBarPopularityIntent: AppIntent {
     }
 }
 
+@available(iOS 16.0, *)
+struct CreateNewBarIntent: AppIntent {
+    static var title: LocalizedStringResource = "Create New Bar"
+    static var description = IntentDescription("Create a new bar profile in the app")
+    
+    @Parameter(title: "Bar Name")
+    var barName: String
+    
+    @Parameter(title: "Address")
+    var address: String
+    
+    @Parameter(title: "4-Digit Password")
+    var password: String
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        
+        // Validate password
+        guard password.count == 4 else {
+            throw AppIntentError.invalidPassword
+        }
+        
+        // Check if bar name already exists
+        if barViewModel.getAllBars().contains(where: { $0.name.lowercased() == barName.lowercased() }) {
+            throw AppIntentError.barAlreadyExists
+        }
+        
+        // Create new bar with default location (user would set specific location in app)
+        let newBar = Bar(
+            name: barName,
+            latitude: 35.6762, // Default to Tokyo
+            longitude: 139.6503,
+            address: address,
+            status: .closed,
+            description: "Created via Siri",
+            password: password
+        )
+        
+        // Create bar using Firebase
+        return await withCheckedContinuation { continuation in
+            barViewModel.createNewBar(newBar, enableFaceID: false) { success, message in
+                DispatchQueue.main.async {
+                    if success {
+                        continuation.resume(returning: .result(dialog: IntentDialog("Successfully created \(barName)! You can now log in and manage your bar in the app.")))
+                    } else {
+                        continuation.resume(returning: .result(dialog: IntentDialog("Failed to create bar: \(message)")))
+                    }
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Supporting Types
 
 @available(iOS 16.0, *)
@@ -252,6 +355,8 @@ enum AppIntentError: Error, LocalizedError {
     case notLoggedIn
     case invalidStatus
     case favoriteError
+    case invalidPassword
+    case barAlreadyExists
     
     var errorDescription: String? {
         switch self {
@@ -263,6 +368,10 @@ enum AppIntentError: Error, LocalizedError {
             return "Invalid status provided."
         case .favoriteError:
             return "Unable to update favorites. Please try again."
+        case .invalidPassword:
+            return "Password must be exactly 4 digits."
+        case .barAlreadyExists:
+            return "A bar with this name already exists."
         }
     }
 }
@@ -294,6 +403,16 @@ struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
                 systemImageName: "questionmark.circle"
             ),
             AppShortcut(
+                intent: CheckBarHoursIntent(),
+                phrases: [
+                    "What are \(.applicationName) hours",
+                    "When is \(.applicationName) open",
+                    "Check \(.applicationName) operating hours"
+                ],
+                shortTitle: "Check Bar Hours",
+                systemImageName: "clock"
+            ),
+            AppShortcut(
                 intent: GetOpenBarsIntent(),
                 phrases: [
                     "Show me open bars in \(.applicationName)",
@@ -322,6 +441,16 @@ struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
                 ],
                 shortTitle: "Check Popularity",
                 systemImageName: "heart.text.square"
+            ),
+            AppShortcut(
+                intent: CreateNewBarIntent(),
+                phrases: [
+                    "Create a new bar in \(.applicationName)",
+                    "Add my bar to \(.applicationName)",
+                    "Register my bar in \(.applicationName)"
+                ],
+                shortTitle: "Create New Bar",
+                systemImageName: "plus.circle"
             )
         ]
     }

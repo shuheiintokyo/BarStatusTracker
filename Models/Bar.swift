@@ -2,6 +2,128 @@ import Foundation
 import CoreLocation
 import FirebaseFirestore
 
+// MARK: - Operating Hours Models
+struct OperatingHours: Codable {
+    var monday: DayHours = DayHours()
+    var tuesday: DayHours = DayHours()
+    var wednesday: DayHours = DayHours()
+    var thursday: DayHours = DayHours()
+    var friday: DayHours = DayHours()
+    var saturday: DayHours = DayHours()
+    var sunday: DayHours = DayHours()
+    
+    func getDayHours(for day: WeekDay) -> DayHours {
+        switch day {
+        case .monday: return monday
+        case .tuesday: return tuesday
+        case .wednesday: return wednesday
+        case .thursday: return thursday
+        case .friday: return friday
+        case .saturday: return saturday
+        case .sunday: return sunday
+        }
+    }
+    
+    mutating func setDayHours(for day: WeekDay, hours: DayHours) {
+        switch day {
+        case .monday: monday = hours
+        case .tuesday: tuesday = hours
+        case .wednesday: wednesday = hours
+        case .thursday: thursday = hours
+        case .friday: friday = hours
+        case .saturday: saturday = hours
+        case .sunday: sunday = hours
+        }
+    }
+    
+    func toDictionary() -> [String: Any] {
+        return [
+            "monday": monday.toDictionary(),
+            "tuesday": tuesday.toDictionary(),
+            "wednesday": wednesday.toDictionary(),
+            "thursday": thursday.toDictionary(),
+            "friday": friday.toDictionary(),
+            "saturday": saturday.toDictionary(),
+            "sunday": sunday.toDictionary()
+        ]
+    }
+    
+    static func fromDictionary(_ dict: [String: Any]) -> OperatingHours {
+        var hours = OperatingHours()
+        
+        if let mondayDict = dict["monday"] as? [String: Any] {
+            hours.monday = DayHours.fromDictionary(mondayDict)
+        }
+        if let tuesdayDict = dict["tuesday"] as? [String: Any] {
+            hours.tuesday = DayHours.fromDictionary(tuesdayDict)
+        }
+        if let wednesdayDict = dict["wednesday"] as? [String: Any] {
+            hours.wednesday = DayHours.fromDictionary(wednesdayDict)
+        }
+        if let thursdayDict = dict["thursday"] as? [String: Any] {
+            hours.thursday = DayHours.fromDictionary(thursdayDict)
+        }
+        if let fridayDict = dict["friday"] as? [String: Any] {
+            hours.friday = DayHours.fromDictionary(fridayDict)
+        }
+        if let saturdayDict = dict["saturday"] as? [String: Any] {
+            hours.saturday = DayHours.fromDictionary(saturdayDict)
+        }
+        if let sundayDict = dict["sunday"] as? [String: Any] {
+            hours.sunday = DayHours.fromDictionary(sundayDict)
+        }
+        
+        return hours
+    }
+}
+
+struct DayHours: Codable {
+    var isOpen: Bool = false
+    var openTime: String = "18:00" // 6 PM default
+    var closeTime: String = "06:00" // 6 AM next day default
+    
+    var displayText: String {
+        if !isOpen {
+            return "Closed"
+        }
+        return "\(openTime) - \(closeTime)"
+    }
+    
+    func toDictionary() -> [String: Any] {
+        return [
+            "isOpen": isOpen,
+            "openTime": openTime,
+            "closeTime": closeTime
+        ]
+    }
+    
+    static func fromDictionary(_ dict: [String: Any]) -> DayHours {
+        return DayHours(
+            isOpen: dict["isOpen"] as? Bool ?? false,
+            openTime: dict["openTime"] as? String ?? "18:00",
+            closeTime: dict["closeTime"] as? String ?? "06:00"
+        )
+    }
+}
+
+enum WeekDay: String, CaseIterable {
+    case monday = "Monday"
+    case tuesday = "Tuesday"
+    case wednesday = "Wednesday"
+    case thursday = "Thursday"
+    case friday = "Friday"
+    case saturday = "Saturday"
+    case sunday = "Sunday"
+    
+    var displayName: String {
+        return rawValue
+    }
+    
+    var shortName: String {
+        return String(rawValue.prefix(3))
+    }
+}
+
 // MARK: - SocialLinks (Make sure this exists)
 struct SocialLinks: Codable {
     var instagram: String = ""
@@ -10,7 +132,7 @@ struct SocialLinks: Codable {
     var website: String = ""
 }
 
-// MARK: - Bar Model with Auto-Timer Support
+// MARK: - Enhanced Bar Model with Operating Hours
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
     let name: String
@@ -26,6 +148,9 @@ struct Bar: Identifiable, Codable {
     // Authentication fields
     let username: String
     let password: String
+    
+    // Operating hours
+    var operatingHours: OperatingHours = OperatingHours()
     
     // Auto-transition timer fields
     var autoTransitionTime: Date?           // When the auto-change should happen
@@ -57,7 +182,19 @@ struct Bar: Identifiable, Codable {
         return remaining > 0 ? remaining : 0
     }
     
-    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, password: String) {
+    // Check if bar is open today based on regular hours
+    var isOpenToday: Bool {
+        let today = getCurrentWeekDay()
+        return operatingHours.getDayHours(for: today).isOpen
+    }
+    
+    // Get today's operating hours
+    var todaysHours: DayHours {
+        let today = getCurrentWeekDay()
+        return operatingHours.getDayHours(for: today)
+    }
+    
+    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, password: String, operatingHours: OperatingHours = OperatingHours()) {
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
@@ -69,6 +206,7 @@ struct Bar: Identifiable, Codable {
         self.ownerID = ownerID
         self.username = name // Username is the bar name
         self.password = password
+        self.operatingHours = operatingHours
     }
     
     // Mutating function to start auto-transition timer
@@ -123,7 +261,8 @@ struct Bar: Identifiable, Codable {
             "ownerID": ownerID ?? "",
             "username": username,
             "password": password,
-            "isAutoTransitionActive": isAutoTransitionActive
+            "isAutoTransitionActive": isAutoTransitionActive,
+            "operatingHours": operatingHours.toDictionary()
         ]
         
         // Add auto-transition fields if active
@@ -151,7 +290,13 @@ struct Bar: Identifiable, Codable {
             return nil
         }
         
-        var bar = Bar(name: name, latitude: latitude, longitude: longitude, address: address, status: status, description: description, password: password)
+        // Operating hours
+        var operatingHours = OperatingHours()
+        if let hoursDict = data["operatingHours"] as? [String: Any] {
+            operatingHours = OperatingHours.fromDictionary(hoursDict)
+        }
+        
+        var bar = Bar(name: name, latitude: latitude, longitude: longitude, address: address, status: status, description: description, password: password, operatingHours: operatingHours)
         bar.id = documentId
         
         // Social links
@@ -182,5 +327,22 @@ struct Bar: Identifiable, Codable {
         bar.ownerID = data["ownerID"] as? String
         
         return bar
+    }
+    
+    // Helper function to get current weekday
+    private func getCurrentWeekDay() -> WeekDay {
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: Date())
+        
+        switch weekday {
+        case 1: return .sunday
+        case 2: return .monday
+        case 3: return .tuesday
+        case 4: return .wednesday
+        case 5: return .thursday
+        case 6: return .friday
+        case 7: return .saturday
+        default: return .monday
+        }
     }
 }

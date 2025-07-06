@@ -125,6 +125,53 @@ class BarViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Bar Creation and Deletion
+    
+    func createNewBar(_ bar: Bar, enableFaceID: Bool, completion: @escaping (Bool, String) -> Void) {
+        // Validate bar name uniqueness
+        if bars.contains(where: { $0.name.lowercased() == bar.name.lowercased() }) {
+            completion(false, "A bar with this name already exists")
+            return
+        }
+        
+        firebaseManager.createBar(bar) { [weak self] success, message in
+            DispatchQueue.main.async {
+                if success {
+                    // If Face ID is enabled, save credentials and log in
+                    if enableFaceID {
+                        self?.biometricAuth.saveCredentials(barID: bar.id, barName: bar.name)
+                        self?.loggedInBar = bar
+                        self?.isOwnerMode = true
+                    }
+                    completion(true, "Bar created successfully! 🎉")
+                } else {
+                    completion(false, message)
+                }
+            }
+        }
+    }
+    
+    func deleteBar(_ bar: Bar, completion: @escaping (Bool, String) -> Void) {
+        guard canEdit(bar: bar) else {
+            completion(false, "You don't have permission to delete this bar")
+            return
+        }
+        
+        firebaseManager.deleteBar(barId: bar.id) { [weak self] success, message in
+            DispatchQueue.main.async {
+                if success {
+                    // Clear authentication if deleting current logged in bar
+                    if self?.loggedInBar?.id == bar.id {
+                        self?.fullLogout()
+                    }
+                    completion(true, "Bar deleted successfully")
+                } else {
+                    completion(false, message)
+                }
+            }
+        }
+    }
+    
     // MARK: - Authentication
     
     func authenticateBar(username: String, password: String) -> Bool {
@@ -306,6 +353,28 @@ class BarViewModel: ObservableObject {
         
         if loggedInBar?.id == bar.id {
             loggedInBar?.description = newDescription
+            loggedInBar?.lastUpdated = Date()
+        }
+    }
+    
+    func updateBarOperatingHours(_ bar: Bar, newHours: OperatingHours) {
+        guard canEdit(bar: bar) else { return }
+        
+        firebaseManager.updateBarOperatingHours(barId: bar.id, operatingHours: newHours)
+        
+        if loggedInBar?.id == bar.id {
+            loggedInBar?.operatingHours = newHours
+            loggedInBar?.lastUpdated = Date()
+        }
+    }
+    
+    func updateBarPassword(_ bar: Bar, newPassword: String) {
+        guard canEdit(bar: bar) else { return }
+        
+        firebaseManager.updateBarPassword(barId: bar.id, newPassword: newPassword)
+        
+        if loggedInBar?.id == bar.id {
+            loggedInBar?.password = newPassword
             loggedInBar?.lastUpdated = Date()
         }
     }
