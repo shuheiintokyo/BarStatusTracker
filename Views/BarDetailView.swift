@@ -472,29 +472,32 @@ struct EditSocialLinksView: View {
                     VStack(spacing: 20) {
                         // Instagram
                         SocialLinkEditor(
-                            icon: "camera",
+                            icon: "instagram-icon",
                             title: "Instagram",
                             placeholder: "https://instagram.com/yourbar",
                             text: $tempInstagram,
-                            description: "Your Instagram profile or page"
+                            description: "Your Instagram profile or page",
+                            isAssetImage: true
                         )
                         
-                        // Twitter
+                        // Twitter/X
                         SocialLinkEditor(
-                            icon: "bird",
-                            title: "Twitter",
-                            placeholder: "https://twitter.com/yourbar",
+                            icon: "x-icon",
+                            title: "X (Twitter)",
+                            placeholder: "https://x.com/yourbar",
                             text: $tempTwitter,
-                            description: "Your Twitter profile or page"
+                            description: "Your X (Twitter) profile or page",
+                            isAssetImage: true
                         )
                         
                         // Facebook
                         SocialLinkEditor(
-                            icon: "f.square",
+                            icon: "facebook-icon",
                             title: "Facebook",
                             placeholder: "https://facebook.com/yourbar",
                             text: $tempFacebook,
-                            description: "Your Facebook page"
+                            description: "Your Facebook page",
+                            isAssetImage: true
                         )
                         
                         // Website
@@ -503,7 +506,8 @@ struct EditSocialLinksView: View {
                             title: "Website",
                             placeholder: "https://yourbar.com",
                             text: $tempWebsite,
-                            description: "Your official website"
+                            description: "Your official website",
+                            isAssetImage: false
                         )
                     }
                     
@@ -590,14 +594,23 @@ struct SocialLinkEditor: View {
     let placeholder: String
     @Binding var text: String
     let description: String
+    let isAssetImage: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(.blue)
-                    .frame(width: 30)
+                // Use either asset image or system image based on isAssetImage flag
+                if isAssetImage {
+                    Image(icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 24, height: 24)
+                        .foregroundColor(.blue)
+                } else {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
                 
                 Text(title)
                     .font(.headline)

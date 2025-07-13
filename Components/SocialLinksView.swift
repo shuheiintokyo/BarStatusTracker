@@ -6,19 +6,19 @@ struct SocialLinksView: View {
     var body: some View {
         HStack(spacing: 20) {
             if !socialLinks.instagram.isEmpty {
-                BarSocialLinkButton(icon: "camera", title: "Instagram", url: socialLinks.instagram)
+                BarSocialLinkButton(icon: "instagram-icon", title: "Instagram", url: socialLinks.instagram, isAssetImage: true)
             }
             
             if !socialLinks.twitter.isEmpty {
-                BarSocialLinkButton(icon: "bird", title: "Twitter", url: socialLinks.twitter)
+                BarSocialLinkButton(icon: "x-icon", title: "X", url: socialLinks.twitter, isAssetImage: true)
             }
             
             if !socialLinks.facebook.isEmpty {
-                BarSocialLinkButton(icon: "person.2", title: "Facebook", url: socialLinks.facebook)
+                BarSocialLinkButton(icon: "facebook-icon", title: "Facebook", url: socialLinks.facebook, isAssetImage: true)
             }
             
             if !socialLinks.website.isEmpty {
-                BarSocialLinkButton(icon: "globe", title: "Website", url: socialLinks.website)
+                BarSocialLinkButton(icon: "globe", title: "Website", url: socialLinks.website, isAssetImage: false)
             }
         }
     }
@@ -28,13 +28,23 @@ struct BarSocialLinkButton: View {
     let icon: String
     let title: String
     let url: String
+    let isAssetImage: Bool
     
     var body: some View {
         Button(action: openURL) {
             VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(.blue)
+                // Use either asset image or system image based on isAssetImage flag
+                if isAssetImage {
+                    Image(icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 24, height: 24)
+                        .foregroundColor(.blue)
+                } else {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
                 
                 Text(title)
                     .font(.caption)
