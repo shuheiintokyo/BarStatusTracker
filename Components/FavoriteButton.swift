@@ -3,7 +3,9 @@ import SwiftUI
 struct FavoriteButton: View {
     let barId: String
     @ObservedObject var barViewModel: BarViewModel
+    @EnvironmentObject var notificationManager: NotificationManager
     @State private var isAnimating = false
+    @State private var showingNotificationAlert = false
     
     private var isFavorite: Bool {
         barViewModel.isFavorite(barId: barId)
@@ -15,19 +17,11 @@ struct FavoriteButton: View {
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
             
-            // Animate the button
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isAnimating = true
-            }
-            
-            // Toggle favorite
-            barViewModel.toggleFavorite(barId: barId)
-            
-            // Reset animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeInOut(duration: 0.1)) {
-                    isAnimating = false
-                }
+            // Check if this is the first favorite and notifications not authorized
+            if !isFavorite && !notificationManager.isAuthorized {
+                showingNotificationAlert = true
+            } else {
+                toggleFavorite()
             }
         }) {
             Image(systemName: isFavorite ? "heart.fill" : "heart")
@@ -36,13 +30,41 @@ struct FavoriteButton: View {
                 .scaleEffect(isAnimating ? 1.2 : 1.0)
         }
         .buttonStyle(PlainButtonStyle())
+        .alert("Get Notified! 📱", isPresented: $showingNotificationAlert) {
+            Button("Enable Notifications") {
+                notificationManager.requestNotificationPermissions()
+                toggleFavorite()
+            }
+            Button("Skip") {
+                toggleFavorite()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Get notified when this bar changes status! You can always change this in Settings later.")
+        }
+    }
+    
+    private func toggleFavorite() {
+        withAnimation(.easeInOut(duration: 0.1)) {
+            isAnimating = true
+        }
+        
+        barViewModel.toggleFavorite(barId: barId)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isAnimating = false
+            }
+        }
     }
 }
 
 struct FloatingFavoriteButton: View {
     let barId: String
     @ObservedObject var barViewModel: BarViewModel
+    @EnvironmentObject var notificationManager: NotificationManager
     @State private var isAnimating = false
+    @State private var showingNotificationAlert = false
     
     private var isFavorite: Bool {
         barViewModel.isFavorite(barId: barId)
@@ -54,19 +76,11 @@ struct FloatingFavoriteButton: View {
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
             
-            // Animate the button
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                isAnimating = true
-            }
-            
-            // Toggle favorite
-            barViewModel.toggleFavorite(barId: barId)
-            
-            // Reset animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isAnimating = false
-                }
+            // Check if this is the first favorite and notifications not authorized
+            if !isFavorite && !notificationManager.isAuthorized {
+                showingNotificationAlert = true
+            } else {
+                toggleFavorite()
             }
         }) {
             VStack(spacing: 4) {
@@ -87,6 +101,32 @@ struct FloatingFavoriteButton: View {
                     .shadow(radius: isAnimating ? 8 : 4)
                     .scaleEffect(isAnimating ? 1.1 : 1.0)
             )
+        }
+        .alert("Get Notified! 📱", isPresented: $showingNotificationAlert) {
+            Button("Enable Notifications") {
+                notificationManager.requestNotificationPermissions()
+                toggleFavorite()
+            }
+            Button("Skip") {
+                toggleFavorite()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Get notified when this bar changes status! You can always change this in Settings later.")
+        }
+    }
+    
+    private func toggleFavorite() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+            isAnimating = true
+        }
+        
+        barViewModel.toggleFavorite(barId: barId)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isAnimating = false
+            }
         }
     }
 }

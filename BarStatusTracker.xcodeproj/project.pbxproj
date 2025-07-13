@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */; };
 		0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E39E2E1A12C700C367FF /* CreateBarView.swift */; };
+		0597E3A22E1A2A4900C367FF /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3A12E1A2A4100C367FF /* NotificationManager.swift */; };
+		0597E3A42E1A2B5800C367FF /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3A32E1A2B5100C367FF /* NotificationDelegate.swift */; };
+		0597E3A62E2343ED00C367FF /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3A52E2343E800C367FF /* NotificationSettingsView.swift */; };
 		05A13C1B2E18BBE900A69687 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05A13C182E18BBE900A69687 /* Assets.xcassets */; };
 		05A13C1C2E18BBE900A69687 /* BarStatusTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C192E18BBE900A69687 /* BarStatusTrackerApp.swift */; };
 		05A13C1D2E18BBE900A69687 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C1A2E18BBE900A69687 /* ContentView.swift */; };
@@ -68,6 +71,10 @@
 /* Begin PBXFileReference section */
 		0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicDeviceAnalytics.swift; sourceTree = "<group>"; };
 		0597E39E2E1A12C700C367FF /* CreateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBarView.swift; sourceTree = "<group>"; };
+		0597E3A02E1A29DC00C367FF /* BarStatusTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BarStatusTracker.entitlements; sourceTree = "<group>"; };
+		0597E3A12E1A2A4100C367FF /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		0597E3A32E1A2B5100C367FF /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
+		0597E3A52E2343E800C367FF /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		05A13BED2E18B67900A69687 /* BarStatusTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarStatusTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A13BFA2E18B67A00A69687 /* BarStatusTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarStatusTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A13C042E18B67A00A69687 /* BarStatusTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BarStatusTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -142,6 +149,7 @@
 		05A13BE42E18B67900A69687 = {
 			isa = PBXGroup;
 			children = (
+				0597E3A02E1A29DC00C367FF /* BarStatusTracker.entitlements */,
 				05A13C682E19542100A69687 /* AppIntents */,
 				05A13C612E19517F00A69687 /* BarStatusTracker-Info.plist */,
 				05A13C3A2E18C05E00A69687 /* Components */,
@@ -183,6 +191,7 @@
 		05A13C382E18C05100A69687 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				0597E3A52E2343E800C367FF /* NotificationSettingsView.swift */,
 				0597E39E2E1A12C700C367FF /* CreateBarView.swift */,
 				05A13C432E18C0D300A69687 /* EditDescriptionView.swift */,
 				05A13C422E18C0C900A69687 /* OwnerLoginView.swift */,
@@ -196,6 +205,7 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				0597E3A12E1A2A4100C367FF /* NotificationManager.swift */,
 				0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */,
 				05A13C642E1953B400A69687 /* UserPreferencesManager.swift */,
 				05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */,
@@ -208,6 +218,7 @@
 		05A13C3A2E18C05E00A69687 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				0597E3A32E1A2B5100C367FF /* NotificationDelegate.swift */,
 				05A13C662E1953ED00A69687 /* FavoriteButton.swift */,
 				05A13C462E18C0F400A69687 /* SocialLinksView.swift */,
 				05A13C452E18C0E800A69687 /* StatusControlView.swift */,
@@ -387,12 +398,15 @@
 				05A13C672E1953F600A69687 /* FavoriteButton.swift in Sources */,
 				05A13C532E18C63200A69687 /* Bar.swift in Sources */,
 				05A13C4B2E18C5C800A69687 /* BarDetailView.swift in Sources */,
+				0597E3A42E1A2B5800C367FF /* NotificationDelegate.swift in Sources */,
+				0597E3A22E1A2A4900C367FF /* NotificationManager.swift in Sources */,
 				05A13C4E2E18C5DE00A69687 /* StatusControlView.swift in Sources */,
 				05A13C1C2E18BBE900A69687 /* BarStatusTrackerApp.swift in Sources */,
 				05A13C652E1953B800A69687 /* UserPreferencesManager.swift in Sources */,
 				05A13C1D2E18BBE900A69687 /* ContentView.swift in Sources */,
 				05A13C492E18C5BC00A69687 /* BarGridView.swift in Sources */,
 				05A13C482E18C5A200A69687 /* MainContentView.swift in Sources */,
+				0597E3A62E2343ED00C367FF /* NotificationSettingsView.swift in Sources */,
 				05A13C632E19536D00A69687 /* UserPreferences.swift in Sources */,
 				0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */,
 				05A13C4F2E18C5E300A69687 /* SocialLinksView.swift in Sources */,
@@ -561,14 +575,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = BarStatusTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 2U6HGW7K5L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "BarStatusTracker-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "This app uses Face ID to securely authenticate bar owners for quick access to their bar controls.";
+				INFOPLIST_KEY_CFBundleDisplayName = "Bar Status Tracker";
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location helps provide better analytics for bar owners (completely optional)";
 				INFOPLIST_KEY_NSSiriUsageDescription = "Use Siri to quickly check bar status and update your bar";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -593,14 +609,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = BarStatusTracker.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 2U6HGW7K5L;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "BarStatusTracker-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "";
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "This app uses Face ID to securely authenticate bar owners for quick access to their bar controls.";
+				INFOPLIST_KEY_CFBundleDisplayName = "Bar Status Tracker";
+				INFOPLIST_KEY_LSApplicationCategoryType = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location helps provide better analytics for bar owners (completely optional)";
 				INFOPLIST_KEY_NSSiriUsageDescription = "Use Siri to quickly check bar status and update your bar";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

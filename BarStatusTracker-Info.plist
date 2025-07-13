@@ -4,5 +4,9 @@
 <dict>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Get notified when your favorite bars change status</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

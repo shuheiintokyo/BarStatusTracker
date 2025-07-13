@@ -2,11 +2,13 @@ import SwiftUI
 
 struct MainContentView: View {
     @StateObject private var barViewModel = BarViewModel()
+    @EnvironmentObject var notificationManager: NotificationManager
     @State private var showingOwnerLogin = false
     @State private var showingBiometricAlert = false
     @State private var biometricError = ""
     @State private var autoShowingDetail = false
     @State private var showingCreateBar = false
+    @State private var showingNotificationSettings = false
     
     var body: some View {
         NavigationView {
@@ -40,6 +42,14 @@ struct MainContentView: View {
         } message: {
             Text(biometricError)
         }
+        .sheet(isPresented: $showingNotificationSettings) {
+                NotificationSettingsView(barViewModel: barViewModel)
+        }
+        .alert("Authentication Error", isPresented: $showingBiometricAlert) {
+            Button("OK") { }
+        } message: {
+            Text(biometricError)
+        }
         // Auto-show detail page after Face ID login - FIXED
         .onChange(of: barViewModel.isOwnerMode) { oldValue, newValue in
             if newValue && autoShowingDetail, let loggedInBar = barViewModel.loggedInBar {
@@ -50,6 +60,10 @@ struct MainContentView: View {
                     autoShowingDetail = false
                 }
             }
+        }
+        .onAppear {
+            // Connect notification manager to view model
+            barViewModel.setNotificationManager(notificationManager)
         }
     }
     
@@ -85,8 +99,23 @@ struct MainContentView: View {
     }
     
     // MARK: - Authentication Buttons
+    
     var authenticationButtons: some View {
         HStack(spacing: 12) {
+            // 🎯 NOTIFICATION SETTINGS BUTTON (NEW!)
+            Button(action: {
+                showingNotificationSettings = true
+            }) {
+                VStack(spacing: 4) {
+                    Image(systemName: notificationManager.isAuthorized ? "bell.fill" : "bell")
+                        .font(.title2)
+                        .foregroundColor(notificationManager.isAuthorized ? .green : .gray)
+                    Text("Alerts")
+                        .font(.caption2)
+                        .foregroundColor(notificationManager.isAuthorized ? .green : .gray)
+                }
+            }
+            
             // Create bar button (always visible in guest mode)
             if !barViewModel.isOwnerMode {
                 Button(action: {
@@ -387,7 +416,6 @@ struct MainContentView: View {
     }
 }
 
-// MARK: - Helper View to Fix Dynamic Member Lookup Issue
 // MARK: - Helper View to Fix Dynamic Member Lookup Issue
 struct TimeRemainingView: View {
     let bar: Bar

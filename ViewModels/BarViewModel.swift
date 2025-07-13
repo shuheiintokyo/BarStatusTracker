@@ -20,6 +20,9 @@ class BarViewModel: ObservableObject {
     // User preferences manager for favorites
     @Published var userPreferencesManager = UserPreferencesManager()
     
+    // Notification manager
+    @Published var notificationManager: NotificationManager?
+    
     // Timer for checking auto-transitions (more frequent)
     private var autoTransitionTimer: Timer?
     
@@ -40,6 +43,12 @@ class BarViewModel: ObservableObject {
         uiUpdateTimer?.invalidate()
     }
     
+    // MARK: - Notification Manager Integration
+    
+    func setNotificationManager(_ manager: NotificationManager) {
+        self.notificationManager = manager
+    }
+    
     // MARK: - Timer Management
     
     private func startAutoTransitionMonitoring() {
@@ -58,6 +67,8 @@ class BarViewModel: ObservableObject {
         }
     }
     
+    // MARK: - REPLACE YOUR EXISTING checkForAutoTransitions METHOD WITH THIS:
+
     private func checkForAutoTransitions() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -80,6 +91,19 @@ class BarViewModel: ObservableObject {
                     if self.loggedInBar?.id == bar.id {
                         self.loggedInBar = bar
                     }
+                    
+                    // 🎯 SEND NOTIFICATION FOR AUTO-TRANSITION
+                    NotificationCenter.default.post(
+                        name: .barStatusChanged,
+                        object: nil,
+                        userInfo: [
+                            "barId": bar.id,
+                            "barName": bar.name,
+                            "newStatus": bar.status,
+                            "oldStatus": oldStatus
+                        ]
+                    )
+                    print("📢 Posted auto-transition notification for \(bar.name): \(oldStatus.displayName) → \(bar.status.displayName)")
                     
                     // Force UI refresh
                     self.objectWillChange.send()
@@ -243,13 +267,12 @@ class BarViewModel: ObservableObject {
     }
     
     // MARK: - Status Operations (Simplified)
-    
-    // MARK: - Status Operations (Simplified) - FIXED
+
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else { return }
         
-        // Remove the unused oldStatus variable and update the logging
         var updatedBar = bar
+        let oldStatus = bar.status  // 🎯 CAPTURE OLD STATUS
         
         // Cancel any existing auto-transition
         updatedBar.cancelAutoTransition()
@@ -279,8 +302,68 @@ class BarViewModel: ObservableObject {
             loggedInBar = updatedBar
         }
         
+        // 🎯 SEND NOTIFICATION IF STATUS ACTUALLY CHANGED
+        if oldStatus != newStatus {
+            NotificationCenter.default.post(
+                name: .barStatusChanged,
+                object: nil,
+                userInfo: [
+                    "barId": bar.id,
+                    "barName": bar.name,
+                    "newStatus": newStatus,
+                    "oldStatus": oldStatus
+                ]
+            )
+            print("📢 Posted notification for \(bar.name): \(oldStatus.displayName) → \(newStatus.displayName)")
+        }
+        
         // Force UI update
         objectWillChange.send()
+    }
+    
+    func cancelAutoTransition(for bar: Bar) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.cancelAutoTransition()
+        
+        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
+        
+        if loggedInBar?.id == bar.id {
+            loggedInBar = updatedBar
+        }
+        
+        objectWillChange.send()
+        print("❌ Auto-transition cancelled for \(bar.name)")
+    }
+    
+    // Get time remaining for auto-transition (for UI display)
+    func getTimeRemainingText(for bar: Bar) -> String? {
+        guard let timeRemaining = bar.timeUntilAutoTransition,
+              timeRemaining > 0 else {
+            return nil
+        }
+        
+        let minutes = Int(timeRemaining / 60)
+        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
+        
+        if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+    
+    // MARK: - Notification Methods
+    
+    private func notifyFavoriteUsers(for bar: Bar, newStatus: BarStatus) {
+        // Only send notifications for significant status changes
+        guard newStatus == .open || newStatus == .closed else { return }
+        
+        // Check if current user has this bar favorited
+        if userPreferencesManager.isFavorite(barId: bar.id) {
+            notificationManager?.scheduleBarStatusNotification(barName: bar.name, newStatus: newStatus)
+        }
     }
     
     // MARK: - Firebase-Integrated Favorites System
@@ -364,37 +447,5 @@ class BarViewModel: ObservableObject {
     func debugFavorites() {
         userPreferencesManager.debugPrintStatus()
         print("📊 Firebase favorite counts: \(firebaseManager.favoriteCounts)")
-    }
-    
-    func getTimeRemainingText(for bar: Bar) -> String? {
-        guard let timeRemaining = bar.timeUntilAutoTransition,
-              timeRemaining > 0 else {
-            return nil
-        }
-        
-        let minutes = Int(timeRemaining / 60)
-        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
-        
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
-        }
-    }
-    
-    func cancelAutoTransition(for bar: Bar) {
-        guard canEdit(bar: bar) else { return }
-        
-        var updatedBar = bar
-        updatedBar.cancelAutoTransition()
-        
-        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
-        
-        if loggedInBar?.id == bar.id {
-            loggedInBar = updatedBar
-        }
-        
-        objectWillChange.send()
-        print("❌ Auto-transition cancelled for \(bar.name)")
     }
 }
