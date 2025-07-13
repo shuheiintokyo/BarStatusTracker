@@ -45,7 +45,8 @@ struct DualTimeSlider: View {
             
             // Simplified slider track
             GeometryReader { geometry in
-                let width = max(1.0, geometry.size.width) // Prevent zero width
+                let rawWidth = geometry.size.width
+                let width = rawWidth > 0 && rawWidth.isFinite ? max(100.0, rawWidth) : 300.0 // Provide fallback width
                 let height: CGFloat = 44
                 
                 ZStack(alignment: .leading) {
@@ -104,12 +105,19 @@ struct DualTimeSlider: View {
                             .onChanged { value in
                                 showingOpenTime = true
                                 
-                                // Safe calculation to prevent NaN
-                                guard width > 0, value.location.x.isFinite else { return }
-                                let newPosition = max(0, min(1, value.location.x / width))
+                                // Comprehensive safety checks to prevent NaN
+                                guard width > 50,  // Minimum reasonable width
+                                      width.isFinite,
+                                      value.location.x.isFinite,
+                                      value.location.x >= 0 else {
+                                    return
+                                }
                                 
-                                // Ensure newPosition is valid before using it
-                                if newPosition.isFinite {
+                                let rawPosition = value.location.x / width
+                                let newPosition = max(0, min(1, rawPosition))
+                                
+                                // Final validation before using
+                                if newPosition.isFinite && newPosition >= 0 && newPosition <= 1 {
                                     openTime = positionToTime(newPosition)
                                 }
                             }
@@ -131,12 +139,19 @@ struct DualTimeSlider: View {
                             .onChanged { value in
                                 showingCloseTime = true
                                 
-                                // Safe calculation to prevent NaN
-                                guard width > 0, value.location.x.isFinite else { return }
-                                let newPosition = max(0, min(1, value.location.x / width))
+                                // Comprehensive safety checks to prevent NaN
+                                guard width > 50,  // Minimum reasonable width
+                                      width.isFinite,
+                                      value.location.x.isFinite,
+                                      value.location.x >= 0 else {
+                                    return
+                                }
                                 
-                                // Ensure newPosition is valid before using it
-                                if newPosition.isFinite {
+                                let rawPosition = value.location.x / width
+                                let newPosition = max(0, min(1, rawPosition))
+                                
+                                // Final validation before using
+                                if newPosition.isFinite && newPosition >= 0 && newPosition <= 1 {
                                     closeTime = positionToTime(newPosition)
                                 }
                             }
@@ -156,7 +171,11 @@ struct DualTimeSlider: View {
     // MARK: - Helper Views
     
     private func timeDisplayCard(time: String, label: String, color: Color, isShowing: Binding<Bool>) -> some View {
-        VStack(spacing: 4) {
+        // Ensure scale is bounded
+        let scale = isShowing.wrappedValue ? 1.05 : 1.0
+        let safeScale = scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
+        
+        return VStack(spacing: 4) {
             Text(label)
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -176,7 +195,8 @@ struct DualTimeSlider: View {
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )
         )
-            .scaleEffect(isShowing.wrappedValue ? 1.05 : 1.0)
+        .scaleEffect(safeScale)
+        .animation(.easeInOut(duration: 0.15), value: isShowing.wrappedValue)
     }
     
     private func sliderHandle(position: Double, color: Color, width: CGFloat, height: CGFloat, isActive: Bool, dragGesture: some Gesture) -> some View {
@@ -187,6 +207,10 @@ struct DualTimeSlider: View {
         // Ensure xPosition is valid
         let safeXPosition = xPosition.isFinite ? max(0, min(width, xPosition)) : 0
         
+        // Ensure scale is bounded
+        let scale = isActive ? 1.1 : 1.0
+        let safeScale = scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
+        
         return Circle()
             .fill(color)
             .frame(width: isActive ? 36 : 32, height: isActive ? 36 : 32)
@@ -196,34 +220,68 @@ struct DualTimeSlider: View {
                     .stroke(Color.white, lineWidth: 3)
             )
             .position(x: safeXPosition, y: height / 2)
-            .scaleEffect(isActive ? 1.1 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
+            .scaleEffect(safeScale)
+            .animation(.easeInOut(duration: 0.15), value: isActive)
             .gesture(dragGesture)
     }
     
-    // MARK: - Helper Functions
+    // MARK: - Helper Functions with Comprehensive NaN Protection
     
     private func timeToPosition(_ time: String) -> Double {
         guard let index = timeSlots.firstIndex(of: time),
-              timeSlots.count > 1 else { return 0.0 }
+              timeSlots.count > 1,
+              index >= 0,
+              index < timeSlots.count else {
+            return 0.0
+        }
         
-        let position = Double(index) / Double(timeSlots.count - 1)
+        let numerator = Double(index)
+        let denominator = Double(timeSlots.count - 1)
         
-        // Ensure we return a valid number
-        guard position.isFinite else { return 0.0 }
+        // Ensure both values are valid before division
+        guard numerator.isFinite,
+              denominator.isFinite,
+              denominator > 0 else {
+            return 0.0
+        }
         
-        return max(0.0, min(1.0, position))
+        let position = numerator / denominator
+        
+        // Final validation of result
+        guard position.isFinite,
+              position >= 0.0,
+              position <= 1.0 else {
+            return 0.0
+        }
+        
+        return position
     }
     
     private func positionToTime(_ position: Double) -> String {
-        // Ensure position is valid
-        let safePosition = position.isFinite ? max(0.0, min(1.0, position)) : 0.0
+        // Comprehensive input validation
+        guard position.isFinite,
+              position >= 0.0,
+              position <= 1.0,
+              timeSlots.count > 0 else {
+            return "18:00"
+        }
         
-        guard timeSlots.count > 0 else { return "18:00" }
+        let multiplier = Double(timeSlots.count - 1)
+        guard multiplier.isFinite, multiplier >= 0 else {
+            return "18:00"
+        }
         
-        let rawIndex = safePosition * Double(timeSlots.count - 1)
-        let index = rawIndex.isFinite ? Int(round(rawIndex)) : 0
+        let rawIndex = position * multiplier
+        guard rawIndex.isFinite else {
+            return "18:00"
+        }
+        
+        let index = Int(round(rawIndex))
         let clampedIndex = max(0, min(timeSlots.count - 1, index))
+        
+        guard clampedIndex >= 0, clampedIndex < timeSlots.count else {
+            return "18:00"
+        }
         
         return timeSlots[clampedIndex]
     }
