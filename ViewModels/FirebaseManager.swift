@@ -420,6 +420,32 @@ class FirebaseManager: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Add this method to FirebaseManager.swift
+
+    func updateBarSocialLinks(barId: String, socialLinks: SocialLinks) {
+        let barRef = db.collection("bars").document(barId)
+        
+        let socialLinksData: [String: String] = [
+            "instagram": socialLinks.instagram,
+            "twitter": socialLinks.twitter,
+            "facebook": socialLinks.facebook,
+            "website": socialLinks.website
+        ]
+        
+        barRef.updateData([
+            "socialLinks": socialLinksData,
+            "lastUpdated": Timestamp(date: Date())
+        ]) { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Error updating social links: \(error.localizedDescription)"
+                }
+            } else {
+                print("✅ Successfully updated social links for bar: \(barId)")
+            }
+        }
+    }
 }
 
 enum AuthError: Error, LocalizedError {
@@ -432,4 +458,6 @@ enum AuthError: Error, LocalizedError {
         }
     }
 }
+
+
 

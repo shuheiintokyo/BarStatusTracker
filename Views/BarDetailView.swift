@@ -14,6 +14,10 @@ struct BarDetailView: View {
     @State private var editingOperatingHours = OperatingHours()
     @State private var editingPassword = ""
     
+    // 🎯 NEW: Social Links editing states
+    @State private var editingSocialLinks = SocialLinks()
+    @State private var showingEditSocialLinks = false
+    
     // Analytics and UI state
     @State private var basicAnalytics: [String: Any] = [:]
     @State private var isLoadingAnalytics = false
@@ -41,7 +45,9 @@ struct BarDetailView: View {
                         // Description
                         descriptionSection
                         
-                        // Social Links
+                        Divider()
+                        
+                        // 🎯 UPDATED: Social Links with editing capability
                         socialLinksSection
                         
                         // Owner Settings
@@ -110,6 +116,15 @@ struct BarDetailView: View {
                 barName: bar.name
             ) { newPassword in
                 barViewModel.updateBarPassword(bar, newPassword: newPassword)
+            }
+        }
+        // 🎯 NEW: Social Links editing sheet
+        .sheet(isPresented: $showingEditSocialLinks) {
+            EditSocialLinksView(
+                socialLinks: $editingSocialLinks,
+                barName: bar.name
+            ) { newSocialLinks in
+                barViewModel.updateBarSocialLinks(bar, newSocialLinks: newSocialLinks)
             }
         }
     }
@@ -313,15 +328,44 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Social Links Section
-    @ViewBuilder
+    // MARK: - 🎯 UPDATED: Social Links Section with Full Editing Support
     var socialLinksSection: some View {
-        if !bar.socialLinks.instagram.isEmpty || !bar.socialLinks.twitter.isEmpty || !bar.socialLinks.website.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Follow Us")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Social Links")
                     .font(.headline)
                 
+                if isOwnerMode {
+                    Spacer()
+                    Button("Edit") {
+                        editingSocialLinks = bar.socialLinks
+                        showingEditSocialLinks = true
+                    }
+                    .font(.caption)
+                }
+            }
+            
+            if !bar.socialLinks.instagram.isEmpty ||
+               !bar.socialLinks.twitter.isEmpty ||
+               !bar.socialLinks.website.isEmpty ||
+               !bar.socialLinks.facebook.isEmpty {
+                
                 SocialLinksView(socialLinks: bar.socialLinks)
+            } else if isOwnerMode {
+                // Show placeholder for owners when no links are set
+                VStack(spacing: 8) {
+                    Text("No social links set up yet")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    Text("Add your social media profiles to help customers find you online")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(8)
             }
         }
     }
@@ -395,6 +439,183 @@ struct BarDetailView: View {
                 self.isLoadingAnalytics = false
             }
         }
+    }
+}
+
+// MARK: - 🎯 NEW: Edit Social Links View
+struct EditSocialLinksView: View {
+    @Binding var socialLinks: SocialLinks
+    let barName: String
+    let onSave: (SocialLinks) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var tempInstagram = ""
+    @State private var tempTwitter = ""
+    @State private var tempFacebook = ""
+    @State private var tempWebsite = ""
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Social Links")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Help customers find \(barName) online")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    VStack(spacing: 20) {
+                        // Instagram
+                        SocialLinkEditor(
+                            icon: "camera",
+                            title: "Instagram",
+                            placeholder: "https://instagram.com/yourbar",
+                            text: $tempInstagram,
+                            description: "Your Instagram profile or page"
+                        )
+                        
+                        // Twitter
+                        SocialLinkEditor(
+                            icon: "bird",
+                            title: "Twitter",
+                            placeholder: "https://twitter.com/yourbar",
+                            text: $tempTwitter,
+                            description: "Your Twitter profile or page"
+                        )
+                        
+                        // Facebook
+                        SocialLinkEditor(
+                            icon: "f.square",
+                            title: "Facebook",
+                            placeholder: "https://facebook.com/yourbar",
+                            text: $tempFacebook,
+                            description: "Your Facebook page"
+                        )
+                        
+                        // Website
+                        SocialLinkEditor(
+                            icon: "globe",
+                            title: "Website",
+                            placeholder: "https://yourbar.com",
+                            text: $tempWebsite,
+                            description: "Your official website"
+                        )
+                    }
+                    
+                    // Tips section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("💡 Tips")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("• Make sure URLs start with 'https://' or 'http://'")
+                            Text("• Leave fields empty if you don't have that social media")
+                            Text("• Test your links after saving to make sure they work")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(10)
+                    
+                    Spacer(minLength: 50)
+                }
+                .padding()
+            }
+            .navigationTitle("Edit Social Links")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        saveSocialLinks()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            // Load current values
+            tempInstagram = socialLinks.instagram
+            tempTwitter = socialLinks.twitter
+            tempFacebook = socialLinks.facebook
+            tempWebsite = socialLinks.website
+        }
+    }
+    
+    private func saveSocialLinks() {
+        // Validate URLs (basic check)
+        let validatedSocialLinks = SocialLinks(
+            instagram: validateURL(tempInstagram),
+            twitter: validateURL(tempTwitter),
+            facebook: validateURL(tempFacebook),
+            website: validateURL(tempWebsite)
+        )
+        
+        onSave(validatedSocialLinks)
+        dismiss()
+    }
+    
+    private func validateURL(_ urlString: String) -> String {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // If empty, return empty
+        if trimmed.isEmpty {
+            return ""
+        }
+        
+        // If it doesn't start with http:// or https://, add https://
+        if !trimmed.lowercased().hasPrefix("http://") && !trimmed.lowercased().hasPrefix("https://") {
+            return "https://" + trimmed
+        }
+        
+        return trimmed
+    }
+}
+
+// MARK: - 🎯 NEW: Social Link Editor Component
+struct SocialLinkEditor: View {
+    let icon: String
+    let title: String
+    let placeholder: String
+    @Binding var text: String
+    let description: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                    .frame(width: 30)
+                
+                Text(title)
+                    .font(.headline)
+            }
+            
+            TextField(placeholder, text: $text)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .keyboardType(.URL)
+                .autocapitalization(.none)
+                .autocorrectionDisabled()
+            
+            Text(description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(10)
     }
 }
 
@@ -578,4 +799,3 @@ struct BasicAnalyticsSection: View {
         }
     }
 }
-

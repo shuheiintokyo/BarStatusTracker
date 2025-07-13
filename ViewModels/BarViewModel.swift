@@ -448,4 +448,15 @@ class BarViewModel: ObservableObject {
         userPreferencesManager.debugPrintStatus()
         print("📊 Firebase favorite counts: \(firebaseManager.favoriteCounts)")
     }
+    
+    func updateBarSocialLinks(_ bar: Bar, newSocialLinks: SocialLinks) {
+        guard canEdit(bar: bar) else { return }
+        
+        firebaseManager.updateBarSocialLinks(barId: bar.id, socialLinks: newSocialLinks)
+        
+        if loggedInBar?.id == bar.id {
+            loggedInBar?.socialLinks = newSocialLinks
+            loggedInBar?.lastUpdated = Date()
+        }
+    }
 }
