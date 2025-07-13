@@ -24,7 +24,30 @@ struct StatusControlView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color.gray.opacity(0.05))
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.blue.opacity(0.1),
+                            Color.purple.opacity(0.05)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.blue.opacity(0.3),
+                                    Color.purple.opacity(0.2)
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
         )
     }
     
@@ -215,50 +238,107 @@ struct StatusButton: View {
             impactFeedback.impactOccurred()
         }) {
             VStack(spacing: 8) {
-                // Icon with background
+                // Icon with enhanced background
                 ZStack {
                     Circle()
-                        .fill(isSelected ? status.color : status.color.opacity(0.2))
-                        .frame(width: 44, height: 44)
+                        .fill(isSelected ? status.color : status.color.opacity(0.15))
+                        .frame(width: 50, height: 50)
+                        .overlay(
+                            Circle()
+                                .stroke(
+                                    isSelected ? Color.white.opacity(0.3) : status.color.opacity(0.3),
+                                    lineWidth: 2
+                                )
+                        )
+                        .shadow(
+                            color: isSelected ? status.color.opacity(0.4) : Color.clear,
+                            radius: isSelected ? 8 : 0
+                        )
                     
                     Image(systemName: status.icon)
-                        .font(.title3)
+                        .font(.title2)
                         .foregroundColor(isSelected ? .white : status.color)
+                        .fontWeight(isSelected ? .bold : .medium)
                 }
                 
-                // Text info
+                // Text info with enhanced styling
                 VStack(spacing: 2) {
                     Text(buttonInfo.title)
                         .font(.caption)
-                        .fontWeight(.semibold)
+                        .fontWeight(.bold)
+                        .foregroundColor(isSelected ? status.color : .primary)
                     
                     Text(buttonInfo.subtitle)
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(isSelected ? status.color.opacity(0.8) : .secondary)
                     
                     if !buttonInfo.duration.isEmpty {
                         Text(buttonInfo.duration)
                             .font(.caption2)
                             .foregroundColor(.orange)
-                            .fontWeight(.medium)
+                            .fontWeight(.bold)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.2))
+                            .cornerRadius(4)
                     }
                 }
             }
-            .foregroundColor(isSelected ? status.color : .primary)
-            .padding()
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(isSelected ? status.color.opacity(0.1) : Color.clear)
+                    .fill(
+                        isSelected ?
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                status.color.opacity(0.15),
+                                status.color.opacity(0.05)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ) :
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.white.opacity(0.8),
+                                Color.gray.opacity(0.05)
+                            ]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
-                                isSelected ? status.color.opacity(0.5) : Color.gray.opacity(0.2),
+                                isSelected ?
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        status.color.opacity(0.6),
+                                        status.color.opacity(0.3)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ) :
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        Color.gray.opacity(0.2),
+                                        Color.gray.opacity(0.1)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
+                    .shadow(
+                        color: isSelected ? status.color.opacity(0.2) : Color.black.opacity(0.05),
+                        radius: isSelected ? 6 : 2,
+                        x: 0,
+                        y: isSelected ? 4 : 1
+                    )
             )
-            .scaleEffect(isPressed ? 0.95 : (isSelected ? 1.02 : 1.0))
+            .scaleEffect(isPressed ? 0.95 : (isSelected ? 1.05 : 1.0))
             .animation(.easeInOut(duration: 0.2), value: isSelected)
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }

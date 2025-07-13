@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Clean and Simple Dual Time Slider
+// MARK: - Clean and Simple Dual Time Slider for Operating Hours
 struct DualTimeSlider: View {
     @Binding var openTime: String
     @Binding var closeTime: String
@@ -8,11 +8,13 @@ struct DualTimeSlider: View {
     @State private var showingCloseTime = false
     
     private var openPosition: Double {
-        timeToPosition(openTime)
+        let position = timeToPosition(openTime)
+        return position.isFinite ? position : 0.0
     }
     
     private var closePosition: Double {
-        timeToPosition(closeTime)
+        let position = timeToPosition(closeTime)
+        return position.isFinite ? position : 0.0
     }
     
     private let timeSlots = [
@@ -43,7 +45,7 @@ struct DualTimeSlider: View {
             
             // Simplified slider track
             GeometryReader { geometry in
-                let width = geometry.size.width
+                let width = max(1.0, geometry.size.width) // Prevent zero width
                 let height: CGFloat = 44
                 
                 ZStack(alignment: .leading) {
@@ -53,9 +55,15 @@ struct DualTimeSlider: View {
                         .frame(height: height)
                     
                     // Active range
-                    let startX = width * min(openPosition, closePosition)
-                    let endX = width * max(openPosition, closePosition)
-                    let activeWidth = endX - startX
+                    let minPos = min(openPosition, closePosition)
+                    let maxPos = max(openPosition, closePosition)
+                    let startX = width * minPos
+                    let endX = width * maxPos
+                    let activeWidth = max(0, endX - startX)
+                    
+                    // Ensure all values are finite
+                    let safeStartX = startX.isFinite ? max(0, min(width, startX)) : 0
+                    let safeActiveWidth = activeWidth.isFinite ? max(0, min(width, activeWidth)) : 0
                     
                     RoundedRectangle(cornerRadius: height / 2)
                         .fill(LinearGradient(
@@ -63,12 +71,15 @@ struct DualTimeSlider: View {
                             startPoint: .leading,
                             endPoint: .trailing
                         ))
-                        .frame(width: activeWidth, height: height)
-                        .offset(x: startX)
+                        .frame(width: safeActiveWidth, height: height)
+                        .offset(x: safeStartX)
                     
                     // Simplified time markers
                     ForEach(majorTimeMarkers, id: \.self) { time in
                         let position = timeToPosition(time)
+                        let safePosition = position.isFinite ? max(0.0, min(1.0, position)) : 0.0
+                        let xPos = width * safePosition
+                        let safeXPos = xPos.isFinite ? max(0, min(width, xPos)) : 0
                         
                         VStack {
                             Circle()
@@ -79,7 +90,7 @@ struct DualTimeSlider: View {
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
-                        .position(x: width * position, y: height / 2 + 20)
+                        .position(x: safeXPos, y: height / 2 + 20)
                     }
                     
                     // Open handle
@@ -92,8 +103,15 @@ struct DualTimeSlider: View {
                         dragGesture: DragGesture()
                             .onChanged { value in
                                 showingOpenTime = true
+                                
+                                // Safe calculation to prevent NaN
+                                guard width > 0, value.location.x.isFinite else { return }
                                 let newPosition = max(0, min(1, value.location.x / width))
-                                openTime = positionToTime(newPosition)
+                                
+                                // Ensure newPosition is valid before using it
+                                if newPosition.isFinite {
+                                    openTime = positionToTime(newPosition)
+                                }
                             }
                             .onEnded { _ in
                                 withAnimation(.easeOut(duration: 0.3)) {
@@ -112,8 +130,15 @@ struct DualTimeSlider: View {
                         dragGesture: DragGesture()
                             .onChanged { value in
                                 showingCloseTime = true
+                                
+                                // Safe calculation to prevent NaN
+                                guard width > 0, value.location.x.isFinite else { return }
                                 let newPosition = max(0, min(1, value.location.x / width))
-                                closeTime = positionToTime(newPosition)
+                                
+                                // Ensure newPosition is valid before using it
+                                if newPosition.isFinite {
+                                    closeTime = positionToTime(newPosition)
+                                }
                             }
                             .onEnded { _ in
                                 withAnimation(.easeOut(duration: 0.3)) {
@@ -151,12 +176,18 @@ struct DualTimeSlider: View {
                         .stroke(color.opacity(0.3), lineWidth: 1)
                 )
         )
-        .scaleEffect(isShowing.wrappedValue ? 1.05 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isShowing.wrappedValue)
+            .scaleEffect(isShowing.wrappedValue ? 1.05 : 1.0)
     }
     
     private func sliderHandle(position: Double, color: Color, width: CGFloat, height: CGFloat, isActive: Bool, dragGesture: some Gesture) -> some View {
-        Circle()
+        // Ensure position is valid
+        let safePosition = position.isFinite ? max(0.0, min(1.0, position)) : 0.0
+        let xPosition = width * safePosition
+        
+        // Ensure xPosition is valid
+        let safeXPosition = xPosition.isFinite ? max(0, min(width, xPosition)) : 0
+        
+        return Circle()
             .fill(color)
             .frame(width: isActive ? 36 : 32, height: isActive ? 36 : 32)
             .shadow(color: color.opacity(0.3), radius: isActive ? 8 : 4)
@@ -164,7 +195,7 @@ struct DualTimeSlider: View {
                 Circle()
                     .stroke(Color.white, lineWidth: 3)
             )
-            .position(x: width * position, y: height / 2)
+            .position(x: safeXPosition, y: height / 2)
             .scaleEffect(isActive ? 1.1 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
             .gesture(dragGesture)
@@ -173,19 +204,37 @@ struct DualTimeSlider: View {
     // MARK: - Helper Functions
     
     private func timeToPosition(_ time: String) -> Double {
-        guard let index = timeSlots.firstIndex(of: time) else { return 0.0 }
-        return Double(index) / Double(timeSlots.count - 1)
+        guard let index = timeSlots.firstIndex(of: time),
+              timeSlots.count > 1 else { return 0.0 }
+        
+        let position = Double(index) / Double(timeSlots.count - 1)
+        
+        // Ensure we return a valid number
+        guard position.isFinite else { return 0.0 }
+        
+        return max(0.0, min(1.0, position))
     }
     
     private func positionToTime(_ position: Double) -> String {
-        let index = Int(round(position * Double(timeSlots.count - 1)))
+        // Ensure position is valid
+        let safePosition = position.isFinite ? max(0.0, min(1.0, position)) : 0.0
+        
+        guard timeSlots.count > 0 else { return "18:00" }
+        
+        let rawIndex = safePosition * Double(timeSlots.count - 1)
+        let index = rawIndex.isFinite ? Int(round(rawIndex)) : 0
         let clampedIndex = max(0, min(timeSlots.count - 1, index))
+        
         return timeSlots[clampedIndex]
     }
     
     private func formatDisplayTime(_ time: String) -> String {
         let components = time.split(separator: ":")
-        guard let hour = Int(components.first ?? "0") else { return time }
+        guard components.count >= 2,
+              let hour = Int(components.first ?? "0"),
+              hour >= 0, hour <= 23 else {
+            return "6:00 PM" // Safe fallback
+        }
         
         if hour == 0 {
             return "12:\(components[1]) AM"

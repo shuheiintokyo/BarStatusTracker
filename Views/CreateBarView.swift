@@ -8,7 +8,7 @@ struct CreateBarView: View {
     @State private var barName = ""
     @State private var password = ""
     @State private var description = ""
-    @State private var address = ""
+    @State private var address = "" // Now optional
     
     // Operating hours
     @State private var operatingHours = OperatingHours()
@@ -24,7 +24,7 @@ struct CreateBarView: View {
     
     var canProceedToNextPage: Bool {
         switch currentPage {
-        case 0: return !barName.isEmpty && password.count == 4 && !address.isEmpty
+        case 0: return !barName.isEmpty && password.count == 4 // Address is now optional
         case 1: return true // Operating hours is optional
         case 2: return true // Face ID is optional
         default: return false
@@ -119,7 +119,7 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Basic Info Page
+    // MARK: - Basic Info Page (Updated with optional address)
     var basicInfoPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -128,15 +128,20 @@ struct CreateBarView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Enter your bar's basic details")
+                    Text("Enter your bar's essential details")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 
                 VStack(spacing: 16) {
+                    // Required: Bar Name
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Bar Name")
-                            .font(.headline)
+                        HStack {
+                            Text("Bar Name")
+                                .font(.headline)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         
                         TextField("Enter your bar name", text: $barName)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -147,9 +152,14 @@ struct CreateBarView: View {
                             .foregroundColor(.secondary)
                     }
                     
+                    // Required: Password
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("4-Digit Password")
-                            .font(.headline)
+                        HStack {
+                            Text("4-Digit Password")
+                                .font(.headline)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         
                         SecureField("Enter 4-digit password", text: $password)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -165,18 +175,26 @@ struct CreateBarView: View {
                             .foregroundColor(.secondary)
                     }
                     
+                    // Optional: Address
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Address")
+                        Text("Address (Optional)")
                             .font(.headline)
+                            .foregroundColor(.secondary)
                         
                         TextField("Enter your bar's address", text: $address)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .autocapitalization(.words)
+                        
+                        Text("Helps customers find your location")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                     
+                    // Optional: Description
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description (Optional)")
                             .font(.headline)
+                            .foregroundColor(.secondary)
                         
                         TextEditor(text: $description)
                             .frame(height: 100)
@@ -191,6 +209,18 @@ struct CreateBarView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                
+                // Required fields note
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                    Text("* Required fields")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(8)
                 
                 Spacer(minLength: 50)
             }
@@ -301,8 +331,13 @@ struct CreateBarView: View {
                     
                     VStack(alignment: .leading, spacing: 8) {
                         InfoRow(label: "Bar Name", value: barName)
-                        InfoRow(label: "Address", value: address)
                         InfoRow(label: "Password", value: "••••")
+                        
+                        if !address.isEmpty {
+                            InfoRow(label: "Address", value: address)
+                        } else {
+                            InfoRow(label: "Address", value: "Not provided")
+                        }
                         
                         if !description.isEmpty {
                             InfoRow(label: "Description", value: String(description.prefix(50)) + (description.count > 50 ? "..." : ""))
@@ -325,13 +360,13 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Create Bar Function
+    // MARK: - Create Bar Function (Updated for optional address)
     private func createBar() {
         isCreating = true
         
-        // Validate required fields
-        guard !barName.isEmpty, password.count == 4, !address.isEmpty else {
-            alertMessage = "Please fill in all required fields"
+        // Validate required fields only
+        guard !barName.isEmpty, password.count == 4 else {
+            alertMessage = "Please fill in all required fields (Bar Name and Password)"
             showingAlert = true
             isCreating = false
             return
@@ -345,10 +380,12 @@ struct CreateBarView: View {
             return
         }
         
-        // Create new bar (without location coordinates)
+        // Create new bar with optional address
+        let finalAddress = address.isEmpty ? "Address not provided" : address
+        
         let newBar = Bar(
             name: barName,
-            address: address,
+            address: finalAddress,
             status: .closed,
             description: description,
             username: barName,
