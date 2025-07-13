@@ -10,211 +10,38 @@ struct OwnerLoginView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
-    @State private var showingDeleteConfirmation = false
-    @State private var barToDelete: Bar?
+    @State private var showingHelp = false
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Bar Owner Login")
-                        .font(.largeTitle)
+            VStack(spacing: 32) {
+                // Clean Header
+                VStack(spacing: 12) {
+                    Image(systemName: "building.2.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.blue)
+                    
+                    Text("Bar Owner Access")
+                        .font(.title)
                         .fontWeight(.bold)
                     
-                    Text("Access your bar's control panel")
+                    Text("Manage your bar's status and settings")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                .padding(.top)
                 
-                // Biometric Authentication Section (if available)
+                // Biometric Authentication (if available)
                 if barViewModel.canUseBiometricAuth {
-                    VStack(spacing: 16) {
-                        Text("Quick Access")
-                            .font(.headline)
-                        
-                        Button(action: {
-                            authenticateWithBiometrics()
-                        }) {
-                            HStack(spacing: 12) {
-                                Image(systemName: barViewModel.biometricAuthInfo.iconName)
-                                    .font(.title2)
-                                Text("Login with \(barViewModel.biometricAuthInfo.displayName)")
-                                    .font(.headline)
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [.blue, .purple]),
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .cornerRadius(12)
-                        }
-                        .disabled(isLoading)
-                        
-                        // Divider
-                        HStack {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(height: 1)
-                            Text("or")
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 8)
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(height: 1)
-                        }
-                        .padding(.horizontal)
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(12)
+                    quickAccessSection
                 }
                 
-                // Traditional Login Section
-                VStack(spacing: 16) {
-                    Text(barViewModel.canUseBiometricAuth ? "Manual Login" : "Login with Credentials")
-                        .font(.headline)
-                    
-                    VStack(spacing: 12) {
-                        TextField("Bar Name", text: $username)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocapitalization(.words)
-                            .overlay(
-                                HStack {
-                                    Spacer()
-                                    if !username.isEmpty {
-                                        Button(action: { username = "" }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.gray)
-                                        }
-                                        .padding(.trailing, 8)
-                                    }
-                                }
-                            )
-                        
-                        SecureField("4-Digit Password", text: $password)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: password) { _, newValue in
-                                // Limit to 4 digits
-                                if newValue.count > 4 {
-                                    password = String(newValue.prefix(4))
-                                }
-                            }
-                    }
-                    
-                    Button(action: {
-                        attemptTraditionalLogin()
-                    }) {
-                        HStack {
-                            if isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    .scaleEffect(0.8)
-                            }
-                            Text(isLoading ? "Logging in..." : "Login")
-                                .font(.headline)
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            (!username.isEmpty && password.count == 4 && !isLoading) ?
-                            Color.green : Color.gray
-                        )
-                        .cornerRadius(10)
-                    }
-                    .disabled(username.isEmpty || password.count != 4 || isLoading)
-                }
-                
-                // Delete Bar Section (for existing bars)
-                if !barViewModel.getAllBars().isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Bar Management")
-                                .font(.headline)
-                            Spacer()
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.red)
-                                .font(.caption)
-                        }
-                        
-                        Text("If you own a bar and want to remove it from the app:")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        ScrollView {
-                            VStack(spacing: 8) {
-                                ForEach(barViewModel.getAllBars(), id: \.id) { bar in
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(bar.name)
-                                                .font(.subheadline)
-                                                .fontWeight(.medium)
-                                            Text("Password: \(bar.password)")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                                .fontFamily(.monospaced)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        Button("Delete") {
-                                            barToDelete = bar
-                                            showingDeleteConfirmation = true
-                                        }
-                                        .font(.caption)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(Color.red)
-                                        .cornerRadius(6)
-                                    }
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                        }
-                        .frame(maxHeight: 120)
-                    }
-                    .padding()
-                    .background(Color.red.opacity(0.05))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                    )
-                }
-                
-                // Help section
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Need Help?")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("• Create a new bar if you don't have one yet")
-                        Text("• Use your bar name as the username")
-                        Text("• Password is the 4-digit code you set during registration")
-                        Text("• Contact support if you forgot your credentials")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(10)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-                )
+                // Manual Login Section
+                manualLoginSection
                 
                 Spacer()
+                
+                // Help button at bottom
+                helpButton
             }
             .padding()
             .navigationBarTitleDisplayMode(.inline)
@@ -226,45 +53,273 @@ struct OwnerLoginView: View {
                 }
             }
         }
-        .alert("Login Failed", isPresented: $showingAlert) {
+        .alert("Login Status", isPresented: $showingAlert) {
             Button("OK") { }
         } message: {
             Text(alertMessage)
         }
-        .alert("Delete Bar", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {
-                barToDelete = nil
-            }
-            Button("Delete", role: .destructive) {
-                if let bar = barToDelete {
-                    deleteBar(bar)
+        .sheet(isPresented: $showingHelp) {
+            helpSheet
+        }
+    }
+    
+    // MARK: - Quick Access Section
+    var quickAccessSection: some View {
+        VStack(spacing: 16) {
+            Text("Quick Access")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            Button(action: authenticateWithBiometrics) {
+                HStack(spacing: 12) {
+                    Image(systemName: barViewModel.biometricAuthInfo.iconName)
+                        .font(.title2)
+                    Text("Login with \(barViewModel.biometricAuthInfo.displayName)")
+                        .font(.headline)
                 }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.blue, .purple]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(16)
+                .scaleEffect(isLoading ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: isLoading)
             }
-        } message: {
-            if let bar = barToDelete {
-                Text("Are you sure you want to permanently delete '\(bar.name)'? This action cannot be undone. All customer favorites and data will be lost.")
+            .disabled(isLoading)
+            
+            // Clean divider
+            HStack {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 1)
+                Text("or")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 12)
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 1)
             }
         }
     }
     
-    // Traditional login
-    private func attemptTraditionalLogin() {
+    // MARK: - Manual Login Section
+    var manualLoginSection: some View {
+        VStack(spacing: 20) {
+            Text("Manual Login")
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 16) {
+                // Bar Name Field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Bar Name")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    
+                    TextField("Enter your bar name", text: $username)
+                        .textFieldStyle(CustomTextFieldStyle())
+                        .autocapitalization(.words)
+                }
+                
+                // Password Field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Password")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    
+                    SecureField("4-digit password", text: $password)
+                        .textFieldStyle(CustomTextFieldStyle())
+                        .keyboardType(.numberPad)
+                        .onChange(of: password) { _, newValue in
+                            if newValue.count > 4 {
+                                password = String(newValue.prefix(4))
+                            }
+                        }
+                }
+            }
+            
+            // Login Button
+            Button(action: attemptLogin) {
+                HStack {
+                    if isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.title3)
+                    }
+                    Text(isLoading ? "Logging in..." : "Login")
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    loginButtonBackground
+                )
+                .cornerRadius(16)
+                .scaleEffect(isLoading ? 0.95 : 1.0)
+                .animation(.easeInOut(duration: 0.1), value: isLoading)
+            }
+            .disabled(!canLogin || isLoading)
+        }
+    }
+    
+    // MARK: - Help Button
+    var helpButton: some View {
+        Button(action: { showingHelp = true }) {
+            HStack {
+                Image(systemName: "questionmark.circle")
+                Text("Need Help?")
+                    .font(.caption)
+            }
+            .foregroundColor(.blue)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(20)
+        }
+    }
+    
+    // MARK: - Help Sheet
+    var helpSheet: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("🏪 Bar Owner Login Help")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Having trouble logging in? Here's what you need to know:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 16) {
+                        helpItem(
+                            icon: "person.text.rectangle",
+                            title: "Username",
+                            description: "Use your exact bar name as the username"
+                        )
+                        
+                        helpItem(
+                            icon: "key.fill",
+                            title: "Password",
+                            description: "Enter the 4-digit code you set when creating your bar"
+                        )
+                        
+                        helpItem(
+                            icon: "plus.circle",
+                            title: "New Bar Owner?",
+                            description: "Tap 'Cancel' and create a new bar first"
+                        )
+                        
+                        helpItem(
+                            icon: "faceid",
+                            title: "Quick Access",
+                            description: "After first login, enable biometric authentication for faster access"
+                        )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("🔒 Security Note")
+                            .font(.headline)
+                        
+                        Text("For security reasons, we don't display passwords on screen. If you've forgotten your credentials, you may need to create a new bar profile.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                }
+                .padding()
+            }
+            .navigationTitle("Help")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        showingHelp = false
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Helper Views
+    
+    private func helpItem(icon: String, title: String, description: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(.blue)
+                .frame(width: 30)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var canLogin: Bool {
+        !username.isEmpty && password.count == 4
+    }
+    
+    private var loginButtonBackground: some View {
+        Group {
+            if canLogin && !isLoading {
+                LinearGradient(
+                    gradient: Gradient(colors: [.green, .blue]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            } else {
+                Color.gray.opacity(0.3)
+            }
+        }
+    }
+    
+    // MARK: - Methods
+    
+    private func attemptLogin() {
         isLoading = true
         
-        // Simulate network delay for better UX
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             if barViewModel.authenticateBar(username: username, password: password) {
                 showingOwnerLogin = false
                 dismiss()
             } else {
-                alertMessage = "Invalid bar name or password. Please check your credentials and try again."
+                alertMessage = "Invalid credentials. Please check your bar name and password."
                 showingAlert = true
             }
             isLoading = false
         }
     }
     
-    // Biometric authentication
     private func authenticateWithBiometrics() {
         isLoading = true
         
@@ -275,27 +330,26 @@ struct OwnerLoginView: View {
                 showingOwnerLogin = false
                 dismiss()
             } else {
-                alertMessage = error ?? "Biometric authentication failed"
+                alertMessage = error ?? "Authentication failed"
                 showingAlert = true
-            }
-        }
-    }
-    
-    // Delete bar
-    private func deleteBar(_ bar: Bar) {
-        barViewModel.deleteBar(bar) { success, message in
-            DispatchQueue.main.async {
-                alertMessage = message
-                showingAlert = true
-                barToDelete = nil
-                
-                if success {
-                    // If we successfully deleted the bar, dismiss the login view
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        dismiss()
-                    }
-                }
             }
         }
     }
 }
+
+// MARK: - Custom Text Field Style
+struct CustomTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+            )
+    }
+}
+

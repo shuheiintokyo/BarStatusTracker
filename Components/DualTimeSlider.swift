@@ -1,13 +1,12 @@
 import SwiftUI
 
-// MARK: - Dual Time Slider for Operating Hours
+// MARK: - Clean and Simple Dual Time Slider
 struct DualTimeSlider: View {
     @Binding var openTime: String
     @Binding var closeTime: String
     @State private var showingOpenTime = false
     @State private var showingCloseTime = false
     
-    // Convert time string to slider position (0.0 to 1.0)
     private var openPosition: Double {
         timeToPosition(openTime)
     }
@@ -16,7 +15,6 @@ struct DualTimeSlider: View {
         timeToPosition(closeTime)
     }
     
-    // Time slots from 6 PM to 6 AM (24 half-hour slots)
     private let timeSlots = [
         "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
         "21:00", "21:30", "22:00", "22:30", "23:00", "23:30",
@@ -24,171 +22,152 @@ struct DualTimeSlider: View {
         "03:00", "03:30", "04:00", "04:30", "05:00", "05:30", "06:00"
     ]
     
-    // Display labels for major time markers
     private let majorTimeMarkers = ["18:00", "21:00", "00:00", "03:00", "06:00"]
     
     var body: some View {
         VStack(spacing: 16) {
-            // Time display
+            // Clean time display
             HStack {
-                VStack(alignment: .leading) {
-                    Text("Opens")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(formatDisplayTime(openTime))
-                        .font(.headline)
-                        .foregroundColor(.green)
-                }
+                timeDisplayCard(time: openTime, label: "Opens", color: .green, isShowing: $showingOpenTime)
                 
                 Spacer()
                 
                 Image(systemName: "arrow.right")
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.gray)
+                    .font(.title3)
                 
                 Spacer()
                 
-                VStack(alignment: .trailing) {
-                    Text("Closes")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(formatDisplayTime(closeTime))
-                        .font(.headline)
-                        .foregroundColor(.green)
-                }
+                timeDisplayCard(time: closeTime, label: "Closes", color: .red, isShowing: $showingCloseTime)
             }
             
-            // Custom dual slider
-            ZStack {
-                // Background track
-                GeometryReader { geometry in
-                    let width = geometry.size.width
-                    let height: CGFloat = 40
+            // Simplified slider track
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let height: CGFloat = 44
+                
+                ZStack(alignment: .leading) {
+                    // Background track
+                    RoundedRectangle(cornerRadius: height / 2)
+                        .fill(Color.gray.opacity(0.15))
+                        .frame(height: height)
                     
-                    ZStack(alignment: .leading) {
-                        // Full track background
-                        RoundedRectangle(cornerRadius: height / 2)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: height)
+                    // Active range
+                    let startX = width * min(openPosition, closePosition)
+                    let endX = width * max(openPosition, closePosition)
+                    let activeWidth = endX - startX
+                    
+                    RoundedRectangle(cornerRadius: height / 2)
+                        .fill(LinearGradient(
+                            gradient: Gradient(colors: [.green.opacity(0.3), .blue.opacity(0.3)]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
+                        .frame(width: activeWidth, height: height)
+                        .offset(x: startX)
+                    
+                    // Simplified time markers
+                    ForEach(majorTimeMarkers, id: \.self) { time in
+                        let position = timeToPosition(time)
                         
-                        // Green active area between handles
-                        let startX = width * min(openPosition, closePosition)
-                        let endX = width * max(openPosition, closePosition)
-                        let activeWidth = endX - startX
-                        
-                        RoundedRectangle(cornerRadius: height / 2)
-                            .fill(Color.green.opacity(0.3))
-                            .frame(width: activeWidth, height: height)
-                            .offset(x: startX)
-                        
-                        // Time markers
-                        ForEach(majorTimeMarkers, id: \.self) { time in
-                            let position = timeToPosition(time)
+                        VStack {
+                            Circle()
+                                .fill(Color.gray.opacity(0.4))
+                                .frame(width: 3, height: 3)
                             
-                            VStack(spacing: 2) {
-                                Rectangle()
-                                    .fill(Color.gray)
-                                    .frame(width: 2, height: height)
-                                
-                                Text(formatDisplayTime(time))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                            .position(x: width * position, y: height / 2)
+                            Text(formatDisplayTime(time))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
                         }
-                        
-                        // Open time handle
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 30, height: 30)
-                            .shadow(radius: 2)
-                            .position(x: width * openPosition, y: height / 2)
-                            .scaleEffect(showingOpenTime ? 1.2 : 1.0)
-                            .animation(.easeInOut(duration: 0.1), value: showingOpenTime)
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        showingOpenTime = true
-                                        let newPosition = max(0, min(1, value.location.x / width))
-                                        openTime = positionToTime(newPosition)
-                                    }
-                                    .onEnded { _ in
-                                        showingOpenTime = false
-                                    }
-                            )
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    showingOpenTime.toggle()
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        .position(x: width * position, y: height / 2 + 20)
+                    }
+                    
+                    // Open handle
+                    sliderHandle(
+                        position: openPosition,
+                        color: .green,
+                        width: width,
+                        height: height,
+                        isActive: showingOpenTime,
+                        dragGesture: DragGesture()
+                            .onChanged { value in
+                                showingOpenTime = true
+                                let newPosition = max(0, min(1, value.location.x / width))
+                                openTime = positionToTime(newPosition)
+                            }
+                            .onEnded { _ in
+                                withAnimation(.easeOut(duration: 0.3)) {
                                     showingOpenTime = false
                                 }
                             }
-                        
-                        // Close time handle
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 30, height: 30)
-                            .shadow(radius: 2)
-                            .position(x: width * closePosition, y: height / 2)
-                            .scaleEffect(showingCloseTime ? 1.2 : 1.0)
-                            .animation(.easeInOut(duration: 0.1), value: showingCloseTime)
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        showingCloseTime = true
-                                        let newPosition = max(0, min(1, value.location.x / width))
-                                        closeTime = positionToTime(newPosition)
-                                    }
-                                    .onEnded { _ in
-                                        showingCloseTime = false
-                                    }
-                            )
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    showingCloseTime.toggle()
-                                }
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    )
+                    
+                    // Close handle
+                    sliderHandle(
+                        position: closePosition,
+                        color: .red,
+                        width: width,
+                        height: height,
+                        isActive: showingCloseTime,
+                        dragGesture: DragGesture()
+                            .onChanged { value in
+                                showingCloseTime = true
+                                let newPosition = max(0, min(1, value.location.x / width))
+                                closeTime = positionToTime(newPosition)
+                            }
+                            .onEnded { _ in
+                                withAnimation(.easeOut(duration: 0.3)) {
                                     showingCloseTime = false
                                 }
                             }
-                        
-                        // Time popup for open handle
-                        if showingOpenTime {
-                            Text(formatDisplayTime(openTime))
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.green)
-                                .foregroundColor(.white)
-                                .cornerRadius(6)
-                                .position(x: width * openPosition, y: -15)
-                        }
-                        
-                        // Time popup for close handle
-                        if showingCloseTime {
-                            Text(formatDisplayTime(closeTime))
-                                .font(.caption)
-                                .fontWeight(.bold)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.green)
-                                .foregroundColor(.white)
-                                .cornerRadius(6)
-                                .position(x: width * closePosition, y: -15)
-                        }
-                    }
+                    )
                 }
             }
-            .frame(height: 80) // Extra space for time labels and popups
-            
-            // Instructions
-            Text("Drag the circles to set opening and closing times")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            .frame(height: 80)
         }
         .padding()
+    }
+    
+    // MARK: - Helper Views
+    
+    private func timeDisplayCard(time: String, label: String, color: Color, isShowing: Binding<Bool>) -> some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Text(formatDisplayTime(time))
+                .font(.title3)
+                .fontWeight(.semibold)
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(color.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .scaleEffect(isShowing.wrappedValue ? 1.05 : 1.0)
+        .animation(.easeInOut(duration: 0.2), value: isShowing.wrappedValue)
+    }
+    
+    private func sliderHandle(position: Double, color: Color, width: CGFloat, height: CGFloat, isActive: Bool, dragGesture: some Gesture) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: isActive ? 36 : 32, height: isActive ? 36 : 32)
+            .shadow(color: color.opacity(0.3), radius: isActive ? 8 : 4)
+            .overlay(
+                Circle()
+                    .stroke(Color.white, lineWidth: 3)
+            )
+            .position(x: width * position, y: height / 2)
+            .scaleEffect(isActive ? 1.1 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isActive)
+            .gesture(dragGesture)
     }
     
     // MARK: - Helper Functions
@@ -220,23 +199,22 @@ struct DualTimeSlider: View {
     }
 }
 
-// MARK: - Updated Day Hours Editor with Dual Slider
+// MARK: - Simplified Day Hours Editor
 struct ImprovedDayHoursEditor: View {
     let day: WeekDay
     @Binding var dayHours: DayHours
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(spacing: 12) {
             HStack {
                 Text(day.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.headline)
                     .frame(width: 80, alignment: .leading)
                 
                 Spacer()
                 
                 Toggle("", isOn: $dayHours.isOpen)
-                    .labelsHidden()
+                    .toggleStyle(SwitchToggleStyle(tint: .green))
             }
             
             if dayHours.isOpen {
@@ -250,11 +228,16 @@ struct ImprovedDayHoursEditor: View {
                         set: { dayHours.closeTime = $0 }
                     )
                 )
-                .padding(.leading, 16)
             }
         }
         .padding()
-        .background(dayHours.isOpen ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
-        .cornerRadius(12)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(dayHours.isOpen ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(dayHours.isOpen ? Color.green.opacity(0.2) : Color.clear, lineWidth: 1)
+        )
     }
 }

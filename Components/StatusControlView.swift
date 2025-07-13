@@ -4,166 +4,264 @@ struct StatusControlView: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
     
-    // Get the current bar status from the view model to ensure real-time updates
     private var currentBar: Bar? {
         barViewModel.bars.first { $0.id == bar.id }
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Update Status")
-                .font(.headline)
+        VStack(spacing: 20) {
+            // Current Status Display
+            currentStatusHeader
             
-            // Auto-transition status display (if active)
+            // Auto-transition display (if active)
             if let current = currentBar, current.isAutoTransitionActive {
-                AutoTransitionStatusView(bar: current, barViewModel: barViewModel)
+                autoTransitionCard
             }
             
-            // Status control buttons
-            HStack(spacing: 10) {
+            // Status Control Grid
+            statusControlGrid
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.gray.opacity(0.05))
+        )
+    }
+    
+    // MARK: - Current Status Header
+    var currentStatusHeader: some View {
+        VStack(spacing: 8) {
+            Text("Bar Status")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+            
+            HStack(spacing: 12) {
+                // Animated status icon
+                ZStack {
+                    Circle()
+                        .fill(currentBar?.status.color.opacity(0.2) ?? Color.gray.opacity(0.2))
+                        .frame(width: 60, height: 60)
+                    
+                    Image(systemName: currentBar?.status.icon ?? "questionmark")
+                        .font(.title)
+                        .foregroundColor(currentBar?.status.color ?? .gray)
+                        .scaleEffect(1.0)
+                        .animation(.easeInOut(duration: 0.3), value: currentBar?.status)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(currentBar?.status.displayName ?? "Unknown")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Last updated \(timeAgo(currentBar?.lastUpdated ?? Date()))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+        }
+    }
+    
+    // MARK: - Auto-transition Card
+    var autoTransitionCard: some View {
+        HStack(spacing: 12) {
+            // Timer icon with animation
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: "timer")
+                    .font(.title3)
+                    .foregroundColor(.orange)
+                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
+                    .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: isAnimating)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Auto-change active")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                if let pendingStatus = currentBar?.pendingStatus {
+                    HStack(spacing: 4) {
+                        Text("→")
+                            .foregroundColor(.orange)
+                        Text(pendingStatus.displayName)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                if let timeRemaining = barViewModel.getTimeRemainingText(for: currentBar ?? bar) {
+                    Text(timeRemaining)
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .foregroundColor(.orange)
+                        .monospacedDigit()
+                }
+                
+                Button("Cancel") {
+                    barViewModel.cancelAutoTransition(for: currentBar ?? bar)
+                }
+                .font(.caption2)
+                .foregroundColor(.red)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.orange.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+    
+    // MARK: - Status Control Grid
+    var statusControlGrid: some View {
+        VStack(spacing: 12) {
+            Text("Change Status")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
                 ForEach(BarStatus.allCases, id: \.self) { status in
                     StatusButton(
                         status: status,
                         currentStatus: currentBar?.status ?? bar.status,
                         action: {
-                            barViewModel.updateBarStatus(currentBar ?? bar, newStatus: status)
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                barViewModel.updateBarStatus(currentBar ?? bar, newStatus: status)
+                            }
                         }
                     )
                 }
             }
         }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
     }
-}
-
-// MARK: - Auto Transition Status View (Separate Component)
-struct AutoTransitionStatusView: View {
-    let bar: Bar
-    @ObservedObject var barViewModel: BarViewModel
     
-    private var timeRemainingText: String? {
-        guard let timeRemaining = bar.timeUntilAutoTransition,
-              timeRemaining > 0 else {
-            return nil
-        }
+    @State private var isAnimating = true
+    
+    // MARK: - Helper Functions
+    
+    private func timeAgo(_ date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
         
-        let minutes = Int(timeRemaining / 60)
-        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
-        
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
+        if interval < 60 {
+            return "just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
         } else {
-            return "\(seconds)s"
+            let days = Int(interval / 86400)
+            return "\(days)d ago"
         }
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "clock.fill")
-                    .foregroundColor(.orange)
-                
-                Text("Auto-Transition Active")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                Spacer()
-                
-                Button("Cancel Timer") {
-                    // Call the method that actually exists on BarViewModel
-                    cancelAutoTransition()
-                }
-                .font(.caption)
-                .foregroundColor(.red)
-            }
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Current: \(bar.status.displayName)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    if let pendingStatus = bar.pendingStatus {
-                        Text("Will change to: \(pendingStatus.displayName)")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                }
-                
-                Spacer()
-                
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Time Remaining:")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    if let timeRemaining = timeRemainingText {
-                        Text(timeRemaining)
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.orange)
-                    }
-                }
-            }
-        }
-        .padding(12)
-        .background(Color.orange.opacity(0.1))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
-        .cornerRadius(8)
-    }
-    
-    private func cancelAutoTransition() {
-        barViewModel.cancelAutoTransition(for: bar)
     }
 }
 
+// MARK: - Enhanced Status Button
 struct StatusButton: View {
     let status: BarStatus
     let currentStatus: BarStatus
     let action: () -> Void
     
+    @State private var isPressed = false
+    
     private var isSelected: Bool {
         status == currentStatus
     }
     
-    private var buttonText: String {
+    private var buttonInfo: (title: String, subtitle: String, duration: String) {
         switch status {
         case .openingSoon:
-            return "Opening\nSoon (60m)"
+            return ("Opening", "Soon", "1m")
         case .open:
-            return "Open\nNow"
+            return ("Open", "Now", "")
         case .closingSoon:
-            return "Closing\nSoon (60m)"
+            return ("Closing", "Soon", "1m")
         case .closed:
-            return "Closed\nNow"
+            return ("Closed", "Now", "")
         }
     }
     
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: status.icon)
-                    .font(.title3)
-                
-                Text(buttonText)
-                    .font(.caption2)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = true
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 6)
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isPressed = false
+                }
+                action()
+            }
+            
+            // Haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+        }) {
+            VStack(spacing: 8) {
+                // Icon with background
+                ZStack {
+                    Circle()
+                        .fill(isSelected ? status.color : status.color.opacity(0.2))
+                        .frame(width: 44, height: 44)
+                    
+                    Image(systemName: status.icon)
+                        .font(.title3)
+                        .foregroundColor(isSelected ? .white : status.color)
+                }
+                
+                // Text info
+                VStack(spacing: 2) {
+                    Text(buttonInfo.title)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    
+                    Text(buttonInfo.subtitle)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    if !buttonInfo.duration.isEmpty {
+                        Text(buttonInfo.duration)
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                            .fontWeight(.medium)
+                    }
+                }
+            }
+            .foregroundColor(isSelected ? status.color : .primary)
+            .padding()
+            .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? status.color : Color.gray.opacity(0.2))
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ? status.color.opacity(0.1) : Color.clear)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(
+                                isSelected ? status.color.opacity(0.5) : Color.gray.opacity(0.2),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
             )
-            .foregroundColor(isSelected ? .white : .primary)
+            .scaleEffect(isPressed ? 0.95 : (isSelected ? 1.02 : 1.0))
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
-        .scaleEffect(isSelected ? 1.05 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isSelected)
+        .buttonStyle(PlainButtonStyle())
     }
 }
