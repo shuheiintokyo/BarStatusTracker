@@ -38,7 +38,10 @@ struct BarGridItem: View {
             .frame(height: 140)
             .frame(maxWidth: .infinity)
             .background(cardBackground)
-            .scaleEffect(isPressed ? 0.98 : 1.0)
+            .scaleEffect({
+                let scale = isPressed ? 0.98 : 1.0
+                return scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
+            }())
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
@@ -155,36 +158,20 @@ struct BarGridItem: View {
     // MARK: - Card Background
     var cardBackground: some View {
         RoundedRectangle(cornerRadius: 20)
-            .fill(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        bar.status.color,
-                        bar.status.color.opacity(0.8)
-                    ]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
+            .fill(bar.status.color)
             .shadow(
                 color: bar.status.color.opacity(0.3),
-                radius: 8,
+                radius: 6,
                 x: 0,
-                y: 4
+                y: 3
             )
             .overlay(
-                // Subtle pattern overlay
+                // Subtle highlight overlay
                 RoundedRectangle(cornerRadius: 20)
                     .fill(
-                        RadialGradient(
-                            gradient: Gradient(colors: [
-                                Color.white.opacity(0.1),
-                                Color.clear
-                            ]),
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: 100
-                        )
+                        Color.white.opacity(0.1)
                     )
+                    .blendMode(.overlay)
             )
     }
     
@@ -220,14 +207,14 @@ struct CompactFavoriteButton: View {
     
     var body: some View {
         Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            withAnimation(.easeInOut(duration: 0.2)) {
                 isAnimating = true
             }
             
             barViewModel.toggleFavorite(barId: barId)
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                withAnimation(.easeOut(duration: 0.2)) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                withAnimation(.easeOut(duration: 0.1)) {
                     isAnimating = false
                 }
             }
@@ -239,8 +226,10 @@ struct CompactFavoriteButton: View {
             Image(systemName: isFavorite ? "heart.fill" : "heart")
                 .font(.title3)
                 .foregroundColor(isFavorite ? .red : .white.opacity(0.7))
-                .scaleEffect(isAnimating ? 1.3 : 1.0)
-                .rotationEffect(.degrees(isAnimating ? 12 : 0))
+                .scaleEffect({
+                    let scale = isAnimating ? 1.2 : 1.0
+                    return scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
+                }())
         }
         .buttonStyle(PlainButtonStyle())
     }

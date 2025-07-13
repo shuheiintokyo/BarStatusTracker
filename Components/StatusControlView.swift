@@ -24,29 +24,10 @@ struct StatusControlView: View {
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            Color.blue.opacity(0.1),
-                            Color.purple.opacity(0.05)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.blue.opacity(0.08))
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.blue.opacity(0.3),
-                                    Color.purple.opacity(0.2)
-                                ]),
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
                 )
         )
     }
@@ -70,7 +51,7 @@ struct StatusControlView: View {
                         .font(.title)
                         .foregroundColor(currentBar?.status.color ?? .gray)
                         .scaleEffect(1.0)
-                        .animation(.easeInOut(duration: 0.3), value: currentBar?.status)
+                        .animation(.easeInOut(duration: 0.2), value: currentBar?.status)
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
@@ -100,8 +81,6 @@ struct StatusControlView: View {
                 Image(systemName: "timer")
                     .font(.title3)
                     .foregroundColor(.orange)
-                    .rotationEffect(.degrees(isAnimating ? 360 : 0))
-                    .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: isAnimating)
             }
             
             VStack(alignment: .leading, spacing: 4) {
@@ -172,8 +151,6 @@ struct StatusControlView: View {
             }
         }
     }
-    
-    @State private var isAnimating = true
     
     // MARK: - Helper Functions
     
@@ -291,43 +268,15 @@ struct StatusButton: View {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(
                         isSelected ?
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                status.color.opacity(0.15),
-                                status.color.opacity(0.05)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ) :
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.white.opacity(0.8),
-                                Color.gray.opacity(0.05)
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                        status.color.opacity(0.15) :
+                        Color.white.opacity(0.8)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
                                 isSelected ?
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        status.color.opacity(0.6),
-                                        status.color.opacity(0.3)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ) :
-                                LinearGradient(
-                                    gradient: Gradient(colors: [
-                                        Color.gray.opacity(0.2),
-                                        Color.gray.opacity(0.1)
-                                    ]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
+                                status.color.opacity(0.6) :
+                                Color.gray.opacity(0.2),
                                 lineWidth: isSelected ? 2 : 1
                             )
                     )
@@ -338,8 +287,13 @@ struct StatusButton: View {
                         y: isSelected ? 4 : 1
                     )
             )
-            .scaleEffect(isPressed ? 0.95 : (isSelected ? 1.05 : 1.0))
-            .animation(.easeInOut(duration: 0.2), value: isSelected)
+            .scaleEffect({
+                let pressedScale = isPressed ? 0.95 : 1.0
+                let selectedScale = isSelected ? 1.05 : 1.0
+                let combinedScale = isPressed ? pressedScale : selectedScale
+                return combinedScale.isFinite ? max(0.5, min(2.0, combinedScale)) : 1.0
+            }())
+            .animation(.easeInOut(duration: 0.15), value: isSelected)
             .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
