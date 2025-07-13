@@ -8,7 +8,10 @@ struct CreateBarView: View {
     @State private var barName = ""
     @State private var password = ""
     @State private var description = ""
-    @State private var address = "" // Now optional
+    
+    // Location info (now required)
+    @State private var selectedCountry: Country?
+    @State private var selectedCity: City?
     
     // Operating hours
     @State private var operatingHours = OperatingHours()
@@ -24,7 +27,7 @@ struct CreateBarView: View {
     
     var canProceedToNextPage: Bool {
         switch currentPage {
-        case 0: return !barName.isEmpty && password.count == 4 // Address is now optional
+        case 0: return !barName.isEmpty && password.count == 4 && selectedCountry != nil && selectedCity != nil
         case 1: return true // Operating hours is optional
         case 2: return true // Face ID is optional
         default: return false
@@ -34,8 +37,8 @@ struct CreateBarView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Progress indicator
-                ProgressView(value: Double(currentPage + 1), total: 3.0)
+                // Progress indicator with NaN protection
+                ProgressView(value: max(0.0, min(1.0, Double(currentPage + 1))), total: 3.0)
                     .progressViewStyle(LinearProgressViewStyle())
                     .padding()
                 
@@ -175,20 +178,11 @@ struct CreateBarView: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    // Optional: Address
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Address (Optional)")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                        
-                        TextField("Enter your bar's address", text: $address)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .autocapitalization(.words)
-                        
-                        Text("Helps customers find your location")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                    // Required: Location
+                    LocationPicker(
+                        selectedCountry: $selectedCountry,
+                        selectedCity: $selectedCity
+                    )
                     
                     // Optional: Description
                     VStack(alignment: .leading, spacing: 8) {
