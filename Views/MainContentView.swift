@@ -8,6 +8,7 @@ struct MainContentView: View {
     @State private var biometricError = ""
     @State private var autoShowingDetail = false
     @State private var showingCreateBar = false
+    @State private var showingSearchBars = false
     @State private var showingNotificationSettings = false
     
     var body: some View {
@@ -21,7 +22,7 @@ struct MainContentView: View {
                     // Owner mode - show welcome message and quick access
                     ownerModeSection(loggedInBar: loggedInBar)
                 } else {
-                    // Guest mode - show all bars
+                    // Guest mode - show favorited bars and action cards
                     guestModeSection
                 }
             }
@@ -37,20 +38,18 @@ struct MainContentView: View {
         .sheet(isPresented: $showingCreateBar) {
             CreateBarView(barViewModel: barViewModel)
         }
-        .alert("Authentication Error", isPresented: $showingBiometricAlert) {
-            Button("OK") { }
-        } message: {
-            Text(biometricError)
+        .sheet(isPresented: $showingSearchBars) {
+            SearchBarsView(barViewModel: barViewModel)
         }
         .sheet(isPresented: $showingNotificationSettings) {
-                NotificationSettingsView(barViewModel: barViewModel)
+            NotificationSettingsView(barViewModel: barViewModel)
         }
         .alert("Authentication Error", isPresented: $showingBiometricAlert) {
             Button("OK") { }
         } message: {
             Text(biometricError)
         }
-        // Auto-show detail page after Face ID login - FIXED
+        // Auto-show detail page after Face ID login
         .onChange(of: barViewModel.isOwnerMode) { oldValue, newValue in
             if newValue && autoShowingDetail, let loggedInBar = barViewModel.loggedInBar {
                 // Delay slightly to ensure the view is ready
@@ -75,18 +74,21 @@ struct MainContentView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
-                if !barViewModel.isOwnerMode && barViewModel.getAllBars().isEmpty {
-                    Text("Create your first bar!")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                } else if barViewModel.isOwnerMode {
+                if barViewModel.isOwnerMode {
                     Text("Owner Dashboard")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 } else {
-                    Text("Find bars in your area")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    let favoriteCount = barViewModel.userPreferencesManager.getFavoriteBarIds().count
+                    if favoriteCount == 0 {
+                        Text("Discover and follow bars")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Following \(favoriteCount) \(favoriteCount == 1 ? "bar" : "bars")")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
@@ -99,10 +101,9 @@ struct MainContentView: View {
     }
     
     // MARK: - Authentication Buttons
-    
     var authenticationButtons: some View {
         HStack(spacing: 12) {
-            // 🎯 NOTIFICATION SETTINGS BUTTON (NEW!)
+            // Notification settings button
             Button(action: {
                 showingNotificationSettings = true
             }) {
@@ -132,6 +133,22 @@ struct MainContentView: View {
                 }
             }
             
+            // Search bars button (always visible in guest mode)
+            if !barViewModel.isOwnerMode {
+                Button(action: {
+                    showingSearchBars = true
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: "magnifyingglass.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.orange)
+                        Text("Search")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            
             // Biometric authentication button (if available)
             if barViewModel.canUseBiometricAuth && !barViewModel.isOwnerMode {
                 Button(action: {
@@ -141,7 +158,7 @@ struct MainContentView: View {
                         Image(systemName: barViewModel.biometricAuthInfo.iconName)
                             .font(.title2)
                             .foregroundColor(.blue)
-                        Text("Quick Access")
+                        Text("Quick")
                             .font(.caption2)
                             .foregroundColor(.blue)
                     }
@@ -165,7 +182,7 @@ struct MainContentView: View {
                             Text(loggedInBar.name)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            Text("Tap to logout")
+                            Text("Logout")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
@@ -222,7 +239,7 @@ struct MainContentView: View {
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(12)
                 
-                // Auto-transition info (if active) - FIXED
+                // Auto-transition info (if active)
                 if loggedInBar.isAutoTransitionActive, let pendingStatus = loggedInBar.pendingStatus {
                     HStack {
                         Image(systemName: "clock.fill")
@@ -239,7 +256,6 @@ struct MainContentView: View {
                         
                         Spacer()
                         
-                        // FIXED: Create a local variable to avoid dynamic member lookup issues
                         TimeRemainingView(bar: loggedInBar, barViewModel: barViewModel)
                     }
                     .padding()
@@ -282,7 +298,7 @@ struct MainContentView: View {
                 HStack {
                     Image(systemName: "map")
                         .font(.title2)
-                    Text("View All Bars in Town")
+                    Text("View All Bars")
                         .font(.headline)
                 }
                 .foregroundColor(.blue)
@@ -324,60 +340,9 @@ struct MainContentView: View {
                 .padding(.bottom, 8)
             }
             
-            // Show empty state or bar grid
-            if barViewModel.getAllBars().isEmpty && !barViewModel.isLoading {
-                emptyStateView
-            } else {
-                BarGridView(barViewModel: barViewModel, isOwnerMode: false)
-            }
+            // Show bar grid (favorited bars + action cards)
+            BarGridView(barViewModel: barViewModel, isOwnerMode: false)
         }
-    }
-    
-    // MARK: - Empty State View
-    var emptyStateView: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "building.2.crop.circle")
-                .font(.system(size: 80))
-                .foregroundColor(.gray.opacity(0.5))
-            
-            VStack(spacing: 8) {
-                Text("No Bars Yet!")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
-                Text("Be the first to add a bar to the community")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            
-            Button(action: {
-                showingCreateBar = true
-            }) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                    Text("Create Your First Bar")
-                        .font(.headline)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.purple, .blue]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(12)
-            }
-            .padding(.horizontal, 40)
-            
-            Spacer()
-        }
-        .padding()
-        .padding(.top, 50)
     }
     
     // MARK: - Helper Methods
@@ -448,4 +413,9 @@ struct TimeRemainingView: View {
             }
         }
     }
+}
+
+#Preview {
+    MainContentView()
+        .environmentObject(NotificationManager())
 }

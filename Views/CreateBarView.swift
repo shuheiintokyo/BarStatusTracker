@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreLocation
 
 struct CreateBarView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -10,10 +9,6 @@ struct CreateBarView: View {
     @State private var password = ""
     @State private var description = ""
     @State private var address = ""
-    
-    // Location
-    @State private var latitude: Double = 35.6762 // Default to Tokyo
-    @State private var longitude: Double = 139.6503
     
     // Operating hours
     @State private var operatingHours = OperatingHours()
@@ -203,7 +198,7 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Operating Hours Page
+    // MARK: - Operating Hours Page (Updated with Dual Slider)
     var operatingHoursPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -212,14 +207,14 @@ struct CreateBarView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Set your regular operating days and hours")
+                    Text("Set your regular operating days and hours (6 PM - 6 AM)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 
                 VStack(spacing: 16) {
                     ForEach(WeekDay.allCases, id: \.self) { day in
-                        DayHoursEditor(
+                        ImprovedDayHoursEditor(
                             day: day,
                             dayHours: Binding(
                                 get: { operatingHours.getDayHours(for: day) },
@@ -237,9 +232,14 @@ struct CreateBarView: View {
                     Text("💡 Tips")
                         .font(.headline)
                     
-                    Text("• These are your regular hours for customer reference\n• You can always update your real-time status in the app\n• Hours can span overnight (e.g., 6 PM to 2 AM)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("• Drag the green circles to set your opening and closing times")
+                        Text("• Times are in 30-minute increments from 6 PM to 6 AM")
+                        Text("• These are your regular hours for customer reference")
+                        Text("• You can always update your real-time status in the app")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
                 .padding()
                 .background(Color.blue.opacity(0.05))
@@ -345,11 +345,9 @@ struct CreateBarView: View {
             return
         }
         
-        // Create new bar
+        // Create new bar (without location coordinates)
         let newBar = Bar(
             name: barName,
-            latitude: latitude,
-            longitude: longitude,
             address: address,
             status: .closed,
             description: description,
@@ -365,109 +363,6 @@ struct CreateBarView: View {
                 alertMessage = message
                 showingAlert = true
             }
-        }
-    }
-}
-
-// MARK: - Day Hours Editor
-struct DayHoursEditor: View {
-    let day: WeekDay
-    @Binding var dayHours: DayHours
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(day.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .frame(width: 80, alignment: .leading)
-                
-                Spacer()
-                
-                Toggle("", isOn: $dayHours.isOpen)
-                    .labelsHidden()
-            }
-            
-            if dayHours.isOpen {
-                VStack(spacing: 12) {
-                    // Open time
-                    HStack {
-                        Text("Opens:")
-                            .font(.caption)
-                            .frame(width: 50, alignment: .leading)
-                        
-                        TimeSlider(
-                            time: Binding(
-                                get: { dayHours.openTime },
-                                set: { dayHours.openTime = $0 }
-                            ),
-                            range: 18...23 // 6 PM to 11 PM
-                        )
-                    }
-                    
-                    // Close time
-                    HStack {
-                        Text("Closes:")
-                            .font(.caption)
-                            .frame(width: 50, alignment: .leading)
-                        
-                        TimeSlider(
-                            time: Binding(
-                                get: { dayHours.closeTime },
-                                set: { dayHours.closeTime = $0 }
-                            ),
-                            range: 0...6 // 12 AM to 6 AM next day
-                        )
-                    }
-                }
-                .padding(.leading, 16)
-            }
-        }
-        .padding()
-        .background(dayHours.isOpen ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
-        .cornerRadius(8)
-    }
-}
-
-// MARK: - Time Slider (Fixed)
-struct TimeSlider: View {
-    @Binding var time: String
-    let range: ClosedRange<Int>
-    
-    private var hourValue: Int {
-        let components = time.split(separator: ":")
-        return Int(components.first ?? "18") ?? 18
-    }
-    
-    var body: some View {
-        HStack {
-            Slider(
-                value: Binding(
-                    get: { Double(hourValue) },
-                    set: { newValue in
-                        // Directly modify the time binding instead of using the computed property setter
-                        time = String(format: "%02d:00", Int(newValue))
-                    }
-                ),
-                in: Double(range.lowerBound)...Double(range.upperBound),
-                step: 1
-            )
-            
-            Text(formatTime(hour: hourValue))
-                .font(.caption)
-                .frame(width: 60, alignment: .trailing)
-        }
-    }
-    
-    private func formatTime(hour: Int) -> String {
-        if hour == 0 {
-            return "12 AM"
-        } else if hour < 12 {
-            return "\(hour) AM"
-        } else if hour == 12 {
-            return "12 PM"
-        } else {
-            return "\(hour - 12) PM"
         }
     }
 }
@@ -491,4 +386,8 @@ struct InfoRow: View {
             Spacer()
         }
     }
+}
+
+#Preview {
+    CreateBarView(barViewModel: BarViewModel())
 }

@@ -67,8 +67,8 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - REPLACE YOUR EXISTING checkForAutoTransitions METHOD WITH THIS:
-
+    // MARK: - Auto-transition monitoring
+    
     private func checkForAutoTransitions() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -92,7 +92,7 @@ class BarViewModel: ObservableObject {
                         self.loggedInBar = bar
                     }
                     
-                    // 🎯 SEND NOTIFICATION FOR AUTO-TRANSITION
+                    // Send notification for auto-transition
                     NotificationCenter.default.post(
                         name: .barStatusChanged,
                         object: nil,
@@ -266,13 +266,13 @@ class BarViewModel: ObservableObject {
         return loggedInBar.id == bar.id
     }
     
-    // MARK: - Status Operations (Simplified)
-
+    // MARK: - Status Operations
+    
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else { return }
         
         var updatedBar = bar
-        let oldStatus = bar.status  // 🎯 CAPTURE OLD STATUS
+        let oldStatus = bar.status
         
         // Cancel any existing auto-transition
         updatedBar.cancelAutoTransition()
@@ -302,7 +302,7 @@ class BarViewModel: ObservableObject {
             loggedInBar = updatedBar
         }
         
-        // 🎯 SEND NOTIFICATION IF STATUS ACTUALLY CHANGED
+        // Send notification if status actually changed
         if oldStatus != newStatus {
             NotificationCenter.default.post(
                 name: .barStatusChanged,
@@ -354,21 +354,9 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Notification Methods
-    
-    private func notifyFavoriteUsers(for bar: Bar, newStatus: BarStatus) {
-        // Only send notifications for significant status changes
-        guard newStatus == .open || newStatus == .closed else { return }
-        
-        // Check if current user has this bar favorited
-        if userPreferencesManager.isFavorite(barId: bar.id) {
-            notificationManager?.scheduleBarStatusNotification(barName: bar.name, newStatus: newStatus)
-        }
-    }
-    
     // MARK: - Firebase-Integrated Favorites System
     
-    func toggleFavorite(barId: String) {
+    func toggleFavorite(barId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         userPreferencesManager.toggleFavorite(barId: barId) { [weak self] isNowFavorited in
             // The UI will automatically update through @Published properties
             // Optionally trigger an additional UI refresh
@@ -376,6 +364,7 @@ class BarViewModel: ObservableObject {
                 self?.objectWillChange.send()
             }
             
+            completion(isNowFavorited)
             print("🔄 Favorite toggle completed for \(barId): \(isNowFavorited)")
         }
     }
@@ -430,6 +419,17 @@ class BarViewModel: ObservableObject {
         }
     }
     
+    func updateBarSocialLinks(_ bar: Bar, newSocialLinks: SocialLinks) {
+        guard canEdit(bar: bar) else { return }
+        
+        firebaseManager.updateBarSocialLinks(barId: bar.id, socialLinks: newSocialLinks)
+        
+        if loggedInBar?.id == bar.id {
+            loggedInBar?.socialLinks = newSocialLinks
+            loggedInBar?.lastUpdated = Date()
+        }
+    }
+    
     func getAllBars() -> [Bar] {
         return bars
     }
@@ -448,15 +448,9 @@ class BarViewModel: ObservableObject {
         userPreferencesManager.debugPrintStatus()
         print("📊 Firebase favorite counts: \(firebaseManager.favoriteCounts)")
     }
-    
-    func updateBarSocialLinks(_ bar: Bar, newSocialLinks: SocialLinks) {
-        guard canEdit(bar: bar) else { return }
-        
-        firebaseManager.updateBarSocialLinks(barId: bar.id, socialLinks: newSocialLinks)
-        
-        if loggedInBar?.id == bar.id {
-            loggedInBar?.socialLinks = newSocialLinks
-            loggedInBar?.lastUpdated = Date()
-        }
-    }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject(BarViewModel())
 }

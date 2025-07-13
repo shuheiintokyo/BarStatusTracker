@@ -11,17 +11,9 @@ class FirebaseManager: ObservableObject {
     // Published property to track favorite counts for all bars
     @Published var favoriteCounts: [String: Int] = [:]
     
-    // Basic device analytics
-    private let deviceAnalytics = BasicDeviceAnalytics()
-    
     init() {
-        setupInitialData()
+        fetchBars() // Just fetch existing bars, no sample data
         setupFavoriteCountsListener()
-        
-        // Try to get location (optional)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.deviceAnalytics.requestLocationPermission()
-        }
     }
     
     // MARK: - Bar Creation and Deletion
@@ -97,7 +89,7 @@ class FirebaseManager: ObservableObject {
                 }
                 
                 guard let documents = querySnapshot?.documents else {
-                    self?.errorMessage = "No bars found"
+                    self?.bars = [] // Empty array if no bars found
                     return
                 }
                 
@@ -178,7 +170,7 @@ class FirebaseManager: ObservableObject {
         }
     }
     
-    // MARK: - Enhanced Favorites System with Basic Analytics
+    // MARK: - Simplified Favorites System (No Location Tracking)
     
     func toggleFavorite(barId: String, deviceId: String, completion: @escaping (Result<Bool, Error>) -> Void) {
         // First check if favorite already exists
@@ -208,8 +200,8 @@ class FirebaseManager: ObservableObject {
                         }
                     }
                 } else {
-                    // No favorite exists, create new one with analytics
-                    self?.createFavoriteWithBasicAnalytics(barId: barId, deviceId: deviceId) { result in
+                    // No favorite exists, create new one
+                    self?.createSimpleFavorite(barId: barId, deviceId: deviceId) { result in
                         switch result {
                         case .success:
                             completion(.success(true))
@@ -221,10 +213,8 @@ class FirebaseManager: ObservableObject {
             }
     }
     
-    private func createFavoriteWithBasicAnalytics(barId: String, deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        
-        // Basic favorite data
-        var favoriteData: [String: Any] = [
+    private func createSimpleFavorite(barId: String, deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let favoriteData: [String: Any] = [
             "barId": barId,
             "deviceId": deviceId,
             "isActive": true,
@@ -232,25 +222,13 @@ class FirebaseManager: ObservableObject {
             "lastUpdated": Timestamp(date: Date())
         ]
         
-        // Add device info (always available)
-        favoriteData["deviceInfo"] = deviceAnalytics.deviceInfo.toDictionary()
-        
-        // Add location info (if available)
-        if let locationInfo = deviceAnalytics.locationInfo {
-            favoriteData["locationInfo"] = locationInfo.toDictionary()
-            print("📍 Adding location to favorite: \(locationInfo.summary)")
-        } else {
-            print("📍 No location available (optional)")
-        }
-        
         db.collection("favorites").addDocument(data: favoriteData) { error in
             if let error = error {
                 completion(.failure(error))
                 print("❌ Error creating favorite: \(error.localizedDescription)")
             } else {
                 completion(.success(()))
-                print("✅ Successfully created favorite with analytics for bar: \(barId)")
-                print("📱 Device: \(self.deviceAnalytics.deviceInfo.summary)")
+                print("✅ Successfully created favorite for bar: \(barId)")
             }
         }
     }
@@ -321,7 +299,7 @@ class FirebaseManager: ObservableObject {
         return favoriteCounts[barId] ?? 0
     }
     
-    // MARK: - Basic Analytics for Bar Owners
+    // MARK: - Basic Analytics for Bar Owners (No Location)
     func getBasicAnalytics(for barId: String, completion: @escaping ([String: Any]) -> Void) {
         db.collection("favorites")
             .whereField("barId", isEqualTo: barId)
@@ -333,38 +311,8 @@ class FirebaseManager: ObservableObject {
                     return
                 }
                 
-                var analytics: [String: Any] = [:]
-                var countries: [String: Int] = [:]
-                var cities: [String: Int] = [:]
-                var deviceTypes: [String: Int] = [:]
-                
-                for document in documents {
-                    let data = document.data()
-                    
-                    // Count by location (if available)
-                    if let locationInfo = data["locationInfo"] as? [String: Any] {
-                        if let country = locationInfo["country"] as? String, !country.isEmpty {
-                            countries[country] = (countries[country] ?? 0) + 1
-                        }
-                        if let city = locationInfo["city"] as? String, !city.isEmpty {
-                            cities[city] = (cities[city] ?? 0) + 1
-                        }
-                    }
-                    
-                    // Count by device type
-                    if let deviceInfo = data["deviceInfo"] as? [String: Any] {
-                        if let deviceType = deviceInfo["deviceType"] as? String {
-                            deviceTypes[deviceType] = (deviceTypes[deviceType] ?? 0) + 1
-                        }
-                    }
-                }
-                
-                analytics = [
+                let analytics: [String: Any] = [
                     "totalFavorites": documents.count,
-                    "countries": countries,
-                    "cities": cities,
-                    "deviceTypes": deviceTypes,
-                    "hasLocationData": !countries.isEmpty,
                     "lastUpdated": Date()
                 ]
                 
@@ -383,46 +331,8 @@ class FirebaseManager: ObservableObject {
         }
     }
     
-    // MARK: - Initial Data Setup
+    // MARK: - Social Links Update
     
-    private func setupInitialData() {
-        db.collection("bars").getDocuments { [weak self] querySnapshot, error in
-            if let error = error {
-                print("Error checking for existing data: \(error)")
-                return
-            }
-            
-            // Always fetch bars, whether or not we add sample data
-            self?.fetchBars()
-            
-            // Only add sample data if completely empty (for new installations)
-            if querySnapshot?.documents.isEmpty == true {
-                print("🆕 First time setup - adding sample bars")
-                self?.addSampleBars()
-            }
-        }
-    }
-    
-    private func addSampleBars() {
-        let sampleBars = [
-            Bar(name: "The Cozy Corner", latitude: 35.6762, longitude: 139.6503, address: "123 Shibuya, Tokyo", status: .open, description: "A warm, welcoming neighborhood bar with craft cocktails and local beer.", username: "The Cozy Corner", password: "1234"),
-            Bar(name: "Sunset Tavern", latitude: 35.6586, longitude: 139.7454, address: "456 Ginza, Tokyo", status: .closingSoon, description: "Perfect spot to watch the sunset with friends.", username: "Sunset Tavern", password: "5678"),
-            Bar(name: "The Underground", latitude: 35.7090, longitude: 139.7319, address: "789 Shinjuku, Tokyo", status: .closed, description: "Speakeasy-style bar with vintage cocktails.", username: "The Underground", password: "9012")
-        ]
-        
-        for bar in sampleBars {
-            db.collection("bars").document(bar.id).setData(bar.toDictionary()) { error in
-                if let error = error {
-                    print("Error adding sample bar \(bar.name): \(error)")
-                } else {
-                    print("Added sample bar: \(bar.name)")
-                }
-            }
-        }
-    }
-    
-    // MARK: - Add this method to FirebaseManager.swift
-
     func updateBarSocialLinks(barId: String, socialLinks: SocialLinks) {
         let barRef = db.collection("bars").document(barId)
         
@@ -458,6 +368,3 @@ enum AuthError: Error, LocalizedError {
         }
     }
 }
-
-
-

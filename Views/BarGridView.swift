@@ -4,6 +4,7 @@ struct BarGridView: View {
     @ObservedObject var barViewModel: BarViewModel
     let isOwnerMode: Bool
     @State private var showingCreateBar = false
+    @State private var showingSearchBars = false
     
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
     
@@ -13,22 +14,29 @@ struct BarGridView: View {
             // Owner mode: show only the logged-in bar
             return barViewModel.getOwnerBars()
         } else {
-            // Guest mode: show all bars
-            return barViewModel.getAllBars()
+            // Guest mode: show only favorited bars
+            let favoriteBarIds = barViewModel.userPreferencesManager.getFavoriteBarIds()
+            return barViewModel.getAllBars().filter { favoriteBarIds.contains($0.id) }
         }
     }
     
     var body: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 15) {
-                // Create new bar card (only in guest mode)
+                // Guest mode action cards
                 if !isOwnerMode {
+                    // Create new bar card
                     CreateBarCard {
                         showingCreateBar = true
                     }
+                    
+                    // Search bars card (NEW!)
+                    SearchBarsCard {
+                        showingSearchBars = true
+                    }
                 }
                 
-                // Existing bars
+                // Existing bars (favorited bars for guests, owned bar for owners)
                 ForEach(barsToDisplay) { bar in
                     BarGridItem(
                         bar: bar,
@@ -43,19 +51,48 @@ struct BarGridView: View {
             }
             .padding()
             
+            // Show empty state message if no bars
             if barsToDisplay.isEmpty && isOwnerMode {
                 Text("No bars available")
                     .foregroundColor(.secondary)
                     .padding()
+            } else if barsToDisplay.isEmpty && !isOwnerMode {
+                VStack(spacing: 16) {
+                    Image(systemName: "heart")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray.opacity(0.5))
+                    
+                    Text("No Favorite Bars Yet")
+                        .font(.headline)
+                    
+                    Text("Use \"Search New Bar\" to find and follow bars you like!")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    Button("Search Bars") {
+                        showingSearchBars = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+                .padding(.horizontal)
             }
         }
         .sheet(isPresented: $showingCreateBar) {
             CreateBarView(barViewModel: barViewModel)
         }
+        .sheet(isPresented: $showingSearchBars) {
+            SearchBarsView(barViewModel: barViewModel)
+        }
     }
 }
 
-// MARK: - Create Bar Card
+// MARK: - Create Bar Card (Updated)
 struct CreateBarCard: View {
     let action: () -> Void
     
@@ -81,7 +118,7 @@ struct CreateBarCard: View {
                 }
                 
                 // Encouraging text
-                Text("🎉 Start managing your bar!")
+                Text("🎉 Start managing!")
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.9))
                     .multilineTextAlignment(.center)
@@ -105,7 +142,62 @@ struct CreateBarCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-        .scaleEffect(1.0)
-        .animation(.easeInOut(duration: 0.1), value: false)
     }
+}
+
+// MARK: - Search Bars Card (NEW!)
+struct SearchBarsCard: View {
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 12) {
+                // Search icon
+                Image(systemName: "magnifyingglass.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.white)
+                
+                // Text
+                VStack(spacing: 4) {
+                    Text("Search New Bar")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Find bars to follow")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                }
+                
+                // Encouraging text
+                Text("🔍 Discover bars!")
+                    .font(.caption2)
+                    .foregroundColor(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+            }
+            .frame(height: 140)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.orange, .pink]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(radius: 5)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 15)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+#Preview {
+    BarGridView(barViewModel: BarViewModel(), isOwnerMode: false)
 }

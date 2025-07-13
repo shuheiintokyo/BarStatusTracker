@@ -191,44 +191,28 @@ struct OwnerLoginView: View {
                     )
                 }
                 
-                // Test Credentials Section (only show sample bars)
-                let sampleBars = barViewModel.getAllBars().filter {
-                    ["The Cozy Corner", "Sunset Tavern", "The Underground"].contains($0.name)
-                }
-                
-                if !sampleBars.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Test Credentials (Sample Bars):")
-                            .font(.headline)
-                            .padding(.bottom, 4)
-                        
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(sampleBars, id: \.id) { bar in
-                                    HStack {
-                                        Text("• \(bar.name)")
-                                            .font(.caption)
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        Text("Password: \(bar.password)")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .fontFamily(.monospaced)
-                                    }
-                                    .padding(.vertical, 2)
-                                }
-                            }
-                        }
-                        .frame(maxHeight: 80)
+                // Help section
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Need Help?")
+                        .font(.headline)
+                        .padding(.bottom, 4)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("• Create a new bar if you don't have one yet")
+                        Text("• Use your bar name as the username")
+                        Text("• Password is the 4-digit code you set during registration")
+                        Text("• Contact support if you forgot your credentials")
                     }
-                    .padding()
-                    .background(Color.blue.opacity(0.05))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-                    )
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
+                .padding()
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                )
                 
                 Spacer()
             }
@@ -273,7 +257,7 @@ struct OwnerLoginView: View {
                 showingOwnerLogin = false
                 dismiss()
             } else {
-                alertMessage = "Invalid bar name or password. Please check your credentials."
+                alertMessage = "Invalid bar name or password. Please check your credentials and try again."
                 showingAlert = true
             }
             isLoading = false
@@ -315,4 +299,3 @@ struct OwnerLoginView: View {
         }
     }
 }
-

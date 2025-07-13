@@ -14,7 +14,7 @@ struct BarDetailView: View {
     @State private var editingOperatingHours = OperatingHours()
     @State private var editingPassword = ""
     
-    // 🎯 NEW: Social Links editing states
+    // Social Links editing states
     @State private var editingSocialLinks = SocialLinks()
     @State private var showingEditSocialLinks = false
     
@@ -47,7 +47,7 @@ struct BarDetailView: View {
                         
                         Divider()
                         
-                        // 🎯 UPDATED: Social Links with editing capability
+                        // Social Links with editing capability
                         socialLinksSection
                         
                         // Owner Settings
@@ -118,7 +118,6 @@ struct BarDetailView: View {
                 barViewModel.updateBarPassword(bar, newPassword: newPassword)
             }
         }
-        // 🎯 NEW: Social Links editing sheet
         .sheet(isPresented: $showingEditSocialLinks) {
             EditSocialLinksView(
                 socialLinks: $editingSocialLinks,
@@ -328,7 +327,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - 🎯 UPDATED: Social Links Section with Full Editing Support
+    // MARK: - Social Links Section with Full Editing Support
     var socialLinksSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -442,7 +441,168 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - 🎯 NEW: Edit Social Links View
+// MARK: - Edit Operating Hours View (Updated with Dual Slider)
+struct EditOperatingHoursView: View {
+    @Binding var operatingHours: OperatingHours
+    let barName: String
+    let onSave: (OperatingHours) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Set your regular operating hours using the dual-handle sliders. Drag the green circles to set opening and closing times (6 PM - 6 AM, 30-minute increments).")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding(.bottom)
+                        
+                        ForEach(WeekDay.allCases, id: \.self) { day in
+                            ImprovedDayHoursEditor(
+                                day: day,
+                                dayHours: Binding(
+                                    get: { operatingHours.getDayHours(for: day) },
+                                    set: { operatingHours.setDayHours(for: day, hours: $0) }
+                                )
+                            )
+                        }
+                    }
+                    .padding()
+                }
+                
+                Spacer()
+            }
+            .navigationTitle("Operating Hours")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        onSave(operatingHours)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Edit Password View
+struct EditPasswordView: View {
+    let currentPassword: String
+    let barName: String
+    let onSave: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    
+    private var canSave: Bool {
+        newPassword.count == 4 && confirmPassword == newPassword && newPassword != currentPassword
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Change Login Password")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Enter a new 4-digit password for \(barName)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Current Password")
+                            .font(.headline)
+                        
+                        Text("••••")
+                            .font(.title3)
+                            .fontFamily(.monospaced)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("New Password")
+                            .font(.headline)
+                        
+                        SecureField("Enter new 4-digit password", text: $newPassword)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.numberPad)
+                            .onChange(of: newPassword) { _, newValue in
+                                if newValue.count > 4 {
+                                    newPassword = String(newValue.prefix(4))
+                                }
+                            }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Confirm New Password")
+                            .font(.headline)
+                        
+                        SecureField("Re-enter new password", text: $confirmPassword)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.numberPad)
+                            .onChange(of: confirmPassword) { _, newValue in
+                                if newValue.count > 4 {
+                                    confirmPassword = String(newValue.prefix(4))
+                                }
+                            }
+                        
+                        if !confirmPassword.isEmpty && confirmPassword != newPassword {
+                            Text("Passwords don't match")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Change Password")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        if canSave {
+                            onSave(newPassword)
+                            dismiss()
+                        } else {
+                            alertMessage = "Please enter a valid 4-digit password that's different from your current one"
+                            showingAlert = true
+                        }
+                    }
+                    .disabled(!canSave)
+                }
+            }
+        }
+        .alert("Password Error", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+    }
+}
+
+// MARK: - Edit Social Links View
 struct EditSocialLinksView: View {
     @Binding var socialLinks: SocialLinks
     let barName: String
@@ -587,7 +747,7 @@ struct EditSocialLinksView: View {
     }
 }
 
-// MARK: - 🎯 NEW: Social Link Editor Component
+// MARK: - Social Link Editor Component
 struct SocialLinkEditor: View {
     let icon: String
     let title: String
@@ -632,167 +792,6 @@ struct SocialLinkEditor: View {
     }
 }
 
-// MARK: - Edit Operating Hours View
-struct EditOperatingHoursView: View {
-    @Binding var operatingHours: OperatingHours
-    let barName: String
-    let onSave: (OperatingHours) -> Void
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Set your regular operating hours. These help customers know when you're typically open.")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.bottom)
-                        
-                        ForEach(WeekDay.allCases, id: \.self) { day in
-                            DayHoursEditor(
-                                day: day,
-                                dayHours: Binding(
-                                    get: { operatingHours.getDayHours(for: day) },
-                                    set: { operatingHours.setDayHours(for: day, hours: $0) }
-                                )
-                            )
-                        }
-                    }
-                    .padding()
-                }
-                
-                Spacer()
-            }
-            .navigationTitle("Operating Hours")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        onSave(operatingHours)
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Edit Password View
-struct EditPasswordView: View {
-    let currentPassword: String
-    let barName: String
-    let onSave: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
-    
-    @State private var newPassword = ""
-    @State private var confirmPassword = ""
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
-    
-    private var canSave: Bool {
-        newPassword.count == 4 && confirmPassword == newPassword && newPassword != currentPassword
-    }
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Change Login Password")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("Enter a new 4-digit password for \(barName)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                VStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Current Password")
-                            .font(.headline)
-                        
-                        Text("••••")
-                            .font(.title3)
-                            .fontFamily(.monospaced)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("New Password")
-                            .font(.headline)
-                        
-                        SecureField("Enter new 4-digit password", text: $newPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: newPassword) { _, newValue in
-                                if newValue.count > 4 {
-                                    newPassword = String(newValue.prefix(4))
-                                }
-                            }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Confirm New Password")
-                            .font(.headline)
-                        
-                        SecureField("Re-enter new password", text: $confirmPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: confirmPassword) { _, newValue in
-                                if newValue.count > 4 {
-                                    confirmPassword = String(newValue.prefix(4))
-                                }
-                            }
-                        
-                        if !confirmPassword.isEmpty && confirmPassword != newPassword {
-                            Text("Passwords don't match")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Change Password")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        if canSave {
-                            onSave(newPassword)
-                            dismiss()
-                        } else {
-                            alertMessage = "Please enter a valid 4-digit password that's different from your current one"
-                            showingAlert = true
-                        }
-                    }
-                    .disabled(!canSave)
-                }
-            }
-        }
-        .alert("Password Error", isPresented: $showingAlert) {
-            Button("OK") { }
-        } message: {
-            Text(alertMessage)
-        }
-    }
-}
-
 // Helper extension for monospaced font
 extension Text {
     func fontFamily(_ family: Font.Design) -> Text {
@@ -811,4 +810,9 @@ struct BasicAnalyticsSection: View {
             }
         }
     }
+}
+
+#Preview {
+    let sampleBar = Bar(name: "Sample Bar", address: "123 Main St", username: "Sample Bar", password: "1234")
+    BarDetailView(bar: sampleBar, barViewModel: BarViewModel(), isOwnerMode: false)
 }

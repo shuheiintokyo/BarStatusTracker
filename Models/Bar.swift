@@ -1,5 +1,4 @@
 import Foundation
-import CoreLocation
 import FirebaseFirestore
 
 // MARK: - Operating Hours Models
@@ -124,7 +123,7 @@ enum WeekDay: String, CaseIterable {
     }
 }
 
-// MARK: - SocialLinks (Make sure this exists)
+// MARK: - SocialLinks
 struct SocialLinks: Codable {
     var instagram: String = ""
     var twitter: String = ""
@@ -132,12 +131,10 @@ struct SocialLinks: Codable {
     var website: String = ""
 }
 
-// MARK: - Enhanced Bar Model with Operating Hours
+// MARK: - Enhanced Bar Model (No Location)
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
     let name: String
-    let latitude: Double
-    let longitude: Double
     let address: String
     var status: BarStatus
     var description: String
@@ -156,11 +153,6 @@ struct Bar: Identifiable, Codable {
     var autoTransitionTime: Date?           // When the auto-change should happen
     var pendingStatus: BarStatus?           // What status to change to automatically
     var isAutoTransitionActive: Bool = false // Whether a timer is currently running
-    
-    // Computed property for location
-    var location: CLLocationCoordinate2D {
-        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-    }
     
     // Computed property to check if auto-transition should trigger
     var shouldAutoTransition: Bool {
@@ -194,10 +186,8 @@ struct Bar: Identifiable, Codable {
         return operatingHours.getDayHours(for: today)
     }
     
-    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours()) {
+    init(name: String, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours()) {
         self.name = name
-        self.latitude = latitude
-        self.longitude = longitude
         self.address = address
         self.status = status
         self.description = description
@@ -246,8 +236,6 @@ struct Bar: Identifiable, Codable {
         var dict: [String: Any] = [
             "id": id,
             "name": name,
-            "latitude": latitude,
-            "longitude": longitude,
             "address": address,
             "status": status.rawValue,
             "description": description,
@@ -279,8 +267,6 @@ struct Bar: Identifiable, Codable {
     // Create from Firebase document
     static func fromDictionary(_ data: [String: Any], documentId: String) -> Bar? {
         guard let name = data["name"] as? String,
-              let latitude = data["latitude"] as? Double,
-              let longitude = data["longitude"] as? Double,
               let address = data["address"] as? String,
               let statusString = data["status"] as? String,
               let status = BarStatus(rawValue: statusString),
@@ -296,7 +282,7 @@ struct Bar: Identifiable, Codable {
             operatingHours = OperatingHours.fromDictionary(hoursDict)
         }
         
-        var bar = Bar(name: name, latitude: latitude, longitude: longitude, address: address, status: status, description: description, username: username, password: password, operatingHours: operatingHours)
+        var bar = Bar(name: name, address: address, status: status, description: description, username: username, password: password, operatingHours: operatingHours)
         bar.id = documentId
         
         // Social links
@@ -346,4 +332,3 @@ struct Bar: Identifiable, Codable {
         }
     }
 }
-

@@ -1,80 +1,14 @@
 import Foundation
-import CoreLocation
 import UIKit
 
-// MARK: - Basic Device Info Collection
-class BasicDeviceAnalytics: NSObject, ObservableObject, CLLocationManagerDelegate {
+// MARK: - Basic Device Info Collection (No Location)
+class BasicDeviceAnalytics: NSObject, ObservableObject {
     @Published var deviceInfo: BasicDeviceInfo
-    @Published var locationInfo: BasicLocationInfo?
-    
-    private let locationManager = CLLocationManager()
     
     override init() {
         // Collect device info immediately
         self.deviceInfo = BasicDeviceInfo()
         super.init()
-        setupLocationManager()
-    }
-    
-    // MARK: - Location Services (Optional)
-    private func setupLocationManager() {
-        locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyKilometer // City-level for privacy
-    }
-    
-    func requestLocationPermission() {
-        locationManager.requestWhenInUseAuthorization()
-    }
-    
-    func getCurrentLocation() {
-        guard locationManager.authorizationStatus == .authorizedWhenInUse ||
-              locationManager.authorizationStatus == .authorizedAlways else {
-            print("📍 Location permission not granted (optional)")
-            return
-        }
-        
-        locationManager.requestLocation()
-    }
-    
-    // MARK: - Location Manager Delegate
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-        
-        // Reverse geocoding to get city/country
-        let geocoder = CLGeocoder()
-        geocoder.reverseGeocodeLocation(location) { [weak self] (placemarks: [CLPlacemark]?, error: Error?) in
-            if let error = error {
-                print("📍 Geocoding error: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let placemark = placemarks?.first else { return }
-            
-            self?.locationInfo = BasicLocationInfo(
-                city: placemark.locality,
-                country: placemark.country,
-                countryCode: placemark.isoCountryCode
-            )
-            
-            print("📍 Location: \(self?.locationInfo?.summary ?? "Unknown")")
-        }
-    }
-    
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("📍 Location error (optional): \(error.localizedDescription)")
-    }
-    
-    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
-        switch status {
-        case .authorizedWhenInUse, .authorizedAlways:
-            getCurrentLocation()
-        case .denied, .restricted:
-            print("📍 Location access denied (that's okay, analytics will work without it)")
-        case .notDetermined:
-            break
-        @unknown default:
-            break
-        }
     }
 }
 
@@ -138,24 +72,5 @@ struct BasicDeviceInfo: Codable {
         #else
         return false
         #endif
-    }
-}
-
-// MARK: - Basic Location Info
-struct BasicLocationInfo: Codable {
-    let city: String?
-    let country: String?
-    let countryCode: String?
-    
-    var summary: String {
-        return "\(city ?? "Unknown"), \(country ?? "Unknown")"
-    }
-    
-    func toDictionary() -> [String: Any] {
-        return [
-            "city": city ?? "",
-            "country": country ?? "",
-            "countryCode": countryCode ?? ""
-        ]
     }
 }
