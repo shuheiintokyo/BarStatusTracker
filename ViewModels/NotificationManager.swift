@@ -5,9 +5,67 @@ import SwiftUI
 class NotificationManager: ObservableObject {
     @Published var isAuthorized = false
     
+    // 🎵 SIMPLE SOUND SETTINGS
+    @Published var enableSoundsForOpen = true
+    @Published var enableSoundsForClosing = true
+    @Published var silentForClosed = true
+    
     init() {
         checkNotificationPermissions()
-        setupBarStatusListener()  // 🎯 ADD THIS LINE
+        setupBarStatusListener()
+        loadSoundPreferences()
+    }
+    
+    // MARK: - Simple Sound Preferences
+    
+    private func loadSoundPreferences() {
+        enableSoundsForOpen = UserDefaults.standard.bool(forKey: "enableSoundsForOpen")
+        enableSoundsForClosing = UserDefaults.standard.bool(forKey: "enableSoundsForClosing")
+        silentForClosed = UserDefaults.standard.bool(forKey: "silentForClosed")
+        
+        // Set defaults on first launch
+        if !UserDefaults.standard.bool(forKey: "hasLaunchedBefore") {
+            enableSoundsForOpen = true
+            enableSoundsForClosing = true
+            silentForClosed = true
+            UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+            saveSoundPreferences()
+        }
+    }
+    
+    private func saveSoundPreferences() {
+        UserDefaults.standard.set(enableSoundsForOpen, forKey: "enableSoundsForOpen")
+        UserDefaults.standard.set(enableSoundsForClosing, forKey: "enableSoundsForClosing")
+        UserDefaults.standard.set(silentForClosed, forKey: "silentForClosed")
+    }
+    
+    func toggleSoundForOpen() {
+        enableSoundsForOpen.toggle()
+        saveSoundPreferences()
+    }
+    
+    func toggleSoundForClosing() {
+        enableSoundsForClosing.toggle()
+        saveSoundPreferences()
+    }
+    
+    func toggleSilentForClosed() {
+        silentForClosed.toggle()
+        saveSoundPreferences()
+    }
+    
+    // 🎵 FIXED: Proper way to handle silent notifications
+    private func shouldPlaySound(for status: BarStatus) -> Bool {
+        switch status {
+        case .openingSoon:
+            return enableSoundsForOpen
+        case .open:
+            return enableSoundsForOpen
+        case .closingSoon:
+            return enableSoundsForClosing
+        case .closed:
+            return !silentForClosed
+        }
     }
     
     // MARK: - Permission Management
@@ -33,11 +91,9 @@ class NotificationManager: ObservableObject {
         }
     }
     
-    // 🎯 ADD THIS ENTIRE SECTION - Bar Status Listener
     // MARK: - Bar Status Listener
     
     private func setupBarStatusListener() {
-        // Listen for bar status changes
         NotificationCenter.default.addObserver(
             forName: .barStatusChanged,
             object: nil,
@@ -48,7 +104,6 @@ class NotificationManager: ObservableObject {
                   let newStatus = userInfo["newStatus"] as? BarStatus,
                   let barId = userInfo["barId"] as? String else { return }
             
-            // Check if user has favorited this bar
             let userPreferencesManager = UserPreferencesManager()
             if userPreferencesManager.isFavorite(barId: barId) {
                 self?.scheduleBarStatusNotification(barName: barName, newStatus: newStatus)
@@ -59,7 +114,7 @@ class NotificationManager: ObservableObject {
         }
     }
     
-    // MARK: - Send Notifications
+    // MARK: - Send Notifications (FIXED)
     
     func scheduleBarStatusNotification(barName: String, newStatus: BarStatus) {
         guard isAuthorized else {
@@ -68,11 +123,15 @@ class NotificationManager: ObservableObject {
         }
         
         let content = UNMutableNotificationContent()
-        content.title = "🍺 \(barName)"  // 🎯 UPDATED EMOJI
+        content.title = "🍺 \(barName)"
         content.body = getNotificationMessage(for: newStatus)
-        content.sound = .default
         
-        // 🎯 ADD ACTION BUTTONS
+        // 🎵 FIXED: Proper sound handling
+        if shouldPlaySound(for: newStatus) {
+            content.sound = .default
+        }
+        // If shouldPlaySound returns false, we don't set content.sound (defaults to silent)
+        
         let viewAction = UNNotificationAction(
             identifier: "VIEW_BAR",
             title: "View Bar",
@@ -88,21 +147,16 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().setNotificationCategories([category])
         content.categoryIdentifier = "BAR_STATUS"
         
-        // Create identifier
         let identifier = "bar-status-\(barName)-\(Date().timeIntervalSince1970)"
-        
-        // Trigger immediately
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-        
-        // Create request
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
-        // Schedule notification
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
                 print("❌ Failed to schedule notification: \(error)")
             } else {
-                print("📱 ✅ Scheduled notification for \(barName): \(newStatus.displayName)")
+                let soundStatus = self.shouldPlaySound(for: newStatus) ? "With Sound" : "Silent"
+                print("📱 🎵 Scheduled notification for \(barName): \(newStatus.displayName) [\(soundStatus)]")
             }
         }
     }
@@ -129,7 +183,6 @@ class NotificationManager: ObservableObject {
     }
 }
 
-// 🎯 ADD THIS EXTENSION AT THE BOTTOM
 // Extension for notification names
 extension Notification.Name {
     static let barStatusChanged = Notification.Name("barStatusChanged")

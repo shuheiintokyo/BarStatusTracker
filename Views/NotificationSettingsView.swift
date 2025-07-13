@@ -9,8 +9,8 @@ struct NotificationSettingsView: View {
         NavigationView {
             VStack(spacing: 20) {
                 if notificationManager.isAuthorized {
-                    // ✅ Notifications enabled - show favorited bars
-                    favoriteBarsList
+                    // ✅ Notifications enabled - show settings
+                    notificationSettingsView
                 } else {
                     // ❌ No permission - show permission request
                     permissionRequestView
@@ -101,20 +101,185 @@ struct NotificationSettingsView: View {
         }
     }
     
+    // MARK: - 🎵 Notification Settings View with Sound Controls
+    var notificationSettingsView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("🔔 Notifications Enabled")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Customize your notification preferences")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                // 🎵 Sound Settings Section
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("🎵 Sound Settings")
+                        .font(.headline)
+                    
+                    VStack(spacing: 16) {
+                        // Opening/Open sounds
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Opening & Open Notifications")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Text("When bars are opening soon or opening")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Toggle("", isOn: Binding(
+                                    get: { notificationManager.enableSoundsForOpen },
+                                    set: { _ in notificationManager.toggleSoundForOpen() }
+                                ))
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Image(systemName: "clock.badge.checkmark")
+                                    .foregroundColor(.mint)
+                                Text("Opening Soon")
+                                    .font(.caption)
+                                
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("Now Open")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color.green.opacity(0.05))
+                        .cornerRadius(10)
+                        
+                        // Closing sounds
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Closing Notifications")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Text("When bars are closing soon")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Toggle("", isOn: Binding(
+                                    get: { notificationManager.enableSoundsForClosing },
+                                    set: { _ in notificationManager.toggleSoundForClosing() }
+                                ))
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Image(systemName: "clock.badge.exclamationmark")
+                                    .foregroundColor(.yellow)
+                                Text("Closing Soon")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color.yellow.opacity(0.05))
+                        .cornerRadius(10)
+                        
+                        // Closed notifications
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("Closed Notifications")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                    Text("When bars close for the night")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                Spacer()
+                                
+                                Toggle("Silent", isOn: Binding(
+                                    get: { notificationManager.silentForClosed },
+                                    set: { _ in notificationManager.toggleSilentForClosed() }
+                                ))
+                            }
+                            
+                            HStack(spacing: 8) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.blue)
+                                Text("Now Closed")
+                                    .font(.caption)
+                                Text(notificationManager.silentForClosed ? "(Silent)" : "(With Sound)")
+                                    .font(.caption)
+                                    .italic()
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        .background(Color.blue.opacity(0.05))
+                        .cornerRadius(10)
+                    }
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(12)
+                
+                // Test Notification Button
+                Button(action: {
+                    testNotification()
+                }) {
+                    HStack {
+                        Image(systemName: "speaker.wave.2")
+                        Text("Test Notification Sound")
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.purple)
+                    .cornerRadius(10)
+                }
+                
+                // Favorite Bars Section
+                favoriteBarsList
+                
+                Spacer()
+            }
+        }
+    }
+    
+    // MARK: - Test Notification
+    private func testNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🎵 Sound Test"
+        content.body = "This is how your notifications will sound!"
+        content.sound = .default
+        
+        let identifier = "sound-test-\(Date().timeIntervalSince1970)"
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Failed to test sound: \(error)")
+            } else {
+                print("🎵 Testing notification sound")
+            }
+        }
+    }
+    
     // MARK: - Favorite Bars List
     var favoriteBarsList: some View {
         VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("🔔 Notifications Enabled")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
-                Text("You'll receive notifications for bars you've favorited")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
+            Text("❤️ Your Favorite Bars")
+                .font(.headline)
             
-            // Show favorite bars
             let favoriteBarIds = barViewModel.userPreferencesManager.getFavoriteBarIds()
             let favoriteBars = barViewModel.getAllBars().filter { favoriteBarIds.contains($0.id) }
             
@@ -143,11 +308,9 @@ struct NotificationSettingsView: View {
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(12)
             } else {
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(favoriteBars) { bar in
-                            FavoriteBarNotificationRow(bar: bar, barViewModel: barViewModel)
-                        }
+                VStack(spacing: 12) {
+                    ForEach(favoriteBars) { bar in
+                        FavoriteBarNotificationRow(bar: bar, barViewModel: barViewModel)
                     }
                 }
                 
@@ -158,8 +321,6 @@ struct NotificationSettingsView: View {
                     .background(Color.blue.opacity(0.05))
                     .cornerRadius(8)
             }
-            
-            Spacer()
         }
     }
 }
