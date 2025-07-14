@@ -129,60 +129,80 @@ struct BarDetailView: View {
     }
     
     // MARK: - Header Section
-    var headerSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(bar.name)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Text(bar.address)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                VStack {
-                    Image(systemName: bar.status.icon)
-                        .font(.system(size: 40))
-                        .foregroundColor(bar.status.color)
-                    
-                    Text(bar.status.displayName)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                }
-            }
-            
-            // Real-time auto-transition info (if active)
-            if bar.isAutoTransitionActive, let pendingStatus = bar.pendingStatus {
+    // MARK: - Header Section (UPDATED with Location Display)
+        var headerSection: some View {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Image(systemName: "clock.fill")
-                        .foregroundColor(.orange)
-                    
                     VStack(alignment: .leading) {
-                        Text("Will automatically change to \(pendingStatus.displayName)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        Text(bar.name)
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
                         
-                        if let timeRemaining = barViewModel.getTimeRemainingText(for: bar) {
-                            Text("Time remaining: \(timeRemaining)")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.orange)
+                        // 🌍 Show location prominently if available
+                        if let location = bar.location {
+                            HStack(spacing: 6) {
+                                Image(systemName: "location.fill")
+                                    .foregroundColor(.blue)
+                                Text(location.displayName)
+                                    .font(.headline)
+                                    .foregroundColor(.blue)
+                                    .fontWeight(.medium)
+                            }
+                            .padding(.vertical, 2)
+                            
+                            if !bar.address.isEmpty && bar.address != location.city {
+                                Text(bar.address)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            Text(bar.address)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
                     }
+                    
+                    Spacer()
+                    
+                    VStack {
+                        Image(systemName: bar.status.icon)
+                            .font(.system(size: 40))
+                            .foregroundColor(bar.status.color)
+                        
+                        Text(bar.status.displayName)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
                 }
-                .padding(.vertical, 4)
-            }
-            
-            // Owner Controls
-            if isOwnerMode {
-                StatusControlView(bar: bar, barViewModel: barViewModel)
+                
+                // Real-time auto-transition info (if active)
+                if bar.isAutoTransitionActive, let pendingStatus = bar.pendingStatus {
+                    HStack {
+                        Image(systemName: "clock.fill")
+                            .foregroundColor(.orange)
+                        
+                        VStack(alignment: .leading) {
+                            Text("Will automatically change to \(pendingStatus.displayName)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            if let timeRemaining = barViewModel.getTimeRemainingText(for: bar) {
+                                Text("Time remaining: \(timeRemaining)")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                
+                // Owner Controls
+                if isOwnerMode {
+                    StatusControlView(bar: bar, barViewModel: barViewModel)
+                }
             }
         }
-    }
     
     // MARK: - Quick Stats Section
     var quickStatsSection: some View {

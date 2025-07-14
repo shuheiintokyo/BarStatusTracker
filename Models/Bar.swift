@@ -131,7 +131,7 @@ struct SocialLinks: Codable {
     var website: String = ""
 }
 
-// MARK: - Enhanced Bar Model (No Location)
+// MARK: - Enhanced Bar Model WITH Location Support
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
     let name: String
@@ -141,6 +141,9 @@ struct Bar: Identifiable, Codable {
     var socialLinks: SocialLinks
     var lastUpdated: Date
     var ownerID: String?
+    
+    // 🌍 NEW: Location information
+    var location: BarLocation?
     
     // Authentication fields
     var username: String
@@ -186,7 +189,7 @@ struct Bar: Identifiable, Codable {
         return operatingHours.getDayHours(for: today)
     }
     
-    init(name: String, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours()) {
+    init(name: String, address: String, status: BarStatus = .closed, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours(), location: BarLocation? = nil) {
         self.name = name
         self.address = address
         self.status = status
@@ -197,6 +200,7 @@ struct Bar: Identifiable, Codable {
         self.username = username
         self.password = password
         self.operatingHours = operatingHours
+        self.location = location
     }
     
     // Mutating function to start auto-transition timer
@@ -253,6 +257,16 @@ struct Bar: Identifiable, Codable {
             "operatingHours": operatingHours.toDictionary()
         ]
         
+        // 🌍 Add location data if available
+        if let location = location {
+            dict["location"] = [
+                "country": location.country,
+                "countryCode": location.countryCode,
+                "city": location.city,
+                "displayName": location.displayName
+            ]
+        }
+        
         // Add auto-transition fields if active
         if let autoTransitionTime = autoTransitionTime {
             dict["autoTransitionTime"] = Timestamp(date: autoTransitionTime)
@@ -282,7 +296,16 @@ struct Bar: Identifiable, Codable {
             operatingHours = OperatingHours.fromDictionary(hoursDict)
         }
         
-        var bar = Bar(name: name, address: address, status: status, description: description, username: username, password: password, operatingHours: operatingHours)
+        // 🌍 Parse location data
+        var location: BarLocation?
+        if let locationDict = data["location"] as? [String: Any],
+           let country = locationDict["country"] as? String,
+           let countryCode = locationDict["countryCode"] as? String,
+           let city = locationDict["city"] as? String {
+            location = BarLocation(country: country, countryCode: countryCode, city: city)
+        }
+        
+        var bar = Bar(name: name, address: address, status: status, description: description, username: username, password: password, operatingHours: operatingHours, location: location)
         bar.id = documentId
         
         // Social links

@@ -8,8 +8,9 @@ struct CreateBarView: View {
     @State private var barName = ""
     @State private var password = ""
     @State private var description = ""
+    @State private var address = ""
     
-    // Location info (now required)
+    // 🌍 Location info (REQUIRED)
     @State private var selectedCountry: Country?
     @State private var selectedCity: City?
     
@@ -43,7 +44,7 @@ struct CreateBarView: View {
                     .padding()
                 
                 TabView(selection: $currentPage) {
-                    // Page 1: Basic Info
+                    // Page 1: Basic Info + Location
                     basicInfoPage
                         .tag(0)
                     
@@ -122,7 +123,7 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Basic Info Page (Updated with optional address)
+    // MARK: - Basic Info Page (UPDATED with Required Location)
     var basicInfoPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -131,12 +132,12 @@ struct CreateBarView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Enter your bar's essential details")
+                    Text("Enter your bar's essential details and location")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 
-                VStack(spacing: 16) {
+                VStack(spacing: 20) {
                     // Required: Bar Name
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -178,11 +179,26 @@ struct CreateBarView: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    // Required: Location
+                    // 🌍 Required: Location Selection
                     LocationPicker(
                         selectedCountry: $selectedCountry,
                         selectedCity: $selectedCity
                     )
+                    
+                    // Optional: Street Address
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Street Address (Optional)")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        
+                        TextField("Enter street address", text: $address)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .autocapitalization(.words)
+                        
+                        Text("Specific street address within the selected city")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     
                     // Optional: Description
                     VStack(alignment: .leading, spacing: 8) {
@@ -214,6 +230,27 @@ struct CreateBarView: View {
                 }
                 .padding()
                 .background(Color.blue.opacity(0.05))
+                .cornerRadius(8)
+                
+                // 🌍 Location importance note
+                HStack {
+                    Image(systemName: "location.circle")
+                        .foregroundColor(.green)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Why location matters:")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        Text("• Helps customers find your bar easily")
+                            .font(.caption2)
+                        Text("• Distinguishes bars with similar names")
+                            .font(.caption2)
+                        Text("• Enables location-based search and browsing")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.green.opacity(0.05))
                 .cornerRadius(8)
                 
                 Spacer(minLength: 50)
@@ -275,7 +312,7 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Final Page
+    // MARK: - Final Page (UPDATED with Location Summary)
     var finalPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -327,10 +364,13 @@ struct CreateBarView: View {
                         InfoRow(label: "Bar Name", value: barName)
                         InfoRow(label: "Password", value: "••••")
                         
+                        // 🌍 Show selected location
+                        if let country = selectedCountry, let city = selectedCity {
+                            InfoRow(label: "Location", value: "\(city.name), \(country.name) \(country.flag)")
+                        }
+                        
                         if !address.isEmpty {
                             InfoRow(label: "Address", value: address)
-                        } else {
-                            InfoRow(label: "Address", value: "Not provided")
                         }
                         
                         if !description.isEmpty {
@@ -354,13 +394,16 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Create Bar Function (Updated for optional address)
+    // MARK: - Create Bar Function (UPDATED with Location)
     private func createBar() {
         isCreating = true
         
-        // Validate required fields only
-        guard !barName.isEmpty, password.count == 4 else {
-            alertMessage = "Please fill in all required fields (Bar Name and Password)"
+        // Validate required fields
+        guard !barName.isEmpty,
+              password.count == 4,
+              let selectedCountry = selectedCountry,
+              let selectedCity = selectedCity else {
+            alertMessage = "Please fill in all required fields (Bar Name, Password, and Location)"
             showingAlert = true
             isCreating = false
             return
@@ -374,9 +417,17 @@ struct CreateBarView: View {
             return
         }
         
-        // Create new bar with optional address
-        let finalAddress = address.isEmpty ? "Address not provided" : address
+        // 🌍 Create BarLocation object
+        let barLocation = BarLocation(
+            country: selectedCountry.name,
+            countryCode: selectedCountry.id,
+            city: selectedCity.name
+        )
         
+        // Create final address (combine street address with city if provided)
+        let finalAddress = address.isEmpty ? selectedCity.name : address
+        
+        // Create new bar with location
         let newBar = Bar(
             name: barName,
             address: finalAddress,
@@ -384,7 +435,8 @@ struct CreateBarView: View {
             description: description,
             username: barName,
             password: password,
-            operatingHours: operatingHours
+            operatingHours: operatingHours,
+            location: barLocation
         )
         
         // Create bar in Firebase
