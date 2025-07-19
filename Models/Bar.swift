@@ -138,7 +138,7 @@ struct Bar: Identifiable, Codable {
     let address: String
     
     // NEW: Enhanced status system with backward compatibility
-    private var manualStatus: BarStatus? = nil  // nil means "follow schedule"
+    var manualStatus: BarStatus? = nil  // nil means "follow schedule"
     var isFollowingSchedule: Bool = true  // true = use operating hours, false = use manual override
     
     var description: String
@@ -158,6 +158,51 @@ struct Bar: Identifiable, Codable {
     var autoTransitionTime: Date?
     var pendingStatus: BarStatus?
     var isAutoTransitionActive: Bool = false
+    
+    var currentManualStatus: BarStatus? {
+        return manualStatus
+    }
+
+    /// Check if bar has a manual status override
+    var hasManualOverride: Bool {
+        return manualStatus != nil && !isFollowingSchedule
+    }
+
+    /// Get the source of the current status for display
+    var statusSource: String {
+        if isFollowingSchedule {
+            return "Schedule"
+        } else {
+            return "Manual"
+        }
+    }
+
+    /// Get detailed status info for debugging
+    var detailedStatusInfo: (current: BarStatus, source: String, manual: BarStatus?, schedule: BarStatus) {
+        return (
+            current: status,
+            source: statusSource,
+            manual: manualStatus,
+            schedule: scheduleBasedStatus
+        )
+    }
+
+    /// Status display information for UI
+    var statusDisplayInfo: (status: BarStatus, source: String, description: String) {
+        if !isFollowingSchedule, let manualStatus = manualStatus {
+            return (manualStatus, "Manual", "Owner set")
+        } else {
+            let scheduleStatus = scheduleBasedStatus
+            let today = getCurrentWeekDay()
+            let todayHours = operatingHours.getDayHours(for: today)
+            
+            if todayHours.isOpen {
+                return (scheduleStatus, "Schedule", "Based on \(today.displayName) hours")
+            } else {
+                return (scheduleStatus, "Schedule", "Closed \(today.displayName)s")
+            }
+        }
+    }
     
     // MARK: - Computed Status Property (Main Interface)
     var status: BarStatus {
@@ -245,23 +290,6 @@ struct Bar: Identifiable, Codable {
         self.cancelAutoTransition()
         
         print("📅 Now following schedule. Current status: \(scheduleBasedStatus.displayName)")
-    }
-    
-    // MARK: - Status Display Info
-    var statusDisplayInfo: (status: BarStatus, source: String, description: String) {
-        if !isFollowingSchedule, let manualStatus = manualStatus {
-            return (manualStatus, "Manual", "Owner set")
-        } else {
-            let scheduleStatus = scheduleBasedStatus
-            let today = getCurrentWeekDay()
-            let todayHours = operatingHours.getDayHours(for: today)
-            
-            if todayHours.isOpen {
-                return (scheduleStatus, "Schedule", "Based on \(today.displayName) hours")
-            } else {
-                return (scheduleStatus, "Schedule", "Closed \(today.displayName)s")
-            }
-        }
     }
     
     // MARK: - Existing computed properties (updated)

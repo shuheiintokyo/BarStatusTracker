@@ -9,15 +9,21 @@ struct BarGridView: View {
     
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
     
-    // Get the appropriate bars to display
+    // FIXED: Get the appropriate bars to display with better favorites detection
     private var barsToDisplay: [Bar] {
         if isOwnerMode && barViewModel.loggedInBar != nil {
             // Owner mode: show only the logged-in bar
             return barViewModel.getOwnerBars()
         } else {
             // Guest mode: show only favorited bars
-            let favoriteBarIds = barViewModel.userPreferencesManager.getFavoriteBarIds()
-            return barViewModel.getAllBars().filter { favoriteBarIds.contains($0.id) }
+            let favoriteBarIds = barViewModel.getFavoriteBarIds()
+            let favoriteBars = barViewModel.getAllBars().filter { favoriteBarIds.contains($0.id) }
+            
+            print("🔍 BarGridView: Displaying \(favoriteBars.count) favorite bars out of \(favoriteBarIds.count) favorites")
+            print("🔍 Favorite IDs: \(favoriteBarIds)")
+            print("🔍 Available bars: \(barViewModel.getAllBars().map { $0.name })")
+            
+            return favoriteBars
         }
     }
     
@@ -36,7 +42,7 @@ struct BarGridView: View {
                         showingSearchBars = true
                     }
                     
-                    // 🌍 Browse by location card (NEW!)
+                    // Browse by location card
                     BrowseByLocationCard {
                         showingBrowseByLocation = true
                     }
@@ -57,53 +63,112 @@ struct BarGridView: View {
             }
             .padding()
             
-            // Show empty state message if no bars
+            // FIXED: Show appropriate empty state message
             if barsToDisplay.isEmpty && isOwnerMode {
                 Text("No bars available")
                     .foregroundColor(.secondary)
                     .padding()
             } else if barsToDisplay.isEmpty && !isOwnerMode {
-                VStack(spacing: 16) {
+                // Enhanced empty state for guests
+                VStack(spacing: 20) {
                     Image(systemName: "heart")
-                        .font(.system(size: 40))
+                        .font(.system(size: 50))
                         .foregroundColor(.gray.opacity(0.5))
                     
                     Text("No Favorite Bars Yet")
-                        .font(.headline)
+                        .font(.title2)
+                        .fontWeight(.bold)
                     
                     Text("Use \"Search New Bar\" or \"Browse by Location\" to find and follow bars you like!")
-                        .font(.caption)
+                        .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                     
-                    HStack(spacing: 12) {
-                        Button("Search Bars") {
-                            showingSearchBars = true
+                    VStack(spacing: 12) {
+                        HStack(spacing: 16) {
+                            Button("Search Bars") {
+                                showingSearchBars = true
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .cornerRadius(25)
+                            
+                            Button("Browse by Location") {
+                                showingBrowseByLocation = true
+                            }
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
+                            .background(Color.green)
+                            .cornerRadius(25)
                         }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(8)
                         
-                        Button("Browse by Location") {
-                            showingBrowseByLocation = true
+                        Button("Create New Bar") {
+                            showingCreateBar = true
                         }
-                        .font(.caption)
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.green.opacity(0.1))
+                        .font(.subheadline)
+                        .foregroundColor(.purple)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.purple.opacity(0.1))
+                        .cornerRadius(20)
+                    }
+                    
+                    // Debug info (only in development)
+                    #if DEBUG
+                    VStack(spacing: 8) {
+                        Text("Debug Info:")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                        
+                        let favoriteIds = barViewModel.getFavoriteBarIds()
+                        Text("Favorite IDs: \(favoriteIds.count) - \(favoriteIds.isEmpty ? "None" : Array(favoriteIds).joined(separator: ", "))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        
+                        Text("Total bars available: \(barViewModel.getAllBars().count)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        Button("Refresh Favorites") {
+                            barViewModel.forceRefreshAllData()
+                        }
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.1))
                         .cornerRadius(8)
                     }
+                    .padding()
+                    .background(Color.orange.opacity(0.05))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+                    #endif
                 }
-                .padding()
+                .padding(.top, 50)
                 .frame(maxWidth: .infinity)
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
-                .padding(.horizontal)
             }
+            
+            // Show favorites count for debugging
+            if !isOwnerMode {
+                let favoriteCount = barViewModel.getFavoriteBarIds().count
+                Text("You have \(favoriteCount) favorite bars")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 20)
+            }
+        }
+        .refreshable {
+            // Pull to refresh functionality
+            barViewModel.forceRefreshAllData()
         }
         .sheet(isPresented: $showingCreateBar) {
             CreateBarView(barViewModel: barViewModel)
@@ -114,22 +179,25 @@ struct BarGridView: View {
         .sheet(isPresented: $showingBrowseByLocation) {
             BrowseByLocationView(barViewModel: barViewModel)
         }
+        .onAppear {
+            // Debug favorites when view appears
+            print("🔍 BarGridView appeared - debugging favorites...")
+            barViewModel.debugFavorites()
+        }
     }
 }
 
-// MARK: - Create Bar Card (Updated)
+// MARK: - Create Bar Card (Same as before)
 struct CreateBarCard: View {
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                // Plus icon
                 Image(systemName: "plus.circle.fill")
                     .font(.system(size: 40))
                     .foregroundColor(.white)
                 
-                // Text
                 VStack(spacing: 4) {
                     Text("Create New Bar")
                         .font(.headline)
@@ -142,7 +210,6 @@ struct CreateBarCard: View {
                         .multilineTextAlignment(.center)
                 }
                 
-                // Encouraging text
                 Text("🎉 Start managing!")
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.9))
@@ -170,19 +237,17 @@ struct CreateBarCard: View {
     }
 }
 
-// MARK: - Search Bars Card
+// MARK: - Search Bars Card (Same as before)
 struct SearchBarsCard: View {
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                // Search icon
                 Image(systemName: "magnifyingglass.circle.fill")
                     .font(.system(size: 40))
                     .foregroundColor(.white)
                 
-                // Text
                 VStack(spacing: 4) {
                     Text("Search New Bar")
                         .font(.headline)
@@ -195,7 +260,6 @@ struct SearchBarsCard: View {
                         .multilineTextAlignment(.center)
                 }
                 
-                // Encouraging text
                 Text("🔍 Discover bars!")
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.9))
@@ -223,19 +287,17 @@ struct SearchBarsCard: View {
     }
 }
 
-// MARK: - 🌍 Browse by Location Card (NEW!)
+// MARK: - Browse by Location Card (Same as before)
 struct BrowseByLocationCard: View {
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 12) {
-                // Globe icon
                 Image(systemName: "globe.americas.fill")
                     .font(.system(size: 40))
                     .foregroundColor(.white)
                 
-                // Text
                 VStack(spacing: 4) {
                     Text("Browse by Location")
                         .font(.headline)
@@ -248,7 +310,6 @@ struct BrowseByLocationCard: View {
                         .multilineTextAlignment(.center)
                 }
                 
-                // Encouraging text
                 Text("🌍 Explore worldwide!")
                     .font(.caption2)
                     .foregroundColor(.white.opacity(0.9))

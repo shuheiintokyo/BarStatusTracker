@@ -4,6 +4,7 @@ struct StatusControlView: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
     
+    // Get current bar state from view model to ensure real-time updates
     private var currentBar: Bar? {
         barViewModel.bars.first { $0.id == bar.id }
     }
@@ -13,7 +14,7 @@ struct StatusControlView: View {
             // Current Status Display with Source Info
             currentStatusHeader
             
-            // Schedule vs Manual Status Info
+            // Schedule vs Manual Status Info - ENHANCED
             statusSourceInfo
             
             // Auto-transition display (if active)
@@ -40,7 +41,7 @@ struct StatusControlView: View {
         )
     }
     
-    // MARK: - Current Status Header
+    // MARK: - Current Status Header (ENHANCED)
     var currentStatusHeader: some View {
         VStack(spacing: 8) {
             Text("Bar Status")
@@ -49,10 +50,10 @@ struct StatusControlView: View {
                 .textCase(.uppercase)
             
             HStack(spacing: 12) {
-                // Animated status icon
+                // Animated status icon with current status color
                 ZStack {
                     Circle()
-                        .fill(currentBar?.status.color.opacity(0.2) ?? Color.gray.opacity(0.2))
+                        .fill((currentBar?.status.color ?? Color.gray).opacity(0.2))
                         .frame(width: 60, height: 60)
                     
                     Image(systemName: currentBar?.status.icon ?? "questionmark")
@@ -66,6 +67,7 @@ struct StatusControlView: View {
                     Text(currentBar?.status.displayName ?? "Unknown")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .foregroundColor(currentBar?.status.color ?? .gray)
                     
                     Text("Last updated \(timeAgo(currentBar?.lastUpdated ?? Date()))")
                         .font(.caption)
@@ -77,46 +79,53 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Status Source Information
+    // MARK: - Status Source Information (ENHANCED)
     var statusSourceInfo: some View {
         Group {
             if let current = currentBar {
                 let statusInfo = current.statusDisplayInfo
                 
-                HStack(spacing: 8) {
-                    Image(systemName: current.isFollowingSchedule ? "calendar" : "hand.raised.fill")
-                        .foregroundColor(current.isFollowingSchedule ? .green : .orange)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(statusInfo.source)
-                            .font(.caption)
-                            .fontWeight(.medium)
+                VStack(spacing: 12) {
+                    // Main source info
+                    HStack(spacing: 8) {
+                        Image(systemName: current.isFollowingSchedule ? "calendar" : "hand.raised.fill")
                             .foregroundColor(current.isFollowingSchedule ? .green : .orange)
                         
-                        Text(statusInfo.description)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    // Show schedule-based status if manual override is active
-                    if !current.isFollowingSchedule {
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text("Schedule says:")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(statusInfo.source)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(current.isFollowingSchedule ? .green : .orange)
+                            
+                            Text(statusInfo.description)
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
-                            
-                            HStack(spacing: 4) {
-                                Image(systemName: current.scheduleBasedStatus.icon)
-                                    .font(.caption)
-                                    .foregroundColor(current.scheduleBasedStatus.color)
-                                Text(current.scheduleBasedStatus.displayName)
+                        }
+                        
+                        Spacer()
+                        
+                        // Show actual schedule status if manual override is active
+                        if !current.isFollowingSchedule {
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text("Schedule says:")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
+                                
+                                HStack(spacing: 4) {
+                                    Image(systemName: current.scheduleBasedStatus.icon)
+                                        .font(.caption)
+                                        .foregroundColor(current.scheduleBasedStatus.color)
+                                    Text(current.scheduleBasedStatus.displayName)
+                                        .font(.caption2)
+                                        .foregroundColor(current.scheduleBasedStatus.color)
+                                        .fontWeight(.medium)
+                                }
                             }
                         }
                     }
+                    
+                    // Show today's operating hours for context
+                    todaysHoursInfo(for: current)
                 }
                 .padding()
                 .background(
@@ -131,28 +140,96 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Follow Schedule Button
-    var followScheduleButton: some View {
-        Button(action: {
-            barViewModel.setBarToFollowSchedule(currentBar ?? bar)
-        }) {
+    // MARK: - Today's Hours Info (NEW)
+    private func todaysHoursInfo(for bar: Bar) -> some View {
+        let today = getCurrentWeekDay()
+        let todayHours = bar.operatingHours.getDayHours(for: today)
+        
+        return VStack(spacing: 4) {
             HStack {
-                Image(systemName: "calendar.badge.checkmark")
-                    .font(.title3)
-                Text("Follow Schedule")
-                    .font(.headline)
+                Text("Today (\(today.displayName)):")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                
+                Spacer()
+                
+                if todayHours.isOpen {
+                    Text(todayHours.displayText)
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.green)
+                } else {
+                    Text("Closed")
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.red)
+                }
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [.green, .blue]),
-                    startPoint: .leading,
-                    endPoint: .trailing
+            
+            // Show conflict warning if manual override conflicts with schedule
+            if !bar.isFollowingSchedule && bar.status != bar.scheduleBasedStatus {
+                HStack {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    
+                    Text("Manual override active - differs from schedule")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    
+                    Spacer()
+                }
+            }
+        }
+        .padding(.top, 8)
+        .padding(.horizontal, 4)
+    }
+    
+    // MARK: - Follow Schedule Button (ENHANCED)
+    var followScheduleButton: some View {
+        VStack(spacing: 8) {
+            Button(action: {
+                barViewModel.setBarToFollowSchedule(currentBar ?? bar)
+            }) {
+                HStack {
+                    Image(systemName: "calendar.badge.checkmark")
+                        .font(.title3)
+                    Text("Follow Schedule")
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    // Preview what the status would be
+                    if let current = currentBar {
+                        HStack(spacing: 4) {
+                            Text("→")
+                                .foregroundColor(.white.opacity(0.7))
+                            Image(systemName: current.scheduleBasedStatus.icon)
+                                .font(.caption)
+                            Text(current.scheduleBasedStatus.displayName)
+                                .font(.caption)
+                        }
+                        .foregroundColor(.white.opacity(0.9))
+                    }
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.green, .blue]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
                 )
-            )
-            .cornerRadius(12)
+                .cornerRadius(12)
+            }
+            
+            // Helpful text
+            Text("This will change your status to match your operating hours schedule")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
     
@@ -214,7 +291,7 @@ struct StatusControlView: View {
         )
     }
     
-    // MARK: - Status Control Grid
+    // MARK: - Status Control Grid (ENHANCED)
     var statusControlGrid: some View {
         VStack(spacing: 12) {
             Text("Change Status")
@@ -227,6 +304,7 @@ struct StatusControlView: View {
                     StatusButton(
                         status: status,
                         currentStatus: currentBar?.status ?? bar.status,
+                        scheduleStatus: currentBar?.scheduleBasedStatus ?? bar.scheduleBasedStatus,
                         isManualOverride: !(currentBar?.isFollowingSchedule ?? true),
                         action: {
                             withAnimation(.easeInOut(duration: 0.3)) {
@@ -257,12 +335,29 @@ struct StatusControlView: View {
             return "\(days)d ago"
         }
     }
+    
+    private func getCurrentWeekDay() -> WeekDay {
+        let calendar = Calendar.current
+        let weekday = calendar.component(.weekday, from: Date())
+        
+        switch weekday {
+        case 1: return WeekDay.sunday
+        case 2: return WeekDay.monday
+        case 3: return WeekDay.tuesday
+        case 4: return WeekDay.wednesday
+        case 5: return WeekDay.thursday
+        case 6: return WeekDay.friday
+        case 7: return WeekDay.saturday
+        default: return WeekDay.monday
+        }
+    }
 }
 
 // MARK: - Enhanced Status Button
 struct StatusButton: View {
     let status: BarStatus
     let currentStatus: BarStatus
+    let scheduleStatus: BarStatus
     let isManualOverride: Bool
     let action: () -> Void
     
@@ -270,6 +365,10 @@ struct StatusButton: View {
     
     private var isSelected: Bool {
         status == currentStatus
+    }
+    
+    private var isScheduleRecommended: Bool {
+        status == scheduleStatus && !isSelected
     }
     
     private var buttonInfo: (title: String, subtitle: String, badge: String) {
@@ -310,8 +409,10 @@ struct StatusButton: View {
                         .overlay(
                             Circle()
                                 .stroke(
-                                    isSelected ? Color.white.opacity(0.3) : status.color.opacity(0.3),
-                                    lineWidth: 2
+                                    isSelected ? Color.white.opacity(0.3) :
+                                    isScheduleRecommended ? status.color.opacity(0.6) :
+                                    status.color.opacity(0.3),
+                                    lineWidth: isScheduleRecommended ? 3 : 2
                                 )
                         )
                         .shadow(
@@ -341,6 +442,24 @@ struct StatusButton: View {
                             Spacer()
                         }
                     }
+                    
+                    // Schedule recommendation indicator
+                    if isScheduleRecommended {
+                        VStack {
+                            HStack {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 12, height: 12)
+                                    .overlay(
+                                        Image(systemName: "calendar")
+                                            .font(.system(size: 6))
+                                            .foregroundColor(.white)
+                                    )
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                    }
                 }
                 
                 // Text info
@@ -364,6 +483,14 @@ struct StatusButton: View {
                             .background(Color.orange.opacity(0.2))
                             .cornerRadius(4)
                     }
+                    
+                    // Schedule recommendation text
+                    if isScheduleRecommended {
+                        Text("Schedule")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                            .fontWeight(.bold)
+                    }
                 }
             }
             .padding(.vertical, 16)
@@ -374,6 +501,8 @@ struct StatusButton: View {
                     .fill(
                         isSelected ?
                         status.color.opacity(0.15) :
+                        isScheduleRecommended ?
+                        status.color.opacity(0.08) :
                         Color.white.opacity(0.8)
                     )
                     .overlay(
@@ -381,8 +510,10 @@ struct StatusButton: View {
                             .stroke(
                                 isSelected ?
                                 status.color.opacity(0.6) :
+                                isScheduleRecommended ?
+                                status.color.opacity(0.4) :
                                 Color.gray.opacity(0.2),
-                                lineWidth: isSelected ? 2 : 1
+                                lineWidth: isSelected ? 2 : isScheduleRecommended ? 2 : 1
                             )
                     )
                     .shadow(
