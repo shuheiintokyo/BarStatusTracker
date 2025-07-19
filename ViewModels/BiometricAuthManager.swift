@@ -19,25 +19,31 @@ class BiometricAuthManager: ObservableObject {
         
         if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
             biometricType = context.biometryType
+            print("✅ Biometric type available: \(biometricDisplayName)")
         } else {
             biometricType = .none
-            print("🔒 Biometric authentication not available: \(error?.localizedDescription ?? "Unknown error")")
+            print("❌ Biometric authentication not available: \(error?.localizedDescription ?? "Unknown error")")
         }
     }
     
-    // Authenticate with Face ID/Touch ID
+    // SIMPLIFIED: Just check if everything is ready for biometric auth
+    var isReadyForAuthentication: Bool {
+        return biometricType != .none && savedBarID != nil && !savedBarID!.isEmpty
+    }
+    
+    // Authenticate with Face ID/Touch ID - MUCH SAFER VERSION
     func authenticateWithBiometrics(completion: @escaping (Bool, String?) -> Void) {
-        let context = LAContext()
-        var error: NSError?
-        
-        // FIXED: Additional validation before attempting authentication
-        guard savedBarID != nil else {
-            completion(false, "No saved credentials found")
+        // Safety checks
+        guard isReadyForAuthentication else {
+            completion(false, "Biometric authentication not set up")
             return
         }
         
+        let context = LAContext()
+        var error: NSError?
+        
         guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            completion(false, "Biometric authentication not available: \(error?.localizedDescription ?? "Unknown error")")
+            completion(false, "Biometric authentication not available")
             return
         }
         
@@ -48,28 +54,29 @@ class BiometricAuthManager: ObservableObject {
                 if success {
                     self.isAuthenticated = true
                     completion(true, nil)
+                    print("✅ Biometric authentication successful")
                 } else {
-                    // FIXED: More specific error handling
                     let errorMessage: String
                     if let error = error as? LAError {
                         switch error.code {
                         case .userCancel, .appCancel:
-                            errorMessage = "Authentication was cancelled"
+                            errorMessage = "Authentication cancelled"
                         case .userFallback:
-                            errorMessage = "User chose to enter password"
+                            errorMessage = "Please use manual login"
                         case .biometryNotAvailable:
-                            errorMessage = "Biometric authentication is not available"
+                            errorMessage = "Biometric authentication not available"
                         case .biometryNotEnrolled:
-                            errorMessage = "Biometric authentication is not set up"
+                            errorMessage = "Biometric authentication not set up on device"
                         case .biometryLockout:
-                            errorMessage = "Too many failed attempts. Please try again later"
+                            errorMessage = "Too many failed attempts"
                         default:
-                            errorMessage = error.localizedDescription
+                            errorMessage = "Authentication failed"
                         }
                     } else {
-                        errorMessage = error?.localizedDescription ?? "Authentication failed"
+                        errorMessage = "Authentication failed"
                     }
                     
+                    print("❌ Biometric authentication failed: \(errorMessage)")
                     completion(false, errorMessage)
                 }
             }
@@ -78,7 +85,6 @@ class BiometricAuthManager: ObservableObject {
     
     // Save credentials to Keychain after successful login
     func saveCredentials(barID: String, barName: String) {
-        // FIXED: Validate inputs before saving
         guard !barID.isEmpty, !barName.isEmpty else {
             print("❌ Cannot save empty credentials")
             return
@@ -141,7 +147,6 @@ class BiometricAuthManager: ObservableObject {
             let components = credentials.components(separatedBy: "|")
             if components.count == 2 {
                 let barID = components[0]
-                // FIXED: Validate the loaded credentials
                 if !barID.isEmpty {
                     savedBarID = barID
                     print("✅ Loaded saved credentials for bar ID: \(barID)")
@@ -184,17 +189,6 @@ class BiometricAuthManager: ObservableObject {
         isAuthenticated = false
     }
     
-    // FIXED: Validate that saved credentials are still valid
-    func validateSavedCredentials() -> Bool {
-        guard let savedBarID = savedBarID, !savedBarID.isEmpty else {
-            return false
-        }
-        
-        // Additional validation could be added here if needed
-        // For now, just check that we have a non-empty ID
-        return true
-    }
-    
     // Get biometric icon name for UI
     var biometricIconName: String {
         switch biometricType {
@@ -219,8 +213,8 @@ class BiometricAuthManager: ObservableObject {
         }
     }
     
-    // FIXED: More robust check for biometric availability
+    // SIMPLIFIED: Just check if we have everything needed
     var isAvailable: Bool {
-        return biometricType != .none && savedBarID != nil && validateSavedCredentials()
+        return isReadyForAuthentication
     }
 }

@@ -346,46 +346,6 @@ class BarViewModel: ObservableObject {
         return firebaseManager.bars.contains { $0.username.lowercased() == username.lowercased() && $0.password == password }
     }
     
-    func authenticateWithBiometrics(completion: @escaping (Bool, String?) -> Void) {
-        // First validate that we have proper biometric setup
-        guard biometricAuth.isAvailable else {
-            completion(false, "Biometric authentication not properly set up")
-            return
-        }
-        
-        guard let savedBarID = biometricAuth.savedBarID else {
-            completion(false, "No saved bar credentials found")
-            return
-        }
-        
-        // Authenticate with biometrics first
-        biometricAuth.authenticateWithBiometrics { [weak self] success, error in
-            DispatchQueue.main.async {
-                guard let self = self else {
-                    completion(false, "Internal error")
-                    return
-                }
-                
-                if success {
-                    // Look up the bar with the saved ID
-                    if let bar = self.bars.first(where: { $0.id == savedBarID }) {
-                        self.loggedInBar = bar
-                        self.isOwnerMode = true
-                        completion(true, nil)
-                        print("✅ Biometric authentication successful for: \(bar.name)")
-                    } else {
-                        // The saved bar no longer exists - clear credentials
-                        print("❌ Saved bar no longer exists, clearing credentials")
-                        self.biometricAuth.clearCredentials()
-                        completion(false, "Your saved bar is no longer available. Please log in manually.")
-                    }
-                } else {
-                    completion(false, error)
-                }
-            }
-        }
-    }
-    
     var canUseBiometricAuth: Bool {
         return biometricAuth.isAvailable
     }
@@ -645,6 +605,65 @@ class BarViewModel: ObservableObject {
     
     func getBasicAnalytics(for barId: String, completion: @escaping ([String: Any]) -> Void) {
         firebaseManager.getBasicAnalytics(for: barId, completion: completion)
+    }
+    
+    // MARK: - Public Biometric Access Methods (Add these to BarViewModel.swift)
+
+    // Public method to get saved bar ID
+    var savedBiometricBarID: String? {
+        return biometricAuth.savedBarID
+    }
+
+    // Check if a specific bar exists and matches saved credentials
+    func isValidBiometricBar() -> Bool {
+        guard let savedBarID = biometricAuth.savedBarID,
+              !savedBarID.isEmpty else {
+            return false
+        }
+        
+        // Check if the saved bar still exists in the current bars list
+        return bars.contains { $0.id == savedBarID }
+    }
+
+    // FIXED: Better biometric authentication method
+    func authenticateWithBiometrics(completion: @escaping (Bool, String?) -> Void) {
+        // Validate that we have proper biometric setup
+        guard biometricAuth.isAvailable else {
+            completion(false, "Biometric authentication not properly set up")
+            return
+        }
+        
+        guard let savedBarID = biometricAuth.savedBarID else {
+            completion(false, "No saved bar credentials found")
+            return
+        }
+        
+        // Authenticate with biometrics first
+        biometricAuth.authenticateWithBiometrics { [weak self] success, error in
+            DispatchQueue.main.async {
+                guard let self = self else {
+                    completion(false, "Internal error")
+                    return
+                }
+                
+                if success {
+                    // Look up the bar with the saved ID
+                    if let bar = self.bars.first(where: { $0.id == savedBarID }) {
+                        self.loggedInBar = bar
+                        self.isOwnerMode = true
+                        completion(true, nil)
+                        print("✅ Biometric authentication successful for: \(bar.name)")
+                    } else {
+                        // The saved bar no longer exists - clear credentials
+                        print("❌ Saved bar no longer exists, clearing credentials")
+                        self.biometricAuth.clearCredentials()
+                        completion(false, "Your saved bar is no longer available. Please log in manually.")
+                    }
+                } else {
+                    completion(false, error)
+                }
+            }
+        }
     }
     
     // MARK: - Legacy Support (Deprecated but kept for compatibility)

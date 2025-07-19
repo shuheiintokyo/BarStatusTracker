@@ -6,10 +6,12 @@ struct MainContentView: View {
     @State private var showingOwnerLogin = false
     @State private var showingBiometricAlert = false
     @State private var biometricError = ""
-    @State private var pendingBiometricNavigation = false // FIXED: Better state management
     @State private var showingCreateBar = false
     @State private var showingSearchBars = false
     @State private var showingNotificationSettings = false
+    
+    // FIXED: Simple biometric status check
+    @State private var showingBiometricNotRegistered = false
     
     var body: some View {
         NavigationView {
@@ -49,22 +51,14 @@ struct MainContentView: View {
         } message: {
             Text(biometricError)
         }
-        // FIXED: Better handling of biometric authentication navigation
-        .onChange(of: barViewModel.isOwnerMode) { oldValue, newValue in
-            // Only proceed if we're expecting biometric navigation AND login was successful
-            if newValue && pendingBiometricNavigation && barViewModel.loggedInBar != nil {
-                // Delay slightly to ensure the view is ready
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    if let loggedInBar = barViewModel.loggedInBar {
-                        barViewModel.selectedBar = loggedInBar
-                        barViewModel.showingDetail = true
-                        pendingBiometricNavigation = false
-                    }
-                }
-            } else if !newValue {
-                // If logged out, clear pending navigation
-                pendingBiometricNavigation = false
+        // FIXED: Simple popup for unregistered Face ID
+        .alert("Face ID Not Set Up", isPresented: $showingBiometricNotRegistered) {
+            Button("Use Manual Login") {
+                showingOwnerLogin = true
             }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Face ID login is not set up for any bar account. Please log in manually first, then enable Face ID in the settings.")
         }
         .onAppear {
             // Connect notification manager to view model
@@ -155,10 +149,10 @@ struct MainContentView: View {
                 }
             }
             
-            // FIXED: Only show biometric button if credentials exist AND biometrics are available
-            if barViewModel.canUseBiometricAuth && !barViewModel.isOwnerMode {
+            // FIXED: Safe biometric authentication button
+            if !barViewModel.isOwnerMode && shouldShowBiometricButton {
                 Button(action: {
-                    authenticateWithBiometrics()
+                    handleBiometricLogin()
                 }) {
                     VStack(spacing: 4) {
                         Image(systemName: barViewModel.biometricAuthInfo.iconName)
@@ -194,6 +188,41 @@ struct MainContentView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+    
+    // MARK: - FIXED: Safe biometric handling
+    
+    private var shouldShowBiometricButton: Bool {
+        // Only show if biometric type is available AND we have valid saved credentials AND the bar still exists
+        guard barViewModel.biometricAuthInfo.displayName != "Biometric" else {
+            return false
+        }
+        
+        // Use the new public method to check if biometric auth is properly set up
+        return barViewModel.canUseBiometricAuth && barViewModel.isValidBiometricBar()
+    }
+    
+    private func handleBiometricLogin() {
+        // Use the new public method to validate everything
+        guard barViewModel.isValidBiometricBar() else {
+            showingBiometricNotRegistered = true
+            return
+        }
+        
+        // Proceed with safe biometric authentication
+        barViewModel.authenticateWithBiometrics { success, error in
+            if success {
+                // Success - navigate to bar detail
+                if let loggedInBar = barViewModel.loggedInBar {
+                    barViewModel.selectedBar = loggedInBar
+                    barViewModel.showingDetail = true
+                }
+            } else {
+                // Show error
+                biometricError = error ?? "Authentication failed"
+                showingBiometricAlert = true
             }
         }
     }
@@ -352,31 +381,6 @@ struct MainContentView: View {
     }
     
     // MARK: - Helper Methods
-    
-    // FIXED: Better biometric authentication with proper error handling
-    private func authenticateWithBiometrics() {
-        // First check if we have valid saved credentials
-        guard barViewModel.canUseBiometricAuth else {
-            biometricError = "Biometric authentication not available"
-            showingBiometricAlert = true
-            return
-        }
-        
-        // Set pending navigation flag
-        pendingBiometricNavigation = true
-        
-        barViewModel.authenticateWithBiometrics { success, error in
-            DispatchQueue.main.async {
-                if !success {
-                    // Clear pending navigation on failure
-                    pendingBiometricNavigation = false
-                    biometricError = error ?? "Authentication failed"
-                    showingBiometricAlert = true
-                }
-                // Success case is handled by the onChange modifier
-            }
-        }
-    }
     
     // Show logout options
     private func showLogoutOptions() {

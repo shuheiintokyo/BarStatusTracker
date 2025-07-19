@@ -600,6 +600,7 @@
 				INFOPLIST_FILE = "BarStatusTracker-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Bar Status Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to quickly log in to your bar management account";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location helps provide better analytics for bar owners (completely optional)";
 				INFOPLIST_KEY_NSSiriUsageDescription = "Use Siri to quickly check bar status and update your bar";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -634,6 +635,7 @@
 				INFOPLIST_FILE = "BarStatusTracker-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Bar Status Tracker";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.food-and-drink";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Use Face ID to quickly log in to your bar management account";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location helps provide better analytics for bar owners (completely optional)";
 				INFOPLIST_KEY_NSSiriUsageDescription = "Use Siri to quickly check bar status and update your bar";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

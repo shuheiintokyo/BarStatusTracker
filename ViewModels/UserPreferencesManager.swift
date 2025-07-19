@@ -9,6 +9,7 @@ class UserPreferencesManager: ObservableObject {
     
     private var firebaseManager: FirebaseManager?
     private var cancellables = Set<AnyCancellable>()
+    private var lastLogTime: Date = Date.distantPast // FIXED: Prevent log spam
     
     init() {
         // Load from UserDefaults (for offline cache)
@@ -20,8 +21,17 @@ class UserPreferencesManager: ObservableObject {
             savePreferences() // Save the newly created preferences with device ID
         }
         
-        print("📱 Device ID: \(userPreferences.deviceId)")
-        print("📱 Local favorites loaded: \(userPreferences.favoriteBarIDs)")
+        logOnce("📱 Device ID: \(userPreferences.deviceId)")
+        logOnce("📱 Local favorites loaded: \(userPreferences.favoriteBarIDs)")
+    }
+    
+    // FIXED: Prevent excessive logging
+    private func logOnce(_ message: String) {
+        let now = Date()
+        if now.timeIntervalSince(lastLogTime) > 5.0 { // Only log once every 5 seconds
+            print(message)
+            lastLogTime = now
+        }
     }
     
     func setFirebaseManager(_ firebaseManager: FirebaseManager) {
@@ -40,7 +50,7 @@ class UserPreferencesManager: ObservableObject {
         loadFirebaseFavorites()
     }
     
-    // MARK: - Favorites Management (Fixed with better syncing)
+    // MARK: - Favorites Management (CLEANED UP)
     
     func isFavorite(barId: String) -> Bool {
         // Check Firebase cache first (more authoritative), then fall back to local
@@ -51,7 +61,7 @@ class UserPreferencesManager: ObservableObject {
         // Fallback to local cache
         let localFavorite = userPreferences.favoriteBarIDs.contains(barId)
         
-        // If we have a local favorite but no Firebase data, sync it
+        // If we have a local favorite but no Firebase data, sync it (but don't log every time)
         if localFavorite && firebaseFavoriteStatus[barId] == nil {
             syncFavoriteStatus(for: barId)
         }
@@ -81,10 +91,10 @@ class UserPreferencesManager: ObservableObject {
                     
                     if isNowFavorited {
                         self?.userPreferences.favoriteBarIDs.insert(barId)
-                        print("❤️ Added \(barId) to favorites (Firebase + Local)")
+                        print("❤️ Added \(barId) to favorites")
                     } else {
                         self?.userPreferences.favoriteBarIDs.remove(barId)
-                        print("💔 Removed \(barId) from favorites (Firebase + Local)")
+                        print("💔 Removed \(barId) from favorites")
                     }
                     
                     self?.savePreferences()
@@ -134,11 +144,10 @@ class UserPreferencesManager: ObservableObject {
             savePreferences()
         }
         
-        print("📊 Combined favorites: \(allFavorites)")
         return allFavorites
     }
     
-    // MARK: - Firebase Integration (Enhanced)
+    // MARK: - Firebase Integration (CLEANED UP)
     
     private func loadFirebaseFavorites() {
         guard let firebaseManager = firebaseManager else { return }
@@ -153,7 +162,6 @@ class UserPreferencesManager: ObservableObject {
                     
                     // If Firebase says it's not favorited but we have it locally, sync the state
                     if !isFavorited && self?.userPreferences.favoriteBarIDs.contains(barId) == true {
-                        print("🔄 Synced: Removed \(barId) from local cache (not in Firebase)")
                         self?.userPreferences.favoriteBarIDs.remove(barId)
                         self?.savePreferences()
                         self?.objectWillChange.send()
@@ -179,7 +187,6 @@ class UserPreferencesManager: ObservableObject {
                 
                 self?.savePreferences()
                 self?.objectWillChange.send()
-                print("🔄 Synced favorite status for \(barId): \(isFavorited)")
             }
         }
     }
@@ -188,7 +195,10 @@ class UserPreferencesManager: ObservableObject {
     func syncAllFavoriteStatuses(for barIds: [String]) {
         guard let firebaseManager = firebaseManager else { return }
         
-        print("🔄 Syncing all favorite statuses for \(barIds.count) bars...")
+        // Only log this occasionally to reduce spam
+        if barIds.count > 0 {
+            logOnce("🔄 Syncing all favorite statuses for \(barIds.count) bars...")
+        }
         
         for barId in barIds {
             firebaseManager.checkIfUserFavoritedBar(barId: barId, deviceId: userPreferences.deviceId) { [weak self] isFavorited in
@@ -199,7 +209,7 @@ class UserPreferencesManager: ObservableObject {
         }
     }
     
-    // Refresh favorite statuses for bars we think we've favorited
+    // FIXED: Reduced logging refresh
     private func refreshAllFavoriteStatuses() {
         guard let firebaseManager = firebaseManager else { return }
         
@@ -234,7 +244,8 @@ class UserPreferencesManager: ObservableObject {
         if let data = try? JSONEncoder().encode(userPreferences) {
             UserDefaults.standard.set(data, forKey: "UserPreferences")
         }
-        print("💾 Saved preferences with \(userPreferences.favoriteBarIDs.count) favorites")
+        // FIXED: Less frequent logging
+        logOnce("💾 Saved preferences with \(userPreferences.favoriteBarIDs.count) favorites")
     }
     
     // MARK: - Debug/Testing Methods
