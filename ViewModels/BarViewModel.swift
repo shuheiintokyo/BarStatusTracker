@@ -23,61 +23,166 @@ class BarViewModel: ObservableObject {
     // Notification manager
     @Published var notificationManager: NotificationManager?
     
-    // Timer for checking auto-transitions (more frequent)
+    // Enhanced timers for schedule and auto-transition monitoring
+    private var scheduleMonitoringTimer: Timer?
     private var autoTransitionTimer: Timer?
-    
-    // Timer for UI updates (every second)
     private var uiUpdateTimer: Timer?
     
     init() {
         setupFirebaseConnection()
+        startScheduleMonitoring()  // NEW: Monitor schedule-based status changes
         startAutoTransitionMonitoring()
         startUIUpdateTimer()
         
-        // Connect user preferences to Firebase manager
         userPreferencesManager.setFirebaseManager(firebaseManager)
     }
     
     deinit {
+        scheduleMonitoringTimer?.invalidate()
         autoTransitionTimer?.invalidate()
         uiUpdateTimer?.invalidate()
     }
     
-    // MARK: - Notification Manager Integration
+    // MARK: - Enhanced Status Management
     
-    func setNotificationManager(_ manager: NotificationManager) {
-        self.notificationManager = manager
+    func setManualBarStatus(_ bar: Bar, newStatus: BarStatus) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        let oldStatus = bar.status
+        
+        // Set manual status (this overrides schedule)
+        updatedBar.setManualStatus(newStatus)
+        
+        print("📱 Manual status set for \(bar.name): \(newStatus.displayName)")
+        
+        // Update in Firebase
+        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
+        
+        // Update local logged-in bar reference
+        if loggedInBar?.id == bar.id {
+            loggedInBar = updatedBar
+        }
+        
+        // Send notification if status actually changed
+        if oldStatus != newStatus {
+            sendStatusChangeNotification(bar: updatedBar, oldStatus: oldStatus, newStatus: newStatus)
+        }
+        
+        objectWillChange.send()
     }
     
-    // MARK: - Timer Management
+    func setBarToFollowSchedule(_ bar: Bar) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        let oldStatus = bar.status
+        
+        // Set to follow schedule
+        updatedBar.followSchedule()
+        let newStatus = updatedBar.status  // This will now be schedule-based
+        
+        print("📅 \(bar.name) now following schedule: \(newStatus.displayName)")
+        
+        // Update in Firebase
+        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
+        
+        // Update local logged-in bar reference
+        if loggedInBar?.id == bar.id {
+            loggedInBar = updatedBar
+        }
+        
+        // Send notification if status changed
+        if oldStatus != newStatus {
+            sendStatusChangeNotification(bar: updatedBar, oldStatus: oldStatus, newStatus: newStatus)
+        }
+        
+        objectWillChange.send()
+    }
+    
+    // MARK: - Schedule Monitoring (NEW)
+    
+    private func startScheduleMonitoring() {
+        // Check for schedule-based status changes every minute
+        scheduleMonitoringTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
+            self?.checkForScheduleBasedStatusChanges()
+        }
+    }
+    
+    private func checkForScheduleBasedStatusChanges() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            let barsFollowingSchedule = self.bars.filter { $0.isFollowingSchedule }
+            
+            for var bar in barsFollowingSchedule {
+                let currentStatus = bar.status
+                let newScheduleStatus = bar.scheduleBasedStatus
+                
+                if currentStatus != newScheduleStatus {
+                    print("📅 Schedule status change for \(bar.name): \(currentStatus.displayName) → \(newScheduleStatus.displayName)")
+                    
+                    // Update the bar's status in our local array
+                    if let index = self.bars.firstIndex(where: { $0.id == bar.id }) {
+                        self.bars[index].lastUpdated = Date()
+                    }
+                    
+                    // Update in Firebase (just timestamp update since status is computed)
+                    self.firebaseManager.updateBarWithAutoTransition(bar: bar)
+                    
+                    // Update logged-in bar if needed
+                    if self.loggedInBar?.id == bar.id {
+                        self.loggedInBar?.lastUpdated = Date()
+                    }
+                    
+                    // Send notification for status change
+                    self.sendStatusChangeNotification(bar: bar, oldStatus: currentStatus, newStatus: newScheduleStatus)
+                }
+            }
+            
+            self.objectWillChange.send()
+        }
+    }
+    
+    // MARK: - Enhanced Notification System
+    
+    private func sendStatusChangeNotification(bar: Bar, oldStatus: BarStatus, newStatus: BarStatus) {
+        // Only send notifications for Opening Soon and Closing Soon
+        guard newStatus == .openingSoon || newStatus == .closingSoon else {
+            print("🔕 Skipping notification for \(newStatus.displayName) - only notifying for Opening Soon/Closing Soon")
+            return
+        }
+        
+        // Send notification
+        NotificationCenter.default.post(
+            name: .barStatusChanged,
+            object: nil,
+            userInfo: [
+                "barId": bar.id,
+                "barName": bar.name,
+                "newStatus": newStatus,
+                "oldStatus": oldStatus,
+                "isScheduleBased": bar.isFollowingSchedule
+            ]
+        )
+        
+        print("📢 Posted notification for \(bar.name): \(oldStatus.displayName) → \(newStatus.displayName)")
+    }
+    
+    // MARK: - Auto-transition Monitoring (Enhanced)
     
     private func startAutoTransitionMonitoring() {
-        // Check for auto-transitions every 10 seconds (more frequent)
+        // Check for manual auto-transitions every 10 seconds
         autoTransitionTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
             self?.checkForAutoTransitions()
         }
     }
-    
-    private func startUIUpdateTimer() {
-        // Update UI every second for real-time countdown
-        uiUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.objectWillChange.send() // Force UI update
-            }
-        }
-    }
-    
-    // MARK: - Auto-transition monitoring
     
     private func checkForAutoTransitions() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
             let barsNeedingTransition = self.bars.filter { $0.shouldAutoTransition }
-            
-            if barsNeedingTransition.count > 0 {
-                print("🔄 Found \(barsNeedingTransition.count) bars needing auto-transition")
-            }
             
             for var bar in barsNeedingTransition {
                 let oldStatus = bar.status
@@ -92,37 +197,33 @@ class BarViewModel: ObservableObject {
                         self.loggedInBar = bar
                     }
                     
-                    // Send notification for auto-transition
-                    NotificationCenter.default.post(
-                        name: .barStatusChanged,
-                        object: nil,
-                        userInfo: [
-                            "barId": bar.id,
-                            "barName": bar.name,
-                            "newStatus": bar.status,
-                            "oldStatus": oldStatus
-                        ]
-                    )
-                    print("📢 Posted auto-transition notification for \(bar.name): \(oldStatus.displayName) → \(bar.status.displayName)")
+                    // Send notification
+                    self.sendStatusChangeNotification(bar: bar, oldStatus: oldStatus, newStatus: bar.status)
                     
-                    // Force UI refresh
                     self.objectWillChange.send()
-                    
-                    print("✅ \(bar.name) successfully changed to \(bar.status.displayName)")
                 }
             }
         }
     }
     
-    // MARK: - Firebase Integration
+    // MARK: - UI Update Timer
+    
+    private func startUIUpdateTimer() {
+        // Update UI every second for real-time countdown
+        uiUpdateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.objectWillChange.send()
+            }
+        }
+    }
+    
+    // MARK: - Firebase Integration (Updated)
     
     private func setupFirebaseConnection() {
-        // Connect to Firebase data
         firebaseManager.$bars
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bars in
                 self?.bars = bars
-                // Sync favorite statuses when bars are loaded
                 self?.syncFavoritesForAllBars()
             }
             .store(in: &cancellables)
@@ -131,7 +232,6 @@ class BarViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .assign(to: &$isLoading)
         
-        // Setup biometric auth
         setupBiometricAuth()
     }
     
@@ -142,17 +242,21 @@ class BarViewModel: ObservableObject {
         userPreferencesManager.syncAllFavoriteStatuses(for: barIds)
     }
     
-    // Setup biometric authentication
+    // MARK: - Notification Manager Integration
+    
+    func setNotificationManager(_ manager: NotificationManager) {
+        self.notificationManager = manager
+    }
+    
+    // MARK: - Existing methods (mostly unchanged)
+    
     private func setupBiometricAuth() {
         if biometricAuth.savedBarID != nil {
-            // Auto-login will be handled by the UI when user chooses biometric option
+            // Auto-login will be handled by the UI
         }
     }
     
-    // MARK: - Bar Creation and Deletion
-    
     func createNewBar(_ bar: Bar, enableFaceID: Bool, completion: @escaping (Bool, String) -> Void) {
-        // Validate bar name uniqueness
         if bars.contains(where: { $0.name.lowercased() == bar.name.lowercased() }) {
             completion(false, "A bar with this name already exists")
             return
@@ -161,7 +265,6 @@ class BarViewModel: ObservableObject {
         firebaseManager.createBar(bar) { [weak self] success, message in
             DispatchQueue.main.async {
                 if success {
-                    // If Face ID is enabled, save credentials and log in
                     if enableFaceID {
                         self?.biometricAuth.saveCredentials(barID: bar.id, barName: bar.name)
                         self?.loggedInBar = bar
@@ -184,7 +287,6 @@ class BarViewModel: ObservableObject {
         firebaseManager.deleteBar(barId: bar.id) { [weak self] success, message in
             DispatchQueue.main.async {
                 if success {
-                    // Clear authentication if deleting current logged in bar
                     if self?.loggedInBar?.id == bar.id {
                         self?.fullLogout()
                     }
@@ -196,7 +298,7 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Authentication
+    // MARK: - Authentication (unchanged)
     
     func authenticateBar(username: String, password: String) -> Bool {
         firebaseManager.authenticateBarOwner(barName: username, password: password) { [weak self] result in
@@ -266,59 +368,11 @@ class BarViewModel: ObservableObject {
         return loggedInBar.id == bar.id
     }
     
-    // MARK: - Status Operations
+    // MARK: - Legacy Status Operations (Deprecated but kept for compatibility)
     
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
-        guard canEdit(bar: bar) else { return }
-        
-        var updatedBar = bar
-        let oldStatus = bar.status
-        
-        // Cancel any existing auto-transition
-        updatedBar.cancelAutoTransition()
-        
-        // Check if this status should trigger an auto-transition
-        switch newStatus {
-        case .openingSoon:
-            updatedBar.status = .openingSoon
-            updatedBar.startAutoTransition(to: .open, in: 1) // 1 minute for testing
-            print("🕐 \(bar.name) set to Opening Soon - will auto-open in 1 minute")
-            
-        case .closingSoon:
-            updatedBar.status = .closingSoon
-            updatedBar.startAutoTransition(to: .closed, in: 1) // 1 minute for testing
-            print("🕐 \(bar.name) set to Closing Soon - will auto-close in 1 minute")
-            
-        case .open, .closed:
-            updatedBar.status = newStatus
-            print("✋ \(bar.name) manually set to \(newStatus.displayName)")
-        }
-        
-        // Update in Firebase
-        firebaseManager.updateBarWithAutoTransition(bar: updatedBar)
-        
-        // Update local logged-in bar reference
-        if loggedInBar?.id == bar.id {
-            loggedInBar = updatedBar
-        }
-        
-        // Send notification if status actually changed
-        if oldStatus != newStatus {
-            NotificationCenter.default.post(
-                name: .barStatusChanged,
-                object: nil,
-                userInfo: [
-                    "barId": bar.id,
-                    "barName": bar.name,
-                    "newStatus": newStatus,
-                    "oldStatus": oldStatus
-                ]
-            )
-            print("📢 Posted notification for \(bar.name): \(oldStatus.displayName) → \(newStatus.displayName)")
-        }
-        
-        // Force UI update
-        objectWillChange.send()
+        // Redirect to new manual status method
+        setManualBarStatus(bar, newStatus: newStatus)
     }
     
     func cancelAutoTransition(for bar: Bar) {
@@ -337,7 +391,6 @@ class BarViewModel: ObservableObject {
         print("❌ Auto-transition cancelled for \(bar.name)")
     }
     
-    // Get time remaining for auto-transition (for UI display)
     func getTimeRemainingText(for bar: Bar) -> String? {
         guard let timeRemaining = bar.timeUntilAutoTransition,
               timeRemaining > 0 else {
@@ -354,23 +407,38 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Firebase-Integrated Favorites System
+    // MARK: - Enhanced Favorites System
     
     func toggleFavorite(barId: String, completion: @escaping (Bool) -> Void = { _ in }) {
         userPreferencesManager.toggleFavorite(barId: barId) { [weak self] isNowFavorited in
-            // The UI will automatically update through @Published properties
-            // Optionally trigger an additional UI refresh
             DispatchQueue.main.async {
                 self?.objectWillChange.send()
             }
             
             completion(isNowFavorited)
             print("🔄 Favorite toggle completed for \(barId): \(isNowFavorited)")
+            
+            // Send test notification if favorited for the first time
+            if isNowFavorited {
+                self?.sendTestNotificationForNewFavorite(barId: barId)
+            }
+        }
+    }
+    
+    private func sendTestNotificationForNewFavorite(barId: String) {
+        guard let bar = bars.first(where: { $0.id == barId }),
+              let notificationManager = notificationManager else { return }
+        
+        // Send a welcome notification
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            notificationManager.scheduleBarStatusNotification(
+                barName: bar.name,
+                newStatus: .openingSoon  // Test with Opening Soon
+            )
         }
     }
     
     func getFavoriteCount(for barId: String) -> Int {
-        // Get real count from Firebase
         return firebaseManager.getFavoriteCount(for: barId)
     }
     
@@ -378,13 +446,11 @@ class BarViewModel: ObservableObject {
         return userPreferencesManager.isFavorite(barId: barId)
     }
     
-    // MARK: - Basic Analytics
+    // MARK: - Other existing methods (unchanged)
     
     func getBasicAnalytics(for barId: String, completion: @escaping ([String: Any]) -> Void) {
         firebaseManager.getBasicAnalytics(for: barId, completion: completion)
     }
-    
-    // MARK: - Data Operations
     
     func updateBarDescription(_ bar: Bar, newDescription: String) {
         guard canEdit(bar: bar) else { return }
@@ -442,15 +508,8 @@ class BarViewModel: ObservableObject {
         return [loggedInBar]
     }
     
-    // MARK: - Debug Methods
-    
     func debugFavorites() {
         userPreferencesManager.debugPrintStatus()
         print("📊 Firebase favorite counts: \(firebaseManager.favoriteCounts)")
     }
-}
-
-#Preview {
-    ContentView()
-        .environmentObject(BarViewModel())
 }

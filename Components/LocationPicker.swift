@@ -533,7 +533,7 @@ struct LocationBarRow: View {
             barViewModel.selectedBar = bar
             barViewModel.showingDetail = true
         }) {
-            HStack {
+            HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(bar.name)
                         .font(.headline)
@@ -556,12 +556,19 @@ struct LocationBarRow: View {
                         Text(bar.status.displayName)
                             .font(.caption)
                             .foregroundColor(bar.status.color)
+                        
+                        // Show if manual override
+                        if !bar.isFollowingSchedule {
+                            Image(systemName: "hand.raised.fill")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                        }
                     }
                 }
                 
                 Spacer()
                 
-                VStack(alignment: .trailing) {
+                VStack(alignment: .trailing, spacing: 8) {
                     FavoriteButton(barId: bar.id, barViewModel: barViewModel)
                     
                     HStack {
@@ -574,7 +581,9 @@ struct LocationBarRow: View {
                     }
                 }
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle()) // Makes entire row tappable
         }
         .buttonStyle(PlainButtonStyle())
     }

@@ -5,23 +5,35 @@ import SwiftUI
 class NotificationManager: ObservableObject {
     @Published var isAuthorized = false
     
-    // 🎵 SIMPLIFIED SOUND SETTINGS - Only Opening Soon and Closing Soon
+    // Sound settings
     @Published var enableSoundsForOpeningSoon = true
     @Published var enableSoundsForClosingSoon = true
     
+    // Simple user identification
+    private let userDeviceId: String
+    
     init() {
+        // Create stable device ID that persists across app launches
+        if let savedDeviceId = UserDefaults.standard.string(forKey: "BarTracker_DeviceId") {
+            self.userDeviceId = savedDeviceId
+        } else {
+            self.userDeviceId = UUID().uuidString
+            UserDefaults.standard.set(self.userDeviceId, forKey: "BarTracker_DeviceId")
+        }
+        
         checkNotificationPermissions()
         setupBarStatusListener()
         loadSoundPreferences()
+        
+        print("📱 Notification system initialized for device: \(userDeviceId)")
     }
     
-    // MARK: - Simplified Sound Preferences
+    // MARK: - Sound Preferences
     
     private func loadSoundPreferences() {
         enableSoundsForOpeningSoon = UserDefaults.standard.bool(forKey: "enableSoundsForOpeningSoon")
         enableSoundsForClosingSoon = UserDefaults.standard.bool(forKey: "enableSoundsForClosingSoon")
         
-        // Set defaults on first launch
         if !UserDefaults.standard.bool(forKey: "hasLaunchedBefore") {
             enableSoundsForOpeningSoon = true
             enableSoundsForClosingSoon = true
@@ -38,19 +50,20 @@ class NotificationManager: ObservableObject {
     func toggleSoundForOpen() {
         enableSoundsForOpeningSoon.toggle()
         saveSoundPreferences()
+        print("🔊 Opening Soon sound: \(enableSoundsForOpeningSoon)")
     }
     
     func toggleSoundForClosing() {
         enableSoundsForClosingSoon.toggle()
         saveSoundPreferences()
+        print("🔊 Closing Soon sound: \(enableSoundsForClosingSoon)")
     }
     
-    // Keep these for backwards compatibility with existing code
+    // Keep these for backwards compatibility
     var enableSoundsForOpen: Bool { enableSoundsForOpeningSoon }
     var enableSoundsForClosing: Bool { enableSoundsForClosingSoon }
-    var silentForClosed: Bool { true } // Always silent for closed
+    var silentForClosed: Bool { true }
     
-    // 🎵 SIMPLIFIED: Only handle Opening Soon and Closing Soon
     private func shouldPlaySound(for status: BarStatus) -> Bool {
         switch status {
         case .openingSoon:
@@ -58,7 +71,7 @@ class NotificationManager: ObservableObject {
         case .closingSoon:
             return enableSoundsForClosingSoon
         case .open, .closed:
-            return false // No notifications for immediate states
+            return false
         }
     }
     
@@ -70,6 +83,8 @@ class NotificationManager: ObservableObject {
                 self?.isAuthorized = granted
                 if granted {
                     print("✅ Notification permissions granted")
+                    // Send welcome test notification
+                    self?.sendWelcomeNotification()
                 } else {
                     print("❌ Notification permissions denied")
                 }
@@ -81,11 +96,31 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
             DispatchQueue.main.async {
                 self?.isAuthorized = settings.authorizationStatus == .authorized
+                print("📱 Notification auth status: \(settings.authorizationStatus.rawValue)")
             }
         }
     }
     
-    // MARK: - Bar Status Listener
+    private func sendWelcomeNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "🍺 Welcome to Bar Status Tracker!"
+        content.body = "You'll now receive notifications when your favorite bars are opening or closing soon."
+        content.sound = .default
+        
+        let identifier = "welcome-\(Date().timeIntervalSince1970)"
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Failed to send welcome notification: \(error)")
+            } else {
+                print("📱 Welcome notification scheduled")
+            }
+        }
+    }
+    
+    // MARK: - Enhanced Bar Status Listener
     
     private func setupBarStatusListener() {
         NotificationCenter.default.addObserver(
@@ -93,28 +128,47 @@ class NotificationManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] notification in
+            guard let self = self else { return }
+            
             guard let userInfo = notification.userInfo,
                   let barName = userInfo["barName"] as? String,
                   let newStatus = userInfo["newStatus"] as? BarStatus,
-                  let barId = userInfo["barId"] as? String else { return }
-            
-            // Only send notifications for Opening Soon and Closing Soon
-            guard newStatus == .openingSoon || newStatus == .closingSoon else {
-                print("🔕 Skipping notification for \(newStatus.displayName) - only notifying for Opening Soon/Closing Soon")
+                  let barId = userInfo["barId"] as? String else {
+                print("❌ Invalid notification userInfo")
                 return
             }
             
-            let userPreferencesManager = UserPreferencesManager()
-            if userPreferencesManager.isFavorite(barId: barId) {
-                self?.scheduleBarStatusNotification(barName: barName, newStatus: newStatus)
-                print("🔔 Sending \(newStatus.displayName) notification for favorited bar: \(barName)")
-            } else {
-                print("🔕 Skipping notification for non-favorited bar: \(barName)")
+            let isScheduleBased = userInfo["isScheduleBased"] as? Bool ?? false
+            
+            print("📢 Received status change: \(barName) → \(newStatus.displayName) (schedule: \(isScheduleBased))")
+            
+            // Only send notifications for Opening Soon and Closing Soon
+            guard newStatus == .openingSoon || newStatus == .closingSoon else {
+                print("🔕 Skipping notification for \(newStatus.displayName)")
+                return
+            }
+            
+            // Check if user has favorited this bar
+            self.checkIfShouldNotify(barId: barId) { shouldNotify in
+                if shouldNotify {
+                    self.scheduleBarStatusNotification(barName: barName, newStatus: newStatus)
+                    print("🔔 Scheduling notification for favorited bar: \(barName)")
+                } else {
+                    print("🔕 User hasn't favorited \(barName) - no notification")
+                }
             }
         }
     }
     
-    // MARK: - Send Notifications (SIMPLIFIED)
+    private func checkIfShouldNotify(barId: String, completion: @escaping (Bool) -> Void) {
+        // Check if user has favorited this bar using the saved device ID
+        let userPrefs = UserPreferencesManager()
+        let isFavorited = userPrefs.isFavorite(barId: barId)
+        
+        completion(isFavorited)
+    }
+    
+    // MARK: - Send Notifications
     
     func scheduleBarStatusNotification(barName: String, newStatus: BarStatus) {
         guard isAuthorized else {
@@ -122,9 +176,8 @@ class NotificationManager: ObservableObject {
             return
         }
         
-        // Only send notifications for Opening Soon and Closing Soon
         guard newStatus == .openingSoon || newStatus == .closingSoon else {
-            print("🔕 Skipping notification for \(newStatus.displayName) - only sending for Opening Soon/Closing Soon")
+            print("🔕 Only sending notifications for Opening Soon/Closing Soon")
             return
         }
         
@@ -132,11 +185,10 @@ class NotificationManager: ObservableObject {
         content.title = "🍺 \(barName)"
         content.body = getNotificationMessage(for: newStatus)
         
-        // 🎵 Sound handling for simplified statuses
+        // Sound handling
         if shouldPlaySound(for: newStatus) {
             content.sound = .default
         }
-        // If shouldPlaySound returns false, we don't set content.sound (defaults to silent)
         
         let viewAction = UNNotificationAction(
             identifier: "VIEW_BAR",
@@ -157,11 +209,11 @@ class NotificationManager: ObservableObject {
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         
-        UNUserNotificationCenter.current().add(request) { error in
+        UNUserNotificationCenter.current().add(request) { [weak self] error in
             if let error = error {
                 print("❌ Failed to schedule notification: \(error)")
             } else {
-                let soundStatus = self.shouldPlaySound(for: newStatus) ? "With Sound" : "Silent"
+                let soundStatus = self?.shouldPlaySound(for: newStatus) == true ? "With Sound" : "Silent"
                 print("📱 🎵 Scheduled \(newStatus.displayName) notification for \(barName) [\(soundStatus)]")
             }
         }
@@ -174,18 +226,35 @@ class NotificationManager: ObservableObject {
         case .closingSoon:
             return "Closing soon - last call! ⏰"
         case .open:
-            return "Now open! Come on by 🎉" // Won't be used but kept for safety
+            return "Now open! Come on by 🎉"
         case .closed:
-            return "Now closed. See you next time! 👋" // Won't be used but kept for safety
+            return "Now closed. See you next time! 👋"
         }
     }
     
-    // MARK: - Settings Redirect
+    // MARK: - Testing Methods
+    
+    func sendTestNotification() {
+        scheduleBarStatusNotification(barName: "Test Bar", newStatus: .openingSoon)
+    }
+    
+    // MARK: - Settings
     
     func openNotificationSettings() {
         if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(settingsUrl)
         }
+    }
+    
+    // MARK: - Debug Info
+    
+    func getDebugInfo() -> String {
+        return """
+        Device ID: \(userDeviceId)
+        Authorized: \(isAuthorized)
+        Opening Soon Sound: \(enableSoundsForOpeningSoon)
+        Closing Soon Sound: \(enableSoundsForClosingSoon)
+        """
     }
 }
 

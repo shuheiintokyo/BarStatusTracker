@@ -10,8 +10,11 @@ struct StatusControlView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Current Status Display
+            // Current Status Display with Source Info
             currentStatusHeader
+            
+            // Schedule vs Manual Status Info
+            statusSourceInfo
             
             // Auto-transition display (if active)
             if let current = currentBar, current.isAutoTransitionActive {
@@ -20,6 +23,11 @@ struct StatusControlView: View {
             
             // Status Control Grid
             statusControlGrid
+            
+            // Follow Schedule Button (if manual override is active)
+            if let current = currentBar, !current.isFollowingSchedule {
+                followScheduleButton
+            }
         }
         .padding()
         .background(
@@ -69,10 +77,88 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Auto-transition Card
+    // MARK: - Status Source Information
+    var statusSourceInfo: some View {
+        Group {
+            if let current = currentBar {
+                let statusInfo = current.statusDisplayInfo
+                
+                HStack(spacing: 8) {
+                    Image(systemName: current.isFollowingSchedule ? "calendar" : "hand.raised.fill")
+                        .foregroundColor(current.isFollowingSchedule ? .green : .orange)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(statusInfo.source)
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(current.isFollowingSchedule ? .green : .orange)
+                        
+                        Text(statusInfo.description)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Show schedule-based status if manual override is active
+                    if !current.isFollowingSchedule {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("Schedule says:")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            
+                            HStack(spacing: 4) {
+                                Image(systemName: current.scheduleBasedStatus.icon)
+                                    .font(.caption)
+                                    .foregroundColor(current.scheduleBasedStatus.color)
+                                Text(current.scheduleBasedStatus.displayName)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(current.isFollowingSchedule ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(current.isFollowingSchedule ? Color.green.opacity(0.3) : Color.orange.opacity(0.3), lineWidth: 1)
+                        )
+                )
+            }
+        }
+    }
+    
+    // MARK: - Follow Schedule Button
+    var followScheduleButton: some View {
+        Button(action: {
+            barViewModel.setBarToFollowSchedule(currentBar ?? bar)
+        }) {
+            HStack {
+                Image(systemName: "calendar.badge.checkmark")
+                    .font(.title3)
+                Text("Follow Schedule")
+                    .font(.headline)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [.green, .blue]),
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .cornerRadius(12)
+        }
+    }
+    
+    // MARK: - Auto-transition Card (existing)
     var autoTransitionCard: some View {
         HStack(spacing: 12) {
-            // Timer icon with animation
             ZStack {
                 Circle()
                     .fill(Color.orange.opacity(0.2))
@@ -141,9 +227,10 @@ struct StatusControlView: View {
                     StatusButton(
                         status: status,
                         currentStatus: currentBar?.status ?? bar.status,
+                        isManualOverride: !(currentBar?.isFollowingSchedule ?? true),
                         action: {
                             withAnimation(.easeInOut(duration: 0.3)) {
-                                barViewModel.updateBarStatus(currentBar ?? bar, newStatus: status)
+                                barViewModel.setManualBarStatus(currentBar ?? bar, newStatus: status)
                             }
                         }
                     )
@@ -176,6 +263,7 @@ struct StatusControlView: View {
 struct StatusButton: View {
     let status: BarStatus
     let currentStatus: BarStatus
+    let isManualOverride: Bool
     let action: () -> Void
     
     @State private var isPressed = false
@@ -184,14 +272,14 @@ struct StatusButton: View {
         status == currentStatus
     }
     
-    private var buttonInfo: (title: String, subtitle: String, duration: String) {
+    private var buttonInfo: (title: String, subtitle: String, badge: String) {
         switch status {
         case .openingSoon:
-            return ("Opening", "Soon", "1m")
+            return ("Opening", "Soon", "15m")
         case .open:
             return ("Open", "Now", "")
         case .closingSoon:
-            return ("Closing", "Soon", "1m")
+            return ("Closing", "Soon", "15m")
         case .closed:
             return ("Closed", "Now", "")
         }
@@ -210,7 +298,6 @@ struct StatusButton: View {
                 action()
             }
             
-            // Haptic feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
         }) {
@@ -236,9 +323,27 @@ struct StatusButton: View {
                         .font(.title2)
                         .foregroundColor(isSelected ? .white : status.color)
                         .fontWeight(isSelected ? .bold : .medium)
+                    
+                    // Manual override indicator
+                    if isSelected && isManualOverride {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Circle()
+                                    .fill(Color.orange)
+                                    .frame(width: 12, height: 12)
+                                    .overlay(
+                                        Image(systemName: "hand.raised.fill")
+                                            .font(.system(size: 6))
+                                            .foregroundColor(.white)
+                                    )
+                            }
+                            Spacer()
+                        }
+                    }
                 }
                 
-                // Text info with enhanced styling
+                // Text info
                 VStack(spacing: 2) {
                     Text(buttonInfo.title)
                         .font(.caption)
@@ -249,8 +354,8 @@ struct StatusButton: View {
                         .font(.caption2)
                         .foregroundColor(isSelected ? status.color.opacity(0.8) : .secondary)
                     
-                    if !buttonInfo.duration.isEmpty {
-                        Text(buttonInfo.duration)
+                    if !buttonInfo.badge.isEmpty {
+                        Text(buttonInfo.badge)
                             .font(.caption2)
                             .foregroundColor(.orange)
                             .fontWeight(.bold)

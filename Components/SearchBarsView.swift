@@ -20,17 +20,25 @@ struct SearchBarsView: View {
                 
                 // Results
                 List(filteredBars) { bar in
-                    VStack(alignment: .leading) {
-                        Text(bar.name)
-                            .font(.headline)
-                        Text(bar.address)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    .onTapGesture {
+                    // Fix: Use Button instead of onTapGesture to ensure full-width tapping
+                    Button(action: {
                         barViewModel.selectedBar = bar
                         barViewModel.showingDetail = true
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(bar.name)
+                                    .font(.headline)
+                                    .foregroundColor(.primary) // Ensure text color is correct
+                                Text(bar.address)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer() // This pushes content to left and makes tap area full width
+                        }
+                        .contentShape(Rectangle()) // Makes entire row tappable
                     }
+                    .buttonStyle(PlainButtonStyle()) // Removes button styling
                 }
             }
             .navigationTitle("Search Bars")
