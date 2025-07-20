@@ -9,15 +9,11 @@ struct MainContentView: View {
     @State private var showingSearchBars = false
     @State private var showingBrowseByLocation = false
     @State private var showingBiometricNotRegistered = false
-    @State private var selectedTab = 0 // 0=New Bar, 1=Search, 2=Quick
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with title and login
+            // Header with navigation icons
             headerSection
-            
-            // Top Navigation Tabs (KEEP THIS - exactly like screenshot)
-            topNavigationTabs
             
             // Guest mode info banner (when owner is viewing as guest)
             if barViewModel.loggedInBar != nil && !barViewModel.isOwnerMode {
@@ -66,7 +62,7 @@ struct MainContentView: View {
         }
     }
     
-    // MARK: - Header Section
+    // MARK: - Header Section (with navigation icons like in screenshot)
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -83,54 +79,50 @@ struct MainContentView: View {
                 
                 Spacer()
                 
-                // Login/Logout button
-                authenticationButton
+                // Simple navigation icons (like in screenshot)
+                HStack(spacing: 12) {
+                    // New Bar icon
+                    Button(action: { showingCreateBar = true }) {
+                        ZStack {
+                            Circle()
+                                .fill(.purple)
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "plus")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    // Search icon
+                    Button(action: { showingSearchBars = true }) {
+                        ZStack {
+                            Circle()
+                                .fill(.orange)
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    // Quick icon
+                    Button(action: { handleBiometricLogin() }) {
+                        ZStack {
+                            Circle()
+                                .fill(.blue)
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "faceid")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    // Login/Logout button
+                    authenticationButton
+                }
             }
         }
         .padding()
-    }
-    
-    // MARK: - Top Navigation Tabs (No Alerts - just the 3 main tabs)
-    var topNavigationTabs: some View {
-        HStack(spacing: 20) {
-            // New Bar tab
-            TabButton(
-                icon: "plus",
-                title: "New Bar",
-                color: .purple,
-                isSelected: selectedTab == 0
-            ) {
-                selectedTab = 0
-                showingCreateBar = true
-            }
-            
-            // Search tab
-            TabButton(
-                icon: "magnifyingglass",
-                title: "Search",
-                color: .orange,
-                isSelected: selectedTab == 1
-            ) {
-                selectedTab = 1
-                showingSearchBars = true
-            }
-            
-            // Quick tab
-            TabButton(
-                icon: "faceid",
-                title: "Quick",
-                color: .blue,
-                isSelected: selectedTab == 2
-            ) {
-                selectedTab = 2
-                handleBiometricLogin()
-            }
-            
-            Spacer()
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
-        .background(Color.gray.opacity(0.05))
     }
     
     // MARK: - Guest Mode Banner
@@ -240,39 +232,4 @@ struct MainContentView: View {
             window.rootViewController?.present(alert, animated: true)
         }
     }
-}
-
-// MARK: - Tab Button Component
-struct TabButton: View {
-    let icon: String
-    let title: String
-    let color: Color
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                ZStack {
-                    Circle()
-                        .fill(color)
-                        .frame(width: 40, height: 40)
-                    
-                    Image(systemName: icon)
-                        .font(.system(size: 18))
-                        .foregroundColor(.white)
-                }
-                
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(color)
-                    .fontWeight(.medium)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-#Preview {
-    MainContentView()
 }
