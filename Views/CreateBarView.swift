@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalAuthentication
 
 struct CreateBarView: View {
     @ObservedObject var barViewModel: BarViewModel
