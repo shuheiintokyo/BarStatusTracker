@@ -356,7 +356,7 @@ struct CityRow: View {
     }
 }
 
-// MARK: - Browse by Location Component (Simplified)
+// MARK: - Browse by Location Component (Updated)
 
 struct BrowseByLocationView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -522,7 +522,7 @@ struct BrowseByLocationView: View {
     }
 }
 
-// MARK: - Location Bar Row (Simplified)
+// MARK: - UPDATED Location Bar Row (with 7-day schedule info)
 
 struct LocationBarRow: View {
     let bar: Bar
@@ -563,7 +563,7 @@ struct LocationBarRow: View {
                         }
                     }
                     
-                    // Status info
+                    // UPDATED: Enhanced status info with 7-day schedule
                     HStack(spacing: 8) {
                         // Show if manual override
                         if !bar.isFollowingSchedule {
@@ -586,6 +586,18 @@ struct LocationBarRow: View {
                             }
                         }
                         
+                        // Today's schedule info
+                        if let todaysSchedule = bar.todaysSchedule {
+                            HStack(spacing: 2) {
+                                Image(systemName: todaysSchedule.isOpen ? "clock" : "moon")
+                                    .font(.caption2)
+                                    .foregroundColor(todaysSchedule.isOpen ? .blue : .gray)
+                                Text(todaysSchedule.isOpen ? "Open today" : "Closed today")
+                                    .font(.caption2)
+                                    .foregroundColor(todaysSchedule.isOpen ? .blue : .gray)
+                            }
+                        }
+                        
                         // Auto-transition indicator
                         if bar.isAutoTransitionActive {
                             HStack(spacing: 2) {
@@ -602,7 +614,7 @@ struct LocationBarRow: View {
                 
                 Spacer()
                 
-                // Last updated info
+                // Last updated info and schedule preview
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Updated")
                         .font(.caption2)
@@ -612,6 +624,15 @@ struct LocationBarRow: View {
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .fontWeight(.medium)
+                    
+                    // UPDATED: Show today's hours if open
+                    if let todaysSchedule = bar.todaysSchedule, todaysSchedule.isOpen {
+                        Text(todaysSchedule.displayText)
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                    }
                 }
             }
             .padding(.vertical, 12)
@@ -637,4 +658,11 @@ struct LocationBarRow: View {
             return "\(days)d"
         }
     }
+}
+
+#Preview {
+    LocationPicker(
+        selectedCountry: .constant(nil),
+        selectedCity: .constant(nil)
+    )
 }

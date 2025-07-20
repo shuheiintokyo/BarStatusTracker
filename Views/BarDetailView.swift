@@ -96,7 +96,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Header Section (unchanged)
+    // MARK: - Header Section
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -197,7 +197,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - NEW: 7-Day Schedule Section (replaces Operating Hours)
+    // MARK: - UPDATED: 7-Day Schedule Section (replaces Operating Hours)
     var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -292,7 +292,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Description Section (unchanged)
+    // MARK: - Description Section
     var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -316,7 +316,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Social Links Section (unchanged)
+    // MARK: - Social Links Section
     var socialLinksSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -365,7 +365,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Owner Settings Section (unchanged)
+    // MARK: - Owner Settings Section
     var ownerSettingsSection: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Owner Settings")
@@ -398,7 +398,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Helper Functions (unchanged)
+    // MARK: - Helper Functions
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         
@@ -417,7 +417,7 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - NEW: Compact Schedule Row Component
+// MARK: - UPDATED: Compact Schedule Row Component
 struct ScheduleRowCompact: View {
     let schedule: DailySchedule
     let isToday: Bool
@@ -474,100 +474,4 @@ struct ScheduleRowCompact: View {
                 )
         )
     }
-}
-
-// MARK: - Schedule Editor View (same as in StatusControlView)
-struct ScheduleEditorView: View {
-    @State private var schedule: WeeklySchedule
-    let barName: String
-    let onSave: (WeeklySchedule) -> Void
-    @Environment(\.dismiss) private var dismiss
-    
-    init(schedule: WeeklySchedule, barName: String, onSave: @escaping (WeeklySchedule) -> Void) {
-        self._schedule = State(initialValue: schedule)
-        self.barName = barName
-        self.onSave = onSave
-    }
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Header
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Edit 7-Day Schedule")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text("Adjust your opening hours for each day")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    // Schedule editors
-                    VStack(spacing: 16) {
-                        ForEach(Array(schedule.schedules.enumerated()), id: \.element.id) { index, dailySchedule in
-                            DailyScheduleEditor(
-                                schedule: Binding(
-                                    get: { schedule.schedules[index] },
-                                    set: { schedule.schedules[index] = $0 }
-                                )
-                            )
-                        }
-                    }
-                    
-                    // Tips
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("💡 Tips")
-                            .font(.headline)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("• Changes take effect immediately")
-                            Text("• Today's schedule determines your current bar status")
-                            Text("• Drag the time sliders to adjust opening and closing times")
-                            Text("• Toggle off days when you're closed")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color.blue.opacity(0.05))
-                    .cornerRadius(12)
-                    
-                    Spacer(minLength: 50)
-                }
-                .padding()
-            }
-            .navigationTitle("Schedule for \(barName)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        onSave(schedule)
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-#Preview {
-    BarDetailView(
-        bar: Bar(
-            name: "Test Bar",
-            address: "123 Test St",
-            username: "testbar",
-            password: "1234"
-        ),
-        barViewModel: BarViewModel(),
-        isOwnerMode: true
-    )
 }

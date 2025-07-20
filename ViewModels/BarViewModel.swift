@@ -552,3 +552,89 @@ class BarViewModel: ObservableObject {
         objectWillChange.send()
     }
 }
+
+// MARK: - Schedule-Aware Helper Methods (Add these to the end of BarViewModel.swift)
+
+extension BarViewModel {
+    /// Get bars that are open today (based on schedule)
+    func getBarsOpenToday() -> [Bar] {
+        return getAllBars().filter { $0.isOpenToday }
+    }
+    
+    /// Get bars that are currently open (status-based)
+    func getCurrentlyOpenBars() -> [Bar] {
+        return getAllBars().filter { $0.status == .open || $0.status == .openingSoon }
+    }
+    
+    /// Get count of bars with manual overrides
+    func getBarsWithManualOverrides() -> [Bar] {
+        return getAllBars().filter { !$0.isFollowingSchedule }
+    }
+    
+    /// Get bars that have conflicting status vs schedule
+    func getBarsWithStatusConflicts() -> [Bar] {
+        return getAllBars().filter { $0.isStatusConflictingWithSchedule }
+    }
+    
+    /// Get bars grouped by status
+    func getBarsGroupedByStatus() -> [BarStatus: [Bar]] {
+        let allBars = getAllBars()
+        var groupedBars: [BarStatus: [Bar]] = [:]
+        
+        for status in BarStatus.allCases {
+            groupedBars[status] = allBars.filter { $0.status == status }
+        }
+        
+        return groupedBars
+    }
+    
+    /// Get summary statistics for dashboard/header display
+    func getBarStatistics() -> BarStatistics {
+        let allBars = getAllBars()
+        return BarStatistics(
+            totalBars: allBars.count,
+            openNow: allBars.filter { $0.status == .open || $0.status == .openingSoon }.count,
+            openToday: allBars.filter { $0.isOpenToday }.count,
+            manualOverrides: allBars.filter { !$0.isFollowingSchedule }.count,
+            autoTransitions: allBars.filter { $0.isAutoTransitionActive }.count,
+            statusConflicts: allBars.filter { $0.isStatusConflictingWithSchedule }.count
+        )
+    }
+    
+    /// Get bars by location
+    func getBarsByLocation() -> [String: [Bar]] {
+        let allBars = getAllBars()
+        var barsByLocation: [String: [Bar]] = [:]
+        
+        for bar in allBars {
+            let locationKey = bar.location?.displayName ?? "Unknown Location"
+            if barsByLocation[locationKey] == nil {
+                barsByLocation[locationKey] = []
+            }
+            barsByLocation[locationKey]?.append(bar)
+        }
+        
+        return barsByLocation
+    }
+}
+
+// MARK: - Supporting Statistics Structure
+
+struct BarStatistics {
+    let totalBars: Int
+    let openNow: Int
+    let openToday: Int
+    let manualOverrides: Int
+    let autoTransitions: Int
+    let statusConflicts: Int
+    
+    var openNowPercentage: Double {
+        guard totalBars > 0 else { return 0 }
+        return Double(openNow) / Double(totalBars) * 100
+    }
+    
+    var openTodayPercentage: Double {
+        guard totalBars > 0 else { return 0 }
+        return Double(openToday) / Double(totalBars) * 100
+    }
+}

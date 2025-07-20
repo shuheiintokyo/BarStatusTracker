@@ -36,6 +36,7 @@
 		05A13C632E19536D00A69687 /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C622E19536A00A69687 /* UserPreferences.swift */; };
 		05A13C652E1953B800A69687 /* UserPreferencesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C642E1953B400A69687 /* UserPreferencesManager.swift */; };
 		05FDBDBD2E23F731003F6DB1 /* LocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */; };
+		05FDBDC52E2CD2BE003F6DB1 /* DailyScheduleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDC42E2CD2B9003F6DB1 /* DailyScheduleEditor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -103,6 +104,7 @@
 		05A13C702E1955DF00A69687 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		05A13C722E1955DF00A69687 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPicker.swift; sourceTree = "<group>"; };
+		05FDBDC42E2CD2B9003F6DB1 /* DailyScheduleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyScheduleEditor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -217,6 +219,7 @@
 		05A13C3A2E18C05E00A69687 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				05FDBDC42E2CD2B9003F6DB1 /* DailyScheduleEditor.swift */,
 				05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */,
 				0597E3AF2E23CCE000C367FF /* SearchBarsView.swift */,
 				0597E3AD2E23CC9500C367FF /* DualTimeSlider.swift */,
@@ -417,6 +420,7 @@
 				05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */,
 				0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */,
 				05FDBDBD2E23F731003F6DB1 /* LocationPicker.swift in Sources */,
+				05FDBDC52E2CD2BE003F6DB1 /* DailyScheduleEditor.swift in Sources */,
 				05A13C4C2E18C5CF00A69687 /* EditDescriptionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

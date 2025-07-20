@@ -4,19 +4,45 @@ struct SearchBarsView: View {
     @ObservedObject var barViewModel: BarViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
+    @State private var selectedFilter: SearchFilter = .all
+    
+    enum SearchFilter: String, CaseIterable {
+        case all = "All Bars"
+        case open = "Open Now"
+        case openToday = "Open Today"
+        case manual = "Manual Override"
+        case following = "Following Schedule"
+    }
     
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
                 // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
                     
-                    TextField("Search bars by name", text: $searchText)
+                    TextField("Search bars by name, location, or schedule", text: $searchText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
                 .padding()
+                
+                // Filter options
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(SearchFilter.allCases, id: \.self) { filter in
+                            FilterChip(
+                                title: filter.rawValue,
+                                isSelected: selectedFilter == filter,
+                                count: getFilterCount(filter)
+                            ) {
+                                selectedFilter = filter
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.bottom)
                 
                 // Results
                 if filteredBars.isEmpty && !searchText.isEmpty {
@@ -30,13 +56,14 @@ struct SearchBarsView: View {
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        Text("Try searching with a different name")
+                        Text("Try searching with a different name or adjust your filters")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
                         Button("Clear Search") {
                             searchText = ""
+                            selectedFilter = .all
                         }
                         .font(.caption)
                         .foregroundColor(.blue)
@@ -93,21 +120,94 @@ struct SearchBarsView: View {
         }
     }
     
+    // UPDATED: Enhanced filtering with schedule-based search
     private var filteredBars: [Bar] {
         let allBars = barViewModel.getAllBars()
-        if searchText.isEmpty {
-            return allBars
+        
+        // Apply filter first
+        let filteredByType: [Bar]
+        switch selectedFilter {
+        case .all:
+            filteredByType = allBars
+        case .open:
+            filteredByType = allBars.filter { $0.status == .open || $0.status == .openingSoon }
+        case .openToday:
+            filteredByType = allBars.filter { $0.isOpenToday }
+        case .manual:
+            filteredByType = allBars.filter { !$0.isFollowingSchedule }
+        case .following:
+            filteredByType = allBars.filter { $0.isFollowingSchedule }
         }
-        return allBars.filter { bar in
+        
+        // Apply search text
+        if searchText.isEmpty {
+            return filteredByType
+        }
+        
+        return filteredByType.filter { bar in
             bar.name.localizedCaseInsensitiveContains(searchText) ||
             bar.address.localizedCaseInsensitiveContains(searchText) ||
+            bar.description.localizedCaseInsensitiveContains(searchText) ||
             (bar.location?.city.localizedCaseInsensitiveContains(searchText) ?? false) ||
-            (bar.location?.country.localizedCaseInsensitiveContains(searchText) ?? false)
+            (bar.location?.country.localizedCaseInsensitiveContains(searchText) ?? false) ||
+            // NEW: Search in today's schedule
+            (bar.todaysSchedule?.displayText.localizedCaseInsensitiveContains(searchText) ?? false) ||
+            // NEW: Search in status
+            bar.status.displayName.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+    
+    private func getFilterCount(_ filter: SearchFilter) -> Int {
+        let allBars = barViewModel.getAllBars()
+        switch filter {
+        case .all:
+            return allBars.count
+        case .open:
+            return allBars.filter { $0.status == .open || $0.status == .openingSoon }.count
+        case .openToday:
+            return allBars.filter { $0.isOpenToday }.count
+        case .manual:
+            return allBars.filter { !$0.isFollowingSchedule }.count
+        case .following:
+            return allBars.filter { $0.isFollowingSchedule }.count
         }
     }
 }
 
-// MARK: - Search Bar Row (Simplified)
+// MARK: - Filter Chip Component
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let count: Int
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(isSelected ? Color.white.opacity(0.3) : Color.gray.opacity(0.3))
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isSelected ? Color.blue : Color.gray.opacity(0.1))
+            .foregroundColor(isSelected ? .white : .primary)
+            .clipShape(Capsule())
+        }
+    }
+}
+
+// MARK: - UPDATED Search Bar Row (with enhanced schedule info)
 struct SearchBarRow: View {
     let bar: Bar
     
@@ -153,7 +253,7 @@ struct SearchBarRow: View {
                     }
                 }
                 
-                // Additional info
+                // UPDATED: Enhanced status and schedule info
                 HStack(spacing: 8) {
                     // Status source indicator
                     if bar.isFollowingSchedule {
@@ -176,6 +276,18 @@ struct SearchBarRow: View {
                         }
                     }
                     
+                    // Today's schedule info
+                    if let todaysSchedule = bar.todaysSchedule {
+                        HStack(spacing: 2) {
+                            Image(systemName: todaysSchedule.isOpen ? "clock" : "moon")
+                                .font(.caption2)
+                                .foregroundColor(todaysSchedule.isOpen ? .blue : .gray)
+                            Text(todaysSchedule.isOpen ? "Open today" : "Closed today")
+                                .font(.caption2)
+                                .foregroundColor(todaysSchedule.isOpen ? .blue : .gray)
+                        }
+                    }
+                    
                     // Auto-transition indicator
                     if bar.isAutoTransitionActive {
                         HStack(spacing: 2) {
@@ -192,8 +304,8 @@ struct SearchBarRow: View {
             
             Spacer()
             
-            // Last updated
-            VStack(alignment: .trailing) {
+            // Last updated and schedule preview
+            VStack(alignment: .trailing, spacing: 4) {
                 Text("Updated")
                     .font(.caption2)
                     .foregroundColor(.secondary)
@@ -202,6 +314,15 @@ struct SearchBarRow: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .fontWeight(.medium)
+                
+                // Today's hours preview
+                if let todaysSchedule = bar.todaysSchedule, todaysSchedule.isOpen {
+                    Text(todaysSchedule.displayText)
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(.vertical, 8)

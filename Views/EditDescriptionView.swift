@@ -1,5 +1,3 @@
-// MARK: - Updated EditDescriptionView (minimal changes needed)
-
 import SwiftUI
 
 struct EditDescriptionView: View {
@@ -16,7 +14,7 @@ struct EditDescriptionView: View {
                     .cornerRadius(10)
                     .padding()
                 
-                // UPDATED: Tip text to mention schedule instead of operating hours
+                // UPDATED: Tips section for 7-day schedule system
                 VStack(alignment: .leading, spacing: 8) {
                     Text("💡 Tips")
                         .font(.headline)
@@ -24,8 +22,10 @@ struct EditDescriptionView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("• Tell customers about your bar's atmosphere and specialties")
                         Text("• Mention any special events or weekly features")
-                        Text("• Your 7-day schedule shows when you're open")
+                        Text("• Your 7-day schedule shows when you're open")  // UPDATED
                         Text("• Keep descriptions concise and engaging")
+                        Text("• Highlight what makes your bar unique")
+                        Text("• Consider mentioning signature drinks or food")
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -57,269 +57,300 @@ struct EditDescriptionView: View {
     }
 }
 
-// MARK: - Updated BarGridItem (check for any schedule references)
+// MARK: - Supporting Views for Password and Social Links Editing
 
-extension BarGridItem {
-    // If BarGridItem shows any schedule info, update to use new system:
+struct EditPasswordView: View {
+    let currentPassword: String
+    let barName: String
+    let onSave: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
     
-    // OLD (if exists):
-    // let todaysHours = bar.todaysHours
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
     
-    // NEW:
-    // let todaysSchedule = bar.todaysSchedule
+    var isValidPassword: Bool {
+        newPassword.count == 4 && newPassword == confirmPassword && newPassword != currentPassword
+    }
     
-    // Most likely this component doesn't need changes since it probably
-    // just shows status color and name, but check for any schedule displays
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Change Password for \(barName)")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Your password must be exactly 4 digits")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Current Password")
+                            .font(.headline)
+                        
+                        Text("••••")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("New Password")
+                            .font(.headline)
+                        
+                        SecureField("Enter new 4-digit password", text: $newPassword)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.numberPad)
+                            .onChange(of: newPassword) { _, newValue in
+                                if newValue.count > 4 {
+                                    newPassword = String(newValue.prefix(4))
+                                }
+                            }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Confirm New Password")
+                            .font(.headline)
+                        
+                        SecureField("Confirm new password", text: $confirmPassword)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.numberPad)
+                            .onChange(of: confirmPassword) { _, newValue in
+                                if newValue.count > 4 {
+                                    confirmPassword = String(newValue.prefix(4))
+                                }
+                            }
+                    }
+                }
+                
+                // Validation feedback
+                VStack(alignment: .leading, spacing: 8) {
+                    ValidationRow(
+                        text: "Password is 4 digits",
+                        isValid: newPassword.count == 4
+                    )
+                    
+                    ValidationRow(
+                        text: "Passwords match",
+                        isValid: !confirmPassword.isEmpty && newPassword == confirmPassword
+                    )
+                    
+                    ValidationRow(
+                        text: "Different from current password",
+                        isValid: !newPassword.isEmpty && newPassword != currentPassword
+                    )
+                }
+                .padding()
+                .background(Color.gray.opacity(0.05))
+                .cornerRadius(10)
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Change Password")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        if isValidPassword {
+                            onSave(newPassword)
+                            dismiss()
+                        } else {
+                            alertMessage = "Please ensure your new password is 4 digits, matches the confirmation, and is different from your current password."
+                            showingAlert = true
+                        }
+                    }
+                    .disabled(!isValidPassword)
+                }
+            }
+        }
+        .alert("Invalid Password", isPresented: $showingAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
+    }
 }
 
-// MARK: - Updated MainContentView (check for schedule displays)
-
-extension MainContentView {
-    // Check if MainContentView shows any schedule information
-    // If it does, update from:
+struct ValidationRow: View {
+    let text: String
+    let isValid: Bool
     
-    // OLD:
-    // bar.operatingHours.getDayHours(for: today)
-    
-    // NEW:
-    // bar.todaysSchedule
-    
-    // Example update if showing "open today" info:
-    /*
-    private var openTodayText: String {
-        let openBars = barViewModel.getAllBars().filter { bar in
-            // OLD:
-            // let today = getCurrentWeekDay()
-            // return bar.operatingHours.getDayHours(for: today).isOpen
+    var body: some View {
+        HStack {
+            Image(systemName: isValid ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(isValid ? .green : .gray)
             
-            // NEW:
-            return bar.isOpenToday
-        }
-        
-        return "\(openBars.count) bars open today"
-    }
-    */
-}
-
-// MARK: - Check DualTimeSlider Compatibility
-
-extension DualTimeSlider {
-    // DualTimeSlider should work as-is since it just handles time strings
-    // But verify it works with DailySchedule bindings:
-    
-    /*
-    // Usage in new system:
-    DualTimeSlider(
-        openTime: Binding(
-            get: { dailySchedule.openTime },
-            set: { dailySchedule.openTime = $0 }
-        ),
-        closeTime: Binding(
-            get: { dailySchedule.closeTime },
-            set: { dailySchedule.closeTime = $0 }
-        )
-    )
-    */
-    
-    // If any issues, the timeSlots array might need verification:
-    private let timeSlots = [
-        "18:00", "18:30", "19:00", "19:30", "20:00", "20:30",
-        "21:00", "21:30", "22:00", "22:30", "23:00", "23:30",
-        "00:00", "00:30", "01:00", "01:30", "02:00", "02:30",
-        "03:00", "03:30", "04:00", "04:30", "05:00", "05:30", "06:00"
-    ]
-    // ✅ This should work fine with the new system
-}
-
-// MARK: - Update SearchBarsView (minimal changes likely)
-
-extension SearchBarsView {
-    // Check if SearchBarsView shows any schedule information in search results
-    // Most likely just needs verification that existing filtering still works:
-    
-    /*
-    private var filteredBars: [Bar] {
-        let allBars = barViewModel.getAllBars()
-        if searchText.isEmpty {
-            return allBars
-        }
-        return allBars.filter { bar in
-            bar.name.localizedCaseInsensitiveContains(searchText) ||
-            bar.address.localizedCaseInsensitiveContains(searchText) ||
-            (bar.location?.city.localizedCaseInsensitiveContains(searchText) ?? false) ||
-            (bar.location?.country.localizedCaseInsensitiveContains(searchText) ?? false)
-            // NEW: Could add schedule-based filtering if needed:
-            // || bar.todaysSchedule?.displayText.localizedCaseInsensitiveContains(searchText) ?? false
+            Text(text)
+                .font(.caption)
+                .foregroundColor(isValid ? .green : .secondary)
+            
+            Spacer()
         }
     }
-    */
 }
 
-// MARK: - Update BrowseByLocationView (minimal changes likely)
-
-extension BrowseByLocationView {
-    // Check LocationBarRow for any schedule display
-    // Update from old system to new if needed:
+struct EditSocialLinksView: View {
+    @Binding var socialLinks: SocialLinks
+    let barName: String
+    let onSave: (SocialLinks) -> Void
+    @Environment(\.dismiss) private var dismiss
     
-    /*
-    // In LocationBarRow, if showing schedule info:
-    
-    // OLD:
-    let today = getCurrentWeekDay()
-    let todaysHours = bar.operatingHours.getDayHours(for: today)
-    Text(todaysHours.displayText)
-    
-    // NEW:
-    if let todaysSchedule = bar.todaysSchedule {
-        Text(todaysSchedule.displayText)
-    } else {
-        Text("No schedule")
-    }
-    */
-}
-
-// MARK: - Analytics Updates (if using analytics)
-
-extension BasicDeviceAnalytics {
-    // Add new analytics events for 7-day schedule system:
-    
-    func logScheduleCreated(barId: String, daysCount: Int) {
-        // Log when a new 7-day schedule is created
-        print("📊 Schedule Created: barId=\(barId), days=\(daysCount)")
-    }
-    
-    func logScheduleUpdated(barId: String, dayUpdated: String, wasOpen: Bool, nowOpen: Bool) {
-        // Log when individual days are updated
-        print("📊 Schedule Updated: barId=\(barId), day=\(dayUpdated), \(wasOpen ? "open" : "closed") → \(nowOpen ? "open" : "closed")")
-    }
-    
-    func logManualOverride(barId: String, fromStatus: String, toStatus: String) {
-        // Log when manual overrides are used
-        print("📊 Manual Override: barId=\(barId), \(fromStatus) → \(toStatus)")
-    }
-    
-    func logReturnToSchedule(barId: String, manualStatus: String, scheduleStatus: String) {
-        // Log when returning to schedule
-        print("📊 Return to Schedule: barId=\(barId), manual=\(manualStatus), schedule=\(scheduleStatus)")
-    }
-    
-    func logMigrationCompleted(barId: String, migratedDays: Int) {
-        // Log successful migration from old system
-        print("📊 Migration Completed: barId=\(barId), migratedDays=\(migratedDays)")
-    }
-}
-
-// MARK: - UserPreferencesManager Updates (if storing schedule preferences)
-
-extension UserPreferencesManager {
-    // Add any new preferences related to 7-day schedule system:
-    
-    func setSchedulePreferences(showWeekView: Bool = true, highlightToday: Bool = true) {
-        // Store user preferences for schedule display
-        UserDefaults.standard.set(showWeekView, forKey: "showWeekView")
-        UserDefaults.standard.set(highlightToday, forKey: "highlightToday")
-    }
-    
-    var showWeekView: Bool {
-        UserDefaults.standard.bool(forKey: "showWeekView")
-    }
-    
-    var highlightToday: Bool {
-        UserDefaults.standard.bool(forKey: "highlightToday")
-    }
-}
-
-// MARK: - Testing Helpers (for debugging and testing)
-
-#if DEBUG
-extension BarViewModel {
-    // Add testing methods for new schedule system:
-    
-    func createTestBarWith7DaySchedule() -> Bar {
-        var schedule = WeeklySchedule()
-        
-        // Set alternating open/closed days for testing
-        for i in 0..<schedule.schedules.count {
-            schedule.schedules[i].isOpen = i % 2 == 0
-            schedule.schedules[i].openTime = "18:00"
-            schedule.schedules[i].closeTime = "02:00"
-        }
-        
-        return Bar(
-            name: "Test Bar \(Date().timeIntervalSince1970)",
-            address: "123 Test Street",
-            description: "A test bar with 7-day schedule",
-            username: "testbar",
-            password: "1234",
-            weeklySchedule: schedule
-        )
-    }
-    
-    func testMigrationFromOldSchedule() {
-        // Create a bar with old operating hours and test migration
-        var oldHours = OperatingHours()
-        oldHours.monday.isOpen = true
-        oldHours.wednesday.isOpen = true
-        oldHours.friday.isOpen = true
-        
-        let migratedSchedule = Bar.migrateOperatingHoursToWeeklySchedule(oldHours)
-        print("🧪 Migration test: \(migratedSchedule.schedules.filter { $0.isOpen }.count) open days")
-    }
-}
-
-extension DailySchedule {
-    static func createTestSchedule(for date: Date, isOpen: Bool = true) -> DailySchedule {
-        var schedule = DailySchedule(date: date)
-        schedule.isOpen = isOpen
-        schedule.openTime = "19:00"
-        schedule.closeTime = "01:00"
-        return schedule
-    }
-}
-#endif
-
-// MARK: - Validation Helpers
-
-extension WeeklySchedule {
-    // Add validation methods to ensure data integrity:
-    
-    var isValid: Bool {
-        // Check if schedule has exactly 7 days
-        guard schedules.count == 7 else { return false }
-        
-        // Check if dates are consecutive
-        let sortedSchedules = schedules.sorted { $0.date < $1.date }
-        for i in 1..<sortedSchedules.count {
-            let daysBetween = Calendar.current.dateComponents([.day],
-                from: sortedSchedules[i-1].date,
-                to: sortedSchedules[i].date).day ?? 0
-            if daysBetween != 1 {
-                return false
-            }
-        }
-        
-        return true
-    }
-    
-    func validateTimes() -> [String] {
-        var errors: [String] = []
-        
-        for schedule in schedules {
-            if schedule.isOpen {
-                if !isValidTimeFormat(schedule.openTime) {
-                    errors.append("Invalid open time for \(schedule.dayName): \(schedule.openTime)")
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Social Links for \(barName)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Help customers find you on social media")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    VStack(spacing: 20) {
+                        SocialLinkField(
+                            icon: "instagram-icon",
+                            title: "Instagram",
+                            placeholder: "@yourbarnamehere",
+                            text: $socialLinks.instagram,
+                            isAssetImage: true
+                        )
+                        
+                        SocialLinkField(
+                            icon: "x-icon",
+                            title: "X (Twitter)",
+                            placeholder: "@yourbarnamehere",
+                            text: $socialLinks.twitter,
+                            isAssetImage: true
+                        )
+                        
+                        SocialLinkField(
+                            icon: "facebook-icon",
+                            title: "Facebook",
+                            placeholder: "facebook.com/yourbarname",
+                            text: $socialLinks.facebook,
+                            isAssetImage: true
+                        )
+                        
+                        SocialLinkField(
+                            icon: "globe",
+                            title: "Website",
+                            placeholder: "www.yourbarname.com",
+                            text: $socialLinks.website,
+                            isAssetImage: false
+                        )
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("💡 Tips")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("• Don't include 'https://' - we'll add it automatically")
+                            Text("• For Instagram/X, you can use just your username")
+                            Text("• Social links help customers stay connected with your bar")
+                            Text("• All fields are optional")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(10)
+                    
+                    Spacer(minLength: 50)
                 }
-                if !isValidTimeFormat(schedule.closeTime) {
-                    errors.append("Invalid close time for \(schedule.dayName): \(schedule.closeTime)")
+                .padding()
+            }
+            .navigationTitle("Social Links")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        onSave(socialLinks)
+                        dismiss()
+                    }
                 }
             }
         }
-        
-        return errors
     }
+}
+
+struct SocialLinkField: View {
+    let icon: String
+    let title: String
+    let placeholder: String
+    @Binding var text: String
+    let isAssetImage: Bool
     
-    private func isValidTimeFormat(_ time: String) -> Bool {
-        let timeRegex = "^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
-        return NSPredicate(format: "SELF MATCHES %@", timeRegex).evaluate(with: time)
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                // Icon
+                if isAssetImage {
+                    Image(icon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 24, height: 24)
+                        .foregroundColor(.blue)
+                } else {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
+                
+                Text(title)
+                    .font(.headline)
+                
+                Spacer()
+                
+                if !text.isEmpty {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                }
+            }
+            
+            TextField(placeholder, text: $text)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .autocapitalization(.none)
+                .autocorrectionDisabled()
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(text.isEmpty ? Color.gray.opacity(0.05) : Color.blue.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(text.isEmpty ? Color.gray.opacity(0.2) : Color.blue.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
+}
+
+#Preview {
+    EditDescriptionView(description: .constant("Sample bar description")) { _ in }
 }

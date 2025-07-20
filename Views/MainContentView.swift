@@ -62,7 +62,7 @@ struct MainContentView: View {
         }
     }
     
-    // MARK: - Header Section (with navigation icons like in screenshot)
+    // MARK: - Header Section (UPDATED with schedule-aware info)
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -71,10 +71,19 @@ struct MainContentView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     
+                    // UPDATED: Schedule-aware subtitle
                     let totalBars = barViewModel.getAllBars().count
-                    Text("Following \(totalBars) \(totalBars == 1 ? "bar" : "bars")")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    let openToday = barViewModel.getAllBars().filter { $0.isOpenToday }.count
+                    
+                    if totalBars > 0 {
+                        Text("Following \(totalBars) \(totalBars == 1 ? "bar" : "bars") • \(openToday) open today")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("No bars available yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
@@ -105,7 +114,19 @@ struct MainContentView: View {
                         }
                     }
                     
-                    // Quick icon
+                    // Browse by location icon
+                    Button(action: { showingBrowseByLocation = true }) {
+                        ZStack {
+                            Circle()
+                                .fill(.green)
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "globe")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    // Quick biometric access icon
                     Button(action: { handleBiometricLogin() }) {
                         ZStack {
                             Circle()
@@ -169,13 +190,33 @@ struct MainContentView: View {
         .padding(.top, 20)
     }
     
-    // MARK: - Bottom Text
+    // MARK: - Bottom Text (UPDATED with schedule awareness)
     var bottomText: some View {
-        let barCount = barViewModel.getAllBars().count
-        return Text("You have \(barCount) favorite \(barCount == 1 ? "bar" : "bars")")
-            .font(.subheadline)
-            .foregroundColor(.secondary)
-            .padding(.vertical, 20)
+        let allBars = barViewModel.getAllBars()
+        let barCount = allBars.count
+        let openNow = allBars.filter { $0.status == .open || $0.status == .openingSoon }.count
+        let manualOverrides = allBars.filter { !$0.isFollowingSchedule }.count
+        
+        return VStack(spacing: 8) {
+            Text("You have \(barCount) favorite \(barCount == 1 ? "bar" : "bars")")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            if barCount > 0 {
+                HStack(spacing: 16) {
+                    Text("\(openNow) open now")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                    
+                    if manualOverrides > 0 {
+                        Text("\(manualOverrides) manual override\(manualOverrides == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 20)
     }
     
     // MARK: - Authentication Button
@@ -187,9 +228,14 @@ struct MainContentView: View {
                 showingOwnerLogin = true
             }
         }) {
-            Image(systemName: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
-                .font(.title2)
-                .foregroundColor(barViewModel.isOwnerMode ? .red : .blue)
+            ZStack {
+                Circle()
+                    .fill(barViewModel.isOwnerMode ? .red : .blue)
+                    .frame(width: 40, height: 40)
+                Image(systemName: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
+                    .font(.system(size: 18))
+                    .foregroundColor(.white)
+            }
         }
     }
     
@@ -232,4 +278,8 @@ struct MainContentView: View {
             window.rootViewController?.present(alert, animated: true)
         }
     }
+}
+
+#Preview {
+    MainContentView()
 }
