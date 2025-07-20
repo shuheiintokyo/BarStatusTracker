@@ -26,7 +26,7 @@ struct BarGridItem: View {
             impactFeedback.impactOccurred()
         }) {
             VStack(spacing: 0) {
-                // Header with favorite/status indicator
+                // Header with status indicator
                 headerSection
                 
                 // Main content
@@ -47,7 +47,7 @@ struct BarGridItem: View {
         .buttonStyle(PlainButtonStyle())
     }
     
-    // MARK: - Header Section
+    // MARK: - Header Section (Simplified)
     var headerSection: some View {
         HStack {
             // Status indicator dot
@@ -58,11 +58,8 @@ struct BarGridItem: View {
             
             Spacer()
             
-            // Favorite button for guests
-            if !isOwnerMode {
-                FavoriteButton(barId: bar.id, barViewModel: barViewModel)
-            } else {
-                // Quick status indicator for owners
+            // Owner indicator for logged-in bars
+            if isOwnerMode {
                 HStack(spacing: 4) {
                     Image(systemName: "crown.fill")
                         .font(.caption2)
@@ -99,7 +96,7 @@ struct BarGridItem: View {
                     .animation(.easeInOut(duration: 0.3), value: bar.status)
             }
             
-            // Bar name
+            // Bar name and status
             VStack(spacing: 4) {
                 Text(bar.name)
                     .font(.headline)
@@ -117,7 +114,7 @@ struct BarGridItem: View {
         .padding(.horizontal, 12)
     }
     
-    // MARK: - Footer Section
+    // MARK: - Footer Section (Simplified)
     var footerSection: some View {
         VStack(spacing: 4) {
             // Auto-transition indicator
@@ -134,18 +131,17 @@ struct BarGridItem: View {
                 .padding(.vertical, 2)
                 .background(Color.white.opacity(0.2))
                 .cornerRadius(6)
-            } else if !isOwnerMode {
-                // Show popularity for guests
+            } else if bar.location != nil {
+                // Show location for context
                 HStack(spacing: 4) {
-                    Image(systemName: "heart.fill")
+                    Image(systemName: "location.fill")
                         .font(.caption2)
-                        .foregroundColor(.red)
-                    Text("\(barViewModel.getFavoriteCount(for: bar.id))")
+                    Text(bar.location?.city ?? "")
                         .font(.caption2)
-                        .fontWeight(.medium)
+                        .lineLimit(1)
                 }
                 .foregroundColor(.white.opacity(0.8))
-            } else {
+            } else if isOwnerMode {
                 // Show last updated for owners
                 Text("Updated \(timeAgo(bar.lastUpdated))")
                     .font(.caption2)
@@ -192,45 +188,5 @@ struct BarGridItem: View {
             let days = Int(interval / 86400)
             return "\(days)d"
         }
-    }
-}
-
-// MARK: - Compact Favorite Button
-struct CompactFavoriteButton: View {
-    let barId: String
-    @ObservedObject var barViewModel: BarViewModel
-    @State private var isAnimating = false
-    
-    private var isFavorite: Bool {
-        barViewModel.isFavorite(barId: barId)
-    }
-    
-    var body: some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isAnimating = true
-            }
-            
-            barViewModel.toggleFavorite(barId: barId)
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                withAnimation(.easeOut(duration: 0.1)) {
-                    isAnimating = false
-                }
-            }
-            
-            // Haptic feedback
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-        }) {
-            Image(systemName: isFavorite ? "heart.fill" : "heart")
-                .font(.title3)
-                .foregroundColor(isFavorite ? .red : .white.opacity(0.7))
-                .scaleEffect({
-                    let scale = isAnimating ? 1.2 : 1.0
-                    return scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
-                }())
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 }

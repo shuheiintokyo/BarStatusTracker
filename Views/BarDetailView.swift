@@ -23,70 +23,37 @@ struct BarDetailView: View {
     @State private var editingSocialLinks = SocialLinks()
     @State private var showingEditSocialLinks = false
     
-    // Analytics and UI state
-    @State private var basicAnalytics: [String: Any] = [:]
-    @State private var isLoadingAnalytics = false
-    
     var body: some View {
         NavigationView {
-            ZStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Header
-                        headerSection
-                        
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header
+                    headerSection
+                    
+                    Divider()
+                    
+                    // Operating Hours
+                    operatingHoursSection
+                    
+                    Divider()
+                    
+                    // Description
+                    descriptionSection
+                    
+                    Divider()
+                    
+                    // Social Links with editing capability
+                    socialLinksSection
+                    
+                    // Owner Settings
+                    if isOwnerMode {
                         Divider()
-                        
-                        // Quick Stats
-                        quickStatsSection
-                        
-                        Divider()
-                        
-                        // Operating Hours
-                        operatingHoursSection
-                        
-                        Divider()
-                        
-                        // Description
-                        descriptionSection
-                        
-                        Divider()
-                        
-                        // Social Links with editing capability
-                        socialLinksSection
-                        
-                        // Owner Settings
-                        if isOwnerMode {
-                            Divider()
-                            ownerSettingsSection
-                        }
-                        
-                        // Basic Analytics for bar owners
-                        if isOwnerMode {
-                            Divider()
-                            analyticsSection
-                        }
-                        
-                        Spacer(minLength: 100) // Space for floating button
+                        ownerSettingsSection
                     }
-                    .padding()
+                    
+                    Spacer(minLength: 100)
                 }
-                
-                // Floating favorite button (for non-owners)
-                if !isOwnerMode {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            FloatingFavoriteButton(
-                                barId: currentBar.id,
-                                barViewModel: barViewModel
-                            )
-                            .padding(.trailing, 20)
-                            .padding(.bottom, 20)
-                        }
-                    }
-                }
+                .padding()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -94,11 +61,6 @@ struct BarDetailView: View {
                     Button("Done") {
                         dismiss()
                     }
-                }
-            }
-            .onAppear {
-                if isOwnerMode {
-                    loadBasicAnalytics()
                 }
             }
         }
@@ -133,7 +95,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Header Section (FIXED to use currentBar)
+    // MARK: - Header Section
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -168,7 +130,7 @@ struct BarDetailView: View {
                 
                 Spacer()
                 
-                // FIXED: Use current status with proper color coding
+                // Current status display
                 VStack {
                     Image(systemName: currentBar.status.icon)
                         .font(.system(size: 40))
@@ -234,53 +196,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Quick Stats Section
-    var quickStatsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Bar Stats")
-                    .font(.headline)
-                
-                Spacer()
-                
-                // Real-time favorite count for everyone
-                HStack(spacing: 4) {
-                    Image(systemName: "heart.fill")
-                        .foregroundColor(.red)
-                        .font(.caption)
-                    
-                    Text("\(barViewModel.getFavoriteCount(for: currentBar.id))")
-                        .font(.headline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.red)
-                    
-                    Text(barViewModel.getFavoriteCount(for: currentBar.id) == 1 ? "like" : "likes")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            if !isOwnerMode {
-                // Guest view of favorites - FIXED to use proper favorite status
-                HStack {
-                    Image(systemName: barViewModel.isFavorite(barId: currentBar.id) ? "heart.fill" : "heart")
-                        .foregroundColor(barViewModel.isFavorite(barId: currentBar.id) ? .red : .gray)
-                    
-                    if barViewModel.isFavorite(barId: currentBar.id) {
-                        Text("You have favorited this bar")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text("Tap the heart to add to favorites and get notifications")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Operating Hours Section (FIXED to show current status correctly)
+    // MARK: - Operating Hours Section
     var operatingHoursSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -297,7 +213,7 @@ struct BarDetailView: View {
                 }
             }
             
-            // Today's hours (highlighted) - FIXED to show correct status
+            // Today's hours (highlighted)
             let today = getCurrentWeekDay()
             let todayHours = currentBar.operatingHours.getDayHours(for: today)
             
@@ -408,8 +324,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Rest of the methods remain the same...
-    
+    // MARK: - Description Section
     var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -432,6 +347,7 @@ struct BarDetailView: View {
         }
     }
     
+    // MARK: - Social Links Section
     var socialLinksSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -472,6 +388,7 @@ struct BarDetailView: View {
         }
     }
     
+    // MARK: - Owner Settings Section
     var ownerSettingsSection: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Owner Settings")
@@ -504,41 +421,7 @@ struct BarDetailView: View {
         }
     }
     
-    var analyticsSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            HStack {
-                Text("Customer Analytics")
-                    .font(.headline)
-                
-                Spacer()
-                
-                if isLoadingAnalytics {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                } else {
-                    Button("Refresh") {
-                        loadBasicAnalytics()
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-            }
-            
-            BasicAnalyticsSection(analyticsData: basicAnalytics)
-        }
-    }
-    
-    private func loadBasicAnalytics() {
-        isLoadingAnalytics = true
-        
-        barViewModel.getBasicAnalytics(for: currentBar.id) { data in
-            DispatchQueue.main.async {
-                self.basicAnalytics = data
-                self.isLoadingAnalytics = false
-            }
-        }
-    }
-    
+    // MARK: - Helper Functions
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         
@@ -557,7 +440,7 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - Keep all the other structs and views the same...
+// MARK: - Simplified Supporting Views
 struct EditOperatingHoursView: View {
     @Binding var operatingHours: OperatingHours
     let barName: String
@@ -897,17 +780,5 @@ struct SocialLinkEditor: View {
 extension Text {
     func fontFamily(_ family: Font.Design) -> Text {
         self.font(.system(.caption, design: family))
-    }
-}
-
-struct BasicAnalyticsSection: View {
-    let analyticsData: [String: Any]
-    var body: some View {
-        VStack(alignment: .leading) {
-            ForEach(analyticsData.keys.sorted(), id: \.self) { key in
-                Text("\(key): \(String(describing: analyticsData[key]!))")
-                    .font(.caption)
-            }
-        }
     }
 }

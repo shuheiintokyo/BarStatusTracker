@@ -42,7 +42,7 @@ struct NotificationSettingsView: View {
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
                 
-                Text("Get notified when your favorite bars are about to open or close!")
+                Text("Get notified when bars are about to open or close!")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -89,7 +89,7 @@ struct NotificationSettingsView: View {
         }
     }
     
-    // MARK: - 🎵 Simplified Notification Settings View
+    // MARK: - Simplified Notification Settings View
     var notificationSettingsView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -99,93 +99,131 @@ struct NotificationSettingsView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Get alerts for opening and closing times")
+                    Text("Get alerts for all bars opening and closing")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 
-                // 🎵 Simplified Sound Settings Section
+                // Global notification toggle
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("🎵 Sound Settings")
+                    Text("📱 Notification Control")
                         .font(.headline)
                     
-                    VStack(spacing: 16) {
-                        // Opening Soon notifications
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("Opening Soon Notifications")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    Text("When bars are about to open")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                Toggle("", isOn: Binding(
-                                    get: { notificationManager.enableSoundsForOpen },
-                                    set: { _ in notificationManager.toggleSoundForOpen() }
-                                ))
-                            }
-                            
-                            HStack(spacing: 8) {
-                                Image(systemName: "clock.badge.checkmark")
-                                    .foregroundColor(.mint)
-                                Text("Opening Soon")
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("Enable All Notifications")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                Text("Receive notifications for all bar status changes")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                        }
-                        .padding()
-                        .background(Color.mint.opacity(0.05))
-                        .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.mint.opacity(0.2), lineWidth: 1)
-                        )
-                        
-                        // Closing Soon notifications
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("Closing Soon Notifications")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    Text("Last call alerts")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                Toggle("", isOn: Binding(
-                                    get: { notificationManager.enableSoundsForClosing },
-                                    set: { _ in notificationManager.toggleSoundForClosing() }
-                                ))
-                            }
                             
-                            HStack(spacing: 8) {
-                                Image(systemName: "clock.badge.exclamationmark")
-                                    .foregroundColor(.yellow)
-                                Text("Closing Soon")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                            Spacer()
+                            
+                            Toggle("", isOn: Binding(
+                                get: { notificationManager.enableNotifications },
+                                set: { _ in notificationManager.toggleNotifications() }
+                            ))
                         }
-                        .padding()
-                        .background(Color.yellow.opacity(0.05))
-                        .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.yellow.opacity(0.2), lineWidth: 1)
-                        )
                     }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                    )
                 }
                 .padding()
                 .background(Color.gray.opacity(0.05))
                 .cornerRadius(12)
+                
+                // Sound Settings Section (only if notifications are enabled)
+                if notificationManager.enableNotifications {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("🎵 Sound Settings")
+                            .font(.headline)
+                        
+                        VStack(spacing: 16) {
+                            // Opening Soon notifications
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text("Opening Soon Notifications")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        Text("When bars are about to open")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Toggle("", isOn: Binding(
+                                        get: { notificationManager.enableSoundsForOpen },
+                                        set: { _ in notificationManager.toggleSoundForOpen() }
+                                    ))
+                                }
+                                
+                                HStack(spacing: 8) {
+                                    Image(systemName: "clock.badge.checkmark")
+                                        .foregroundColor(.mint)
+                                    Text("Opening Soon")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding()
+                            .background(Color.mint.opacity(0.05))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.mint.opacity(0.2), lineWidth: 1)
+                            )
+                            
+                            // Closing Soon notifications
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    VStack(alignment: .leading) {
+                                        Text("Closing Soon Notifications")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        Text("Last call alerts")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Toggle("", isOn: Binding(
+                                        get: { notificationManager.enableSoundsForClosing },
+                                        set: { _ in notificationManager.toggleSoundForClosing() }
+                                    ))
+                                }
+                                
+                                HStack(spacing: 8) {
+                                    Image(systemName: "clock.badge.exclamationmark")
+                                        .foregroundColor(.yellow)
+                                    Text("Closing Soon")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding()
+                            .background(Color.yellow.opacity(0.05))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.yellow.opacity(0.2), lineWidth: 1)
+                            )
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(12)
+                }
                 
                 // Test Notification Button
                 Button(action: {
@@ -208,10 +246,10 @@ struct NotificationSettingsView: View {
                         .font(.headline)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("• Only receive notifications for bars you've favorited")
-                        Text("• Opening Soon: 1 minute before bars open")
-                        Text("• Closing Soon: 1 minute before bars close")
-                        Text("• No notifications for immediate status changes")
+                        Text("• Receive notifications for all bars in the app")
+                        Text("• Opening Soon: When bars are about to open")
+                        Text("• Closing Soon: When bars are about to close")
+                        Text("• Notifications are sent based on bar schedules and manual updates")
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -220,8 +258,8 @@ struct NotificationSettingsView: View {
                 .background(Color.blue.opacity(0.05))
                 .cornerRadius(10)
                 
-                // Favorite Bars Section
-                favoriteBarsList
+                // Available Bars Section
+                availableBarsList
                 
                 Spacer()
             }
@@ -248,30 +286,29 @@ struct NotificationSettingsView: View {
         }
     }
     
-    // MARK: - Favorite Bars List
-    var favoriteBarsList: some View {
+    // MARK: - Available Bars List (Simplified)
+    var availableBarsList: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("❤️ Your Favorite Bars")
+            Text("🍺 Available Bars")
                 .font(.headline)
             
-            let favoriteBarIds = barViewModel.userPreferencesManager.getFavoriteBarIds()
-            let favoriteBars = barViewModel.getAllBars().filter { favoriteBarIds.contains($0.id) }
+            let allBars = barViewModel.getAllBars()
             
-            if favoriteBars.isEmpty {
+            if allBars.isEmpty {
                 VStack(spacing: 16) {
-                    Image(systemName: "heart")
+                    Image(systemName: "building.2")
                         .font(.system(size: 40))
                         .foregroundColor(.gray)
                     
-                    Text("No Favorite Bars Yet")
+                    Text("No Bars Available")
                         .font(.headline)
                     
-                    Text("Heart your favorite bars to get Opening Soon and Closing Soon notifications")
+                    Text("When bars are available, you'll receive notifications about their opening and closing times")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                     
-                    Button("Browse Bars") {
+                    Button("Create New Bar") {
                         dismiss()
                     }
                     .font(.caption)
@@ -283,17 +320,33 @@ struct NotificationSettingsView: View {
                 .cornerRadius(12)
             } else {
                 VStack(spacing: 12) {
-                    ForEach(favoriteBars) { bar in
-                        SimpleFavoriteBarRow(bar: bar)
+                    ForEach(allBars.prefix(5)) { bar in
+                        SimpleBarRow(bar: bar)
+                    }
+                    
+                    if allBars.count > 5 {
+                        Text("... and \(allBars.count - 5) more bars")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
                     }
                 }
                 
-                Text("💡 Tip: Add more bars to favorites by tapping the ❤️ icon on bar cards")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding()
-                    .background(Color.blue.opacity(0.05))
-                    .cornerRadius(8)
+                if notificationManager.enableNotifications {
+                    Text("💡 You'll receive notifications when any of these bars are opening or closing soon")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding()
+                        .background(Color.green.opacity(0.05))
+                        .cornerRadius(8)
+                } else {
+                    Text("🔕 Notifications are disabled - enable them above to get alerts")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding()
+                        .background(Color.orange.opacity(0.05))
+                        .cornerRadius(8)
+                }
             }
         }
     }
@@ -328,7 +381,7 @@ struct NotificationFeatureRow: View {
     }
 }
 
-struct SimpleFavoriteBarRow: View {
+struct SimpleBarRow: View {
     let bar: Bar
     
     var body: some View {
@@ -343,6 +396,12 @@ struct SimpleFavoriteBarRow: View {
                     Text(bar.status.displayName)
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    
+                    if let location = bar.location {
+                        Text("• \(location.city)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             
@@ -358,17 +417,17 @@ struct SimpleFavoriteBarRow: View {
                         .font(.caption)
                 }
                 
-                Text("Active")
+                Text("Notifications")
                     .font(.caption2)
-                    .foregroundColor(.green)
+                    .foregroundColor(.blue)
             }
         }
         .padding()
-        .background(Color.green.opacity(0.05))
+        .background(Color.blue.opacity(0.05))
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.green.opacity(0.2), lineWidth: 1)
+                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
         )
     }
 }

@@ -9,21 +9,14 @@ struct BarGridView: View {
     
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
     
-    // FIXED: Get the appropriate bars to display with better favorites detection
+    // Simplified: Show appropriate bars based on mode
     private var barsToDisplay: [Bar] {
         if isOwnerMode && barViewModel.loggedInBar != nil {
             // Owner mode: show only the logged-in bar
             return barViewModel.getOwnerBars()
         } else {
-            // Guest mode: show only favorited bars
-            let favoriteBarIds = barViewModel.getFavoriteBarIds()
-            let favoriteBars = barViewModel.getAllBars().filter { favoriteBarIds.contains($0.id) }
-            
-            print("🔍 BarGridView: Displaying \(favoriteBars.count) favorite bars out of \(favoriteBarIds.count) favorites")
-            print("🔍 Favorite IDs: \(favoriteBarIds)")
-            print("🔍 Available bars: \(barViewModel.getAllBars().map { $0.name })")
-            
-            return favoriteBars
+            // Guest mode: show all bars
+            return barViewModel.getAllBars()
         }
     }
     
@@ -48,7 +41,7 @@ struct BarGridView: View {
                     }
                 }
                 
-                // Existing bars (favorited bars for guests, owned bar for owners)
+                // Existing bars (all bars for guests, owned bar for owners)
                 ForEach(barsToDisplay) { bar in
                     BarGridItem(
                         bar: bar,
@@ -63,104 +56,57 @@ struct BarGridView: View {
             }
             .padding()
             
-            // FIXED: Show appropriate empty state message
+            // Show appropriate empty state message
             if barsToDisplay.isEmpty && isOwnerMode {
                 Text("No bars available")
                     .foregroundColor(.secondary)
                     .padding()
             } else if barsToDisplay.isEmpty && !isOwnerMode {
-                // Enhanced empty state for guests
+                // Empty state for guests when no bars exist
                 VStack(spacing: 20) {
-                    Image(systemName: "heart")
+                    Image(systemName: "building.2")
                         .font(.system(size: 50))
                         .foregroundColor(.gray.opacity(0.5))
                     
-                    Text("No Favorite Bars Yet")
+                    Text("No Bars Available Yet")
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Use \"Search New Bar\" or \"Browse by Location\" to find and follow bars you like!")
+                    Text("Be the first to create a bar or search for existing ones!")
                         .font(.body)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     
                     VStack(spacing: 12) {
-                        HStack(spacing: 16) {
-                            Button("Search Bars") {
-                                showingSearchBars = true
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(Color.blue)
-                            .cornerRadius(25)
-                            
-                            Button("Browse by Location") {
-                                showingBrowseByLocation = true
-                            }
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(Color.green)
-                            .cornerRadius(25)
-                        }
-                        
                         Button("Create New Bar") {
                             showingCreateBar = true
                         }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.purple)
+                        .cornerRadius(25)
+                        
+                        Button("Search Bars") {
+                            showingSearchBars = true
+                        }
                         .font(.subheadline)
-                        .foregroundColor(.purple)
+                        .foregroundColor(.blue)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color.purple.opacity(0.1))
+                        .background(Color.blue.opacity(0.1))
                         .cornerRadius(20)
                     }
-                    
-                    // Debug info (only in development)
-                    #if DEBUG
-                    VStack(spacing: 8) {
-                        Text("Debug Info:")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.orange)
-                        
-                        let favoriteIds = barViewModel.getFavoriteBarIds()
-                        Text("Favorite IDs: \(favoriteIds.count) - \(favoriteIds.isEmpty ? "None" : Array(favoriteIds).joined(separator: ", "))")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        Text("Total bars available: \(barViewModel.getAllBars().count)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        
-                        Button("Refresh Favorites") {
-                            barViewModel.forceRefreshAllData()
-                        }
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(8)
-                    }
-                    .padding()
-                    .background(Color.orange.opacity(0.05))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                    #endif
                 }
                 .padding(.top, 50)
                 .frame(maxWidth: .infinity)
             }
             
-            // Show favorites count for debugging
-            if !isOwnerMode {
-                let favoriteCount = barViewModel.getFavoriteBarIds().count
-                Text("You have \(favoriteCount) favorite bars")
+            // Show total bars count for guests
+            if !isOwnerMode && !barsToDisplay.isEmpty {
+                Text("Showing \(barsToDisplay.count) bars")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.top, 20)
@@ -179,15 +125,10 @@ struct BarGridView: View {
         .sheet(isPresented: $showingBrowseByLocation) {
             BrowseByLocationView(barViewModel: barViewModel)
         }
-        .onAppear {
-            // Debug favorites when view appears
-            print("🔍 BarGridView appeared - debugging favorites...")
-            barViewModel.debugFavorites()
-        }
     }
 }
 
-// MARK: - Create Bar Card (Same as before)
+// MARK: - Create Bar Card
 struct CreateBarCard: View {
     let action: () -> Void
     
@@ -237,7 +178,7 @@ struct CreateBarCard: View {
     }
 }
 
-// MARK: - Search Bars Card (Same as before)
+// MARK: - Search Bars Card
 struct SearchBarsCard: View {
     let action: () -> Void
     
@@ -249,12 +190,12 @@ struct SearchBarsCard: View {
                     .foregroundColor(.white)
                 
                 VStack(spacing: 4) {
-                    Text("Search New Bar")
+                    Text("Search Bars")
                         .font(.headline)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                     
-                    Text("Find bars to follow")
+                    Text("Find bars by name")
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
@@ -287,7 +228,7 @@ struct SearchBarsCard: View {
     }
 }
 
-// MARK: - Browse by Location Card (Same as before)
+// MARK: - Browse by Location Card
 struct BrowseByLocationCard: View {
     let action: () -> Void
     

@@ -10,7 +10,6 @@ struct MainContentView: View {
     @State private var showingSearchBars = false
     @State private var showingNotificationSettings = false
     
-    // FIXED: Simple biometric status check
     @State private var showingBiometricNotRegistered = false
     
     var body: some View {
@@ -24,7 +23,7 @@ struct MainContentView: View {
                     // Owner mode - show welcome message and quick access
                     ownerModeSection(loggedInBar: loggedInBar)
                 } else {
-                    // Guest mode - show favorited bars and action cards
+                    // Guest mode - show all bars and action cards
                     guestModeSection
                 }
             }
@@ -51,7 +50,6 @@ struct MainContentView: View {
         } message: {
             Text(biometricError)
         }
-        // FIXED: Simple popup for unregistered Face ID
         .alert("Face ID Not Set Up", isPresented: $showingBiometricNotRegistered) {
             Button("Use Manual Login") {
                 showingOwnerLogin = true
@@ -79,13 +77,13 @@ struct MainContentView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 } else {
-                    let favoriteCount = barViewModel.userPreferencesManager.getFavoriteBarIds().count
-                    if favoriteCount == 0 {
-                        Text("Discover and follow bars")
+                    let totalBars = barViewModel.getAllBars().count
+                    if totalBars == 0 {
+                        Text("Discover bars worldwide")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     } else {
-                        Text("Following \(favoriteCount) \(favoriteCount == 1 ? "bar" : "bars")")
+                        Text("\(totalBars) \(totalBars == 1 ? "bar" : "bars") available")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -149,7 +147,7 @@ struct MainContentView: View {
                 }
             }
             
-            // FIXED: Safe biometric authentication button
+            // Biometric authentication button
             if !barViewModel.isOwnerMode && shouldShowBiometricButton {
                 Button(action: {
                     handleBiometricLogin()
@@ -192,35 +190,29 @@ struct MainContentView: View {
         }
     }
     
-    // MARK: - FIXED: Safe biometric handling
+    // MARK: - Biometric handling
     
     private var shouldShowBiometricButton: Bool {
-        // Only show if biometric type is available AND we have valid saved credentials AND the bar still exists
         guard barViewModel.biometricAuthInfo.displayName != "Biometric" else {
             return false
         }
         
-        // Use the new public method to check if biometric auth is properly set up
         return barViewModel.canUseBiometricAuth && barViewModel.isValidBiometricBar()
     }
     
     private func handleBiometricLogin() {
-        // Use the new public method to validate everything
         guard barViewModel.isValidBiometricBar() else {
             showingBiometricNotRegistered = true
             return
         }
         
-        // Proceed with safe biometric authentication
         barViewModel.authenticateWithBiometrics { success, error in
             if success {
-                // Success - navigate to bar detail
                 if let loggedInBar = barViewModel.loggedInBar {
                     barViewModel.selectedBar = loggedInBar
                     barViewModel.showingDetail = true
                 }
             } else {
-                // Show error
                 biometricError = error ?? "Authentication failed"
                 showingBiometricAlert = true
             }
@@ -258,16 +250,12 @@ struct MainContentView: View {
                     Spacer()
                     
                     VStack(alignment: .trailing) {
-                        Text("Favorites")
+                        Text("Last Updated")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        HStack {
-                            Text("\(barViewModel.getFavoriteCount(for: loggedInBar.id))")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(.red)
-                        }
+                        Text(timeAgo(loggedInBar.lastUpdated))
+                            .font(.caption)
+                            .fontWeight(.medium)
                     }
                 }
                 .padding()
@@ -327,7 +315,6 @@ struct MainContentView: View {
             
             // View all bars button
             Button(action: {
-                // Temporarily switch to guest view while staying logged in
                 barViewModel.switchToGuestView()
             }) {
                 HStack {
@@ -353,7 +340,7 @@ struct MainContentView: View {
         .padding(.top, 30)
     }
     
-    // MARK: - Guest Mode Section
+    // MARK: - Guest Mode Section (Simplified)
     var guestModeSection: some View {
         VStack {
             // Show owner info if logged in but in guest view
@@ -375,14 +362,13 @@ struct MainContentView: View {
                 .padding(.bottom, 8)
             }
             
-            // Show bar grid (favorited bars + action cards)
+            // Show all bars and action cards
             BarGridView(barViewModel: barViewModel, isOwnerMode: false)
         }
     }
     
     // MARK: - Helper Methods
     
-    // Show logout options
     private func showLogoutOptions() {
         let alert = UIAlertController(title: "Logout Options", message: nil, preferredStyle: .actionSheet)
         
@@ -396,21 +382,36 @@ struct MainContentView: View {
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
         
-        // Present the alert
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let window = windowScene.windows.first {
             window.rootViewController?.present(alert, animated: true)
         }
     }
+    
+    private func timeAgo(_ date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+        
+        if interval < 60 {
+            return "just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days)d ago"
+        }
+    }
 }
 
-// MARK: - Helper View to Fix Dynamic Member Lookup Issue
+// MARK: - Helper View
 struct TimeRemainingView: View {
     let bar: Bar
     let barViewModel: BarViewModel
     
     private var timeRemainingText: String? {
-        // Calculate time remaining directly from the bar's properties
         guard let timeRemaining = bar.timeUntilAutoTransition,
               timeRemaining > 0 else {
             return nil

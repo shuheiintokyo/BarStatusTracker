@@ -1,7 +1,7 @@
 import AppIntents
 import Foundation
 
-// MARK: - Bar Status App Intents
+// MARK: - Bar Status App Intents (Simplified)
 
 @available(iOS 16.0, *)
 struct SetBarStatusIntent: AppIntent {
@@ -35,7 +35,7 @@ struct SetBarStatusIntent: AppIntent {
 @available(iOS 16.0, *)
 struct CheckBarStatusIntent: AppIntent {
     static var title: LocalizedStringResource = "Check Bar Status"
-    static var description = IntentDescription("Check if a bar is currently open and see how popular it is")
+    static var description = IntentDescription("Check if a bar is currently open and see its current status")
     
     @Parameter(title: "Bar Name")
     var barName: String
@@ -67,12 +67,6 @@ struct CheckBarStatusIntent: AppIntent {
             message += ". Normally closed today"
         }
         
-        // Add popularity info from Firebase
-        let favoriteCount = barViewModel.getFavoriteCount(for: bar.id)
-        if favoriteCount > 0 {
-            message += ". This bar has \(favoriteCount) \(favoriteCount == 1 ? "favorite" : "favorites")"
-        }
-        
         return .result(dialog: IntentDialog(message))
     }
 }
@@ -80,7 +74,7 @@ struct CheckBarStatusIntent: AppIntent {
 @available(iOS 16.0, *)
 struct GetOpenBarsIntent: AppIntent {
     static var title: LocalizedStringResource = "Show Open Bars"
-    static var description = IntentDescription("Get a list of currently open bars with their popularity")
+    static var description = IntentDescription("Get a list of currently open bars")
     
     @MainActor
     func perform() async throws -> some IntentResult {
@@ -94,9 +88,7 @@ struct GetOpenBarsIntent: AppIntent {
         }
         
         let barNames = openBars.map { bar in
-            let favoriteCount = barViewModel.getFavoriteCount(for: bar.id)
-            let popularity = favoriteCount > 0 ? " (\(favoriteCount) ❤️)" : ""
-            return "\(bar.name) - \(bar.status.displayName)\(popularity)"
+            return "\(bar.name) - \(bar.status.displayName)"
         }
         
         let message = "Open bars: " + barNames.joined(separator: ", ")
@@ -142,108 +134,6 @@ struct CheckBarHoursIntent: AppIntent {
         }
         
         let message = "\(bar.name) - \(todayMessage). \(weekMessage)"
-        
-        return .result(dialog: IntentDialog(message))
-    }
-}
-
-@available(iOS 16.0, *)
-struct AddBarToFavoritesIntent: AppIntent {
-    static var title: LocalizedStringResource = "Add Bar to Favorites"
-    static var description = IntentDescription("Add a bar to your favorites list and get notifications")
-    
-    @Parameter(title: "Bar Name")
-    var barName: String
-    
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        let barViewModel = BarViewModel()
-        let bars = barViewModel.getAllBars()
-        
-        guard let bar = bars.first(where: { $0.name.lowercased().contains(barName.lowercased()) }) else {
-            throw AppIntentError.barNotFound
-        }
-        
-        if barViewModel.isFavorite(barId: bar.id) {
-            return .result(dialog: IntentDialog("\(bar.name) is already in your favorites"))
-        }
-        
-        // Use the new Firebase-integrated toggle favorite
-        return await withCheckedContinuation { continuation in
-            barViewModel.toggleFavorite(barId: bar.id)
-            
-            // Give it a moment to complete the Firebase operation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                let favoriteCount = barViewModel.getFavoriteCount(for: bar.id)
-                let message = "Added \(bar.name) to your favorites. You'll now receive notifications when their status changes. This bar now has \(favoriteCount) \(favoriteCount == 1 ? "favorite" : "favorites")."
-                
-                continuation.resume(returning: .result(dialog: IntentDialog(message)))
-            }
-        }
-    }
-}
-
-@available(iOS 16.0, *)
-struct RemoveBarFromFavoritesIntent: AppIntent {
-    static var title: LocalizedStringResource = "Remove Bar from Favorites"
-    static var description = IntentDescription("Remove a bar from your favorites list")
-    
-    @Parameter(title: "Bar Name")
-    var barName: String
-    
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        let barViewModel = BarViewModel()
-        let bars = barViewModel.getAllBars()
-        
-        guard let bar = bars.first(where: { $0.name.lowercased().contains(barName.lowercased()) }) else {
-            throw AppIntentError.barNotFound
-        }
-        
-        if !barViewModel.isFavorite(barId: bar.id) {
-            return .result(dialog: IntentDialog("\(bar.name) is not in your favorites"))
-        }
-        
-        // Use the new Firebase-integrated toggle favorite
-        return await withCheckedContinuation { continuation in
-            barViewModel.toggleFavorite(barId: bar.id)
-            
-            // Give it a moment to complete the Firebase operation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                let message = "Removed \(bar.name) from your favorites. You'll no longer receive notifications about this bar."
-                continuation.resume(returning: .result(dialog: IntentDialog(message)))
-            }
-        }
-    }
-}
-
-@available(iOS 16.0, *)
-struct GetBarPopularityIntent: AppIntent {
-    static var title: LocalizedStringResource = "Check Bar Popularity"
-    static var description = IntentDescription("See how many people have favorited a specific bar")
-    
-    @Parameter(title: "Bar Name")
-    var barName: String
-    
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        let barViewModel = BarViewModel()
-        let bars = barViewModel.getAllBars()
-        
-        guard let bar = bars.first(where: { $0.name.lowercased().contains(barName.lowercased()) }) else {
-            throw AppIntentError.barNotFound
-        }
-        
-        let favoriteCount = barViewModel.getFavoriteCount(for: bar.id)
-        
-        let message: String
-        if favoriteCount == 0 {
-            message = "\(bar.name) doesn't have any favorites yet. Be the first to like it!"
-        } else if favoriteCount == 1 {
-            message = "\(bar.name) has 1 person who has favorited it"
-        } else {
-            message = "\(bar.name) has \(favoriteCount) people who have favorited it"
-        }
         
         return .result(dialog: IntentDialog(message))
     }
@@ -303,6 +193,36 @@ struct CreateNewBarIntent: AppIntent {
     }
 }
 
+@available(iOS 16.0, *)
+struct GetAllBarsIntent: AppIntent {
+    static var title: LocalizedStringResource = "List All Bars"
+    static var description = IntentDescription("Get a list of all available bars and their current status")
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        let bars = barViewModel.getAllBars()
+        
+        if bars.isEmpty {
+            return .result(dialog: IntentDialog("No bars are available in the app yet"))
+        }
+        
+        let barList = bars.prefix(10).map { bar in
+            let locationInfo = bar.location?.city ?? ""
+            let location = locationInfo.isEmpty ? "" : " in \(locationInfo)"
+            return "\(bar.name)\(location) - \(bar.status.displayName)"
+        }
+        
+        var message = "Available bars: " + barList.joined(separator: ", ")
+        
+        if bars.count > 10 {
+            message += " and \(bars.count - 10) more"
+        }
+        
+        return .result(dialog: IntentDialog(message))
+    }
+}
+
 // MARK: - Supporting Types
 
 @available(iOS 16.0, *)
@@ -354,7 +274,6 @@ enum AppIntentError: Error, LocalizedError {
     case barNotFound
     case notLoggedIn
     case invalidStatus
-    case favoriteError
     case invalidPassword
     case barAlreadyExists
     
@@ -366,8 +285,6 @@ enum AppIntentError: Error, LocalizedError {
             return "You need to be logged in as a bar owner to change status."
         case .invalidStatus:
             return "Invalid status provided."
-        case .favoriteError:
-            return "Unable to update favorites. Please try again."
         case .invalidPassword:
             return "Password must be exactly 4 digits."
         case .barAlreadyExists:
@@ -376,7 +293,7 @@ enum AppIntentError: Error, LocalizedError {
     }
 }
 
-// MARK: - Shortcuts Provider
+// MARK: - Shortcuts Provider (Simplified)
 
 @available(iOS 16.0, *)
 struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
@@ -423,24 +340,14 @@ struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
                 systemImageName: "list.bullet"
             ),
             AppShortcut(
-                intent: AddBarToFavoritesIntent(),
+                intent: GetAllBarsIntent(),
                 phrases: [
-                    "Add \(.applicationName) to favorites",
-                    "Favorite \(.applicationName) bar",
-                    "Follow \(.applicationName) in my bar app"
+                    "List all bars in \(.applicationName)",
+                    "Show me all bars in \(.applicationName)",
+                    "What bars are available in \(.applicationName)"
                 ],
-                shortTitle: "Add to Favorites",
-                systemImageName: "heart"
-            ),
-            AppShortcut(
-                intent: GetBarPopularityIntent(),
-                phrases: [
-                    "How popular is \(.applicationName)",
-                    "Check \(.applicationName) popularity",
-                    "How many people like \(.applicationName)"
-                ],
-                shortTitle: "Check Popularity",
-                systemImageName: "heart.text.square"
+                shortTitle: "List All Bars",
+                systemImageName: "building.2.crop.circle"
             ),
             AppShortcut(
                 intent: CreateNewBarIntent(),

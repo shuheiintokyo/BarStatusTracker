@@ -356,7 +356,7 @@ struct CityRow: View {
     }
 }
 
-// MARK: - Browse by Location Component
+// MARK: - Browse by Location Component (Simplified)
 
 struct BrowseByLocationView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -522,7 +522,7 @@ struct BrowseByLocationView: View {
     }
 }
 
-// MARK: - Location Bar Row
+// MARK: - Location Bar Row (Simplified)
 
 struct LocationBarRow: View {
     let bar: Bar
@@ -534,6 +534,19 @@ struct LocationBarRow: View {
             barViewModel.showingDetail = true
         }) {
             HStack(spacing: 12) {
+                // Status indicator
+                VStack {
+                    Image(systemName: bar.status.icon)
+                        .font(.title2)
+                        .foregroundColor(bar.status.color)
+                    
+                    Text(bar.status.displayName)
+                        .font(.caption2)
+                        .foregroundColor(bar.status.color)
+                }
+                .frame(width: 70)
+                
+                // Bar details
                 VStack(alignment: .leading, spacing: 4) {
                     Text(bar.name)
                         .font(.headline)
@@ -550,35 +563,55 @@ struct LocationBarRow: View {
                         }
                     }
                     
-                    HStack {
-                        Image(systemName: bar.status.icon)
-                            .foregroundColor(bar.status.color)
-                        Text(bar.status.displayName)
-                            .font(.caption)
-                            .foregroundColor(bar.status.color)
-                        
+                    // Status info
+                    HStack(spacing: 8) {
                         // Show if manual override
                         if !bar.isFollowingSchedule {
-                            Image(systemName: "hand.raised.fill")
-                                .font(.caption2)
-                                .foregroundColor(.orange)
+                            HStack(spacing: 2) {
+                                Image(systemName: "hand.raised.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                Text("Manual")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                            }
+                        } else {
+                            HStack(spacing: 2) {
+                                Image(systemName: "calendar")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                                Text("Schedule")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            }
+                        }
+                        
+                        // Auto-transition indicator
+                        if bar.isAutoTransitionActive {
+                            HStack(spacing: 2) {
+                                Image(systemName: "timer")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                Text("Auto")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                            }
                         }
                     }
                 }
                 
                 Spacer()
                 
-                VStack(alignment: .trailing, spacing: 8) {
-                    FavoriteButton(barId: bar.id, barViewModel: barViewModel)
+                // Last updated info
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Updated")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                     
-                    HStack {
-                        Image(systemName: "heart.fill")
-                            .foregroundColor(.red)
-                            .font(.caption2)
-                        Text("\(barViewModel.getFavoriteCount(for: bar.id))")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
+                    Text(timeAgo(bar.lastUpdated))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .fontWeight(.medium)
                 }
             }
             .padding(.vertical, 12)
@@ -586,5 +619,22 @@ struct LocationBarRow: View {
             .contentShape(Rectangle()) // Makes entire row tappable
         }
         .buttonStyle(PlainButtonStyle())
+    }
+    
+    private func timeAgo(_ date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+        
+        if interval < 60 {
+            return "now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days)d"
+        }
     }
 }

@@ -9,54 +9,55 @@ class NotificationManager: ObservableObject {
     @Published var enableSoundsForOpeningSoon = true
     @Published var enableSoundsForClosingSoon = true
     
-    // Simple user identification
-    private let userDeviceId: String
+    // Simple notification control
+    @Published var enableNotifications = true
     
     init() {
-        // Create stable device ID that persists across app launches
-        if let savedDeviceId = UserDefaults.standard.string(forKey: "BarTracker_DeviceId") {
-            self.userDeviceId = savedDeviceId
-        } else {
-            self.userDeviceId = UUID().uuidString
-            UserDefaults.standard.set(self.userDeviceId, forKey: "BarTracker_DeviceId")
-        }
-        
         checkNotificationPermissions()
         setupBarStatusListener()
-        loadSoundPreferences()
+        loadSettings()
         
-        print("📱 Notification system initialized for device: \(userDeviceId)")
+        print("📱 Notification system initialized")
     }
     
-    // MARK: - Sound Preferences
+    // MARK: - Settings Management
     
-    private func loadSoundPreferences() {
+    private func loadSettings() {
         enableSoundsForOpeningSoon = UserDefaults.standard.bool(forKey: "enableSoundsForOpeningSoon")
         enableSoundsForClosingSoon = UserDefaults.standard.bool(forKey: "enableSoundsForClosingSoon")
+        enableNotifications = UserDefaults.standard.bool(forKey: "enableNotifications")
         
         if !UserDefaults.standard.bool(forKey: "hasLaunchedBefore") {
             enableSoundsForOpeningSoon = true
             enableSoundsForClosingSoon = true
+            enableNotifications = true
             UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
-            saveSoundPreferences()
+            saveSettings()
         }
     }
     
-    private func saveSoundPreferences() {
+    private func saveSettings() {
         UserDefaults.standard.set(enableSoundsForOpeningSoon, forKey: "enableSoundsForOpeningSoon")
         UserDefaults.standard.set(enableSoundsForClosingSoon, forKey: "enableSoundsForClosingSoon")
+        UserDefaults.standard.set(enableNotifications, forKey: "enableNotifications")
     }
     
     func toggleSoundForOpen() {
         enableSoundsForOpeningSoon.toggle()
-        saveSoundPreferences()
+        saveSettings()
         print("🔊 Opening Soon sound: \(enableSoundsForOpeningSoon)")
     }
     
     func toggleSoundForClosing() {
         enableSoundsForClosingSoon.toggle()
-        saveSoundPreferences()
+        saveSettings()
         print("🔊 Closing Soon sound: \(enableSoundsForClosingSoon)")
+    }
+    
+    func toggleNotifications() {
+        enableNotifications.toggle()
+        saveSettings()
+        print("🔔 Notifications enabled: \(enableNotifications)")
     }
     
     // Keep these for backwards compatibility
@@ -104,7 +105,7 @@ class NotificationManager: ObservableObject {
     private func sendWelcomeNotification() {
         let content = UNMutableNotificationContent()
         content.title = "🍺 Welcome to Bar Status Tracker!"
-        content.body = "You'll now receive notifications when your favorite bars are opening or closing soon."
+        content.body = "You'll now receive notifications when bars are opening or closing soon."
         content.sound = .default
         
         let identifier = "welcome-\(Date().timeIntervalSince1970)"
@@ -120,7 +121,7 @@ class NotificationManager: ObservableObject {
         }
     }
     
-    // MARK: - Enhanced Bar Status Listener
+    // MARK: - Simplified Bar Status Listener
     
     private func setupBarStatusListener() {
         NotificationCenter.default.addObserver(
@@ -130,10 +131,15 @@ class NotificationManager: ObservableObject {
         ) { [weak self] notification in
             guard let self = self else { return }
             
+            // Check if notifications are enabled
+            guard self.enableNotifications else {
+                print("🔕 Notifications disabled by user")
+                return
+            }
+            
             guard let userInfo = notification.userInfo,
                   let barName = userInfo["barName"] as? String,
-                  let newStatus = userInfo["newStatus"] as? BarStatus,
-                  let barId = userInfo["barId"] as? String else {
+                  let newStatus = userInfo["newStatus"] as? BarStatus else {
                 print("❌ Invalid notification userInfo")
                 return
             }
@@ -148,24 +154,10 @@ class NotificationManager: ObservableObject {
                 return
             }
             
-            // Check if user has favorited this bar
-            self.checkIfShouldNotify(barId: barId) { shouldNotify in
-                if shouldNotify {
-                    self.scheduleBarStatusNotification(barName: barName, newStatus: newStatus)
-                    print("🔔 Scheduling notification for favorited bar: \(barName)")
-                } else {
-                    print("🔕 User hasn't favorited \(barName) - no notification")
-                }
-            }
+            // Send notification to everyone (simplified - no favorites)
+            self.scheduleBarStatusNotification(barName: barName, newStatus: newStatus)
+            print("🔔 Scheduling notification for bar: \(barName)")
         }
-    }
-    
-    private func checkIfShouldNotify(barId: String, completion: @escaping (Bool) -> Void) {
-        // Check if user has favorited this bar using the saved device ID
-        let userPrefs = UserPreferencesManager()
-        let isFavorited = userPrefs.isFavorite(barId: barId)
-        
-        completion(isFavorited)
     }
     
     // MARK: - Send Notifications
@@ -173,6 +165,11 @@ class NotificationManager: ObservableObject {
     func scheduleBarStatusNotification(barName: String, newStatus: BarStatus) {
         guard isAuthorized else {
             print("❌ Notifications not authorized - skipping notification for \(barName)")
+            return
+        }
+        
+        guard enableNotifications else {
+            print("🔕 Notifications disabled by user - skipping notification for \(barName)")
             return
         }
         
@@ -250,8 +247,8 @@ class NotificationManager: ObservableObject {
     
     func getDebugInfo() -> String {
         return """
-        Device ID: \(userDeviceId)
         Authorized: \(isAuthorized)
+        Notifications Enabled: \(enableNotifications)
         Opening Soon Sound: \(enableSoundsForOpeningSoon)
         Closing Soon Sound: \(enableSoundsForClosingSoon)
         """

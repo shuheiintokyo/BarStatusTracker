@@ -17,9 +17,6 @@ class BarViewModel: ObservableObject {
     // Biometric authentication manager
     private var biometricAuth = BiometricAuthManager()
     
-    // User preferences manager for favorites
-    @Published var userPreferencesManager = UserPreferencesManager()
-    
     // Notification manager
     @Published var notificationManager: NotificationManager?
     
@@ -35,8 +32,6 @@ class BarViewModel: ObservableObject {
         startScheduleMonitoring()
         startAutoTransitionMonitoring()
         startUIUpdateTimer()
-        
-        userPreferencesManager.setFirebaseManager(firebaseManager)
     }
     
     deinit {
@@ -162,7 +157,7 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Schedule Enforcement (NEW)
+    // MARK: - Schedule Enforcement
     
     private func ensureBarsFollowScheduleOnClosedDays() {
         let today = getCurrentWeekDay()
@@ -205,7 +200,7 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Enhanced Notification System
+    // MARK: - Simplified Notification System
     
     private func sendStatusChangeNotification(bar: Bar, oldStatus: BarStatus, newStatus: BarStatus) {
         // Only send notifications for Opening Soon and Closing Soon
@@ -214,7 +209,7 @@ class BarViewModel: ObservableObject {
             return
         }
         
-        // Send notification
+        // Send notification to all users since we removed favorites
         NotificationCenter.default.post(
             name: .barStatusChanged,
             object: nil,
@@ -230,7 +225,7 @@ class BarViewModel: ObservableObject {
         print("📢 Posted notification for \(bar.name): \(oldStatus.displayName) → \(newStatus.displayName)")
     }
     
-    // MARK: - Auto-transition Monitoring (Enhanced)
+    // MARK: - Auto-transition Monitoring
     
     private func startAutoTransitionMonitoring() {
         // Check for manual auto-transitions every 10 seconds
@@ -283,14 +278,13 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Firebase Integration (Enhanced)
+    // MARK: - Firebase Integration
     
     private func setupFirebaseConnection() {
         firebaseManager.$bars
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bars in
                 self?.bars = bars
-                self?.syncFavoritesForAllBars()
                 
                 // Force any closed bars on days they shouldn't be open to follow schedule
                 self?.ensureBarsFollowScheduleOnClosedDays()
@@ -302,16 +296,6 @@ class BarViewModel: ObservableObject {
             .assign(to: &$isLoading)
         
         setupBiometricAuth()
-    }
-    
-    private func syncFavoritesForAllBars() {
-        let barIds = bars.map { $0.id }
-        userPreferencesManager.syncAllFavoriteStatuses(for: barIds)
-        
-        // Force refresh favorites to ensure they're in sync
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.userPreferencesManager.forceRefreshFavorites()
-        }
     }
     
     // MARK: - Notification Manager Integration
@@ -422,54 +406,6 @@ class BarViewModel: ObservableObject {
                 }
             }
         }
-    }
-    
-    // MARK: - Enhanced Favorites System (Fixed)
-    
-    func toggleFavorite(barId: String, completion: @escaping (Bool) -> Void = { _ in }) {
-        print("🔄 BarViewModel: Toggling favorite for \(barId)")
-        
-        userPreferencesManager.toggleFavorite(barId: barId) { [weak self] isNowFavorited in
-            DispatchQueue.main.async {
-                self?.objectWillChange.send()
-                print("🔄 BarViewModel: Favorite toggle completed for \(barId): \(isNowFavorited)")
-            }
-            
-            completion(isNowFavorited)
-            
-            // Send test notification if favorited for the first time
-            if isNowFavorited {
-                self?.sendTestNotificationForNewFavorite(barId: barId)
-            }
-        }
-    }
-    
-    private func sendTestNotificationForNewFavorite(barId: String) {
-        guard let bar = bars.first(where: { $0.id == barId }),
-              let notificationManager = notificationManager else { return }
-        
-        // Send a welcome notification
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            notificationManager.scheduleBarStatusNotification(
-                barName: bar.name,
-                newStatus: .openingSoon  // Test with Opening Soon
-            )
-        }
-    }
-    
-    func getFavoriteCount(for barId: String) -> Int {
-        return firebaseManager.getFavoriteCount(for: barId)
-    }
-    
-    func isFavorite(barId: String) -> Bool {
-        let result = userPreferencesManager.isFavorite(barId: barId)
-        print("🔍 BarViewModel: Checking if \(barId) is favorite: \(result)")
-        return result
-    }
-    
-    // FIXED: Get favorites method for BarGridView
-    func getFavoriteBarIds() -> Set<String> {
-        return userPreferencesManager.getFavoriteBarIds()
     }
     
     // MARK: - Bar Property Updates
@@ -603,31 +539,22 @@ class BarViewModel: ObservableObject {
         return [loggedInBar]
     }
     
-    func getBasicAnalytics(for barId: String, completion: @escaping ([String: Any]) -> Void) {
-        firebaseManager.getBasicAnalytics(for: barId, completion: completion)
-    }
-    
-    // MARK: - Public Biometric Access Methods (Add these to BarViewModel.swift)
+    // MARK: - Public Biometric Access Methods
 
-    // Public method to get saved bar ID
     var savedBiometricBarID: String? {
         return biometricAuth.savedBarID
     }
 
-    // Check if a specific bar exists and matches saved credentials
     func isValidBiometricBar() -> Bool {
         guard let savedBarID = biometricAuth.savedBarID,
               !savedBarID.isEmpty else {
             return false
         }
         
-        // Check if the saved bar still exists in the current bars list
         return bars.contains { $0.id == savedBarID }
     }
 
-    // FIXED: Better biometric authentication method
     func authenticateWithBiometrics(completion: @escaping (Bool, String?) -> Void) {
-        // Validate that we have proper biometric setup
         guard biometricAuth.isAvailable else {
             completion(false, "Biometric authentication not properly set up")
             return
@@ -638,7 +565,6 @@ class BarViewModel: ObservableObject {
             return
         }
         
-        // Authenticate with biometrics first
         biometricAuth.authenticateWithBiometrics { [weak self] success, error in
             DispatchQueue.main.async {
                 guard let self = self else {
@@ -647,14 +573,12 @@ class BarViewModel: ObservableObject {
                 }
                 
                 if success {
-                    // Look up the bar with the saved ID
                     if let bar = self.bars.first(where: { $0.id == savedBarID }) {
                         self.loggedInBar = bar
                         self.isOwnerMode = true
                         completion(true, nil)
                         print("✅ Biometric authentication successful for: \(bar.name)")
                     } else {
-                        // The saved bar no longer exists - clear credentials
                         print("❌ Saved bar no longer exists, clearing credentials")
                         self.biometricAuth.clearCredentials()
                         completion(false, "Your saved bar is no longer available. Please log in manually.")
@@ -666,58 +590,19 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Legacy Support (Deprecated but kept for compatibility)
+    // MARK: - Legacy Support
     
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
-        // Redirect to new manual status method
         setManualBarStatus(bar, newStatus: newStatus)
     }
     
-    // MARK: - Debug Methods (Enhanced)
-    
-    func debugBarStatus(for barId: String) {
-        guard let bar = bars.first(where: { $0.id == barId }) else {
-            print("❌ Bar \(barId) not found")
-            return
-        }
-        
-        let today = getCurrentWeekDay()
-        let todayHours = bar.operatingHours.getDayHours(for: today)
-        
-        print("🔍 Bar Status Debug for \(bar.name):")
-        print("   Current Status: \(bar.status.displayName)")
-        print("   Following Schedule: \(bar.isFollowingSchedule)")
-        print("   Manual Status: \(bar.manualStatus?.displayName ?? "None")")
-        print("   Schedule Status: \(bar.scheduleBasedStatus.displayName)")
-        print("   Today (\(today.displayName)): \(todayHours.isOpen ? "Open \(todayHours.displayText)" : "Closed")")
-        print("   Last Updated: \(bar.lastUpdated)")
-        
-        // Debug favorites
-        print("   Is Favorited: \(isFavorite(barId: barId))")
-        print("   Favorite Count: \(getFavoriteCount(for: barId))")
-    }
-    
-    func debugFavorites() {
-        userPreferencesManager.debugPrintStatus()
-        print("📊 Firebase favorite counts: \(firebaseManager.favoriteCounts)")
-        
-        // Check specific bars
-        print("\n🔍 Individual Bar Favorite Checks:")
-        for bar in bars {
-            print("   \(bar.name): Local=\(userPreferencesManager.isFavorite(barId: bar.id)), Firebase=\(getFavoriteCount(for: bar.id))")
-        }
-    }
-    
-    // MARK: - Force Refresh Method (NEW)
+    // MARK: - Force Refresh Method
     
     func forceRefreshAllData() {
         print("🔄 Force refreshing all data...")
         
         // Refresh Firebase data
         firebaseManager.fetchBars()
-        
-        // Refresh favorites
-        userPreferencesManager.forceRefreshFavorites()
         
         // Check for schedule changes
         checkForScheduleBasedStatusChanges()
@@ -727,28 +612,5 @@ class BarViewModel: ObservableObject {
         
         // Update UI
         objectWillChange.send()
-    }
-    
-    // MARK: - Debugging All Systems
-    
-    func debugAllSystems() {
-        print("\n🔍 =============== FULL SYSTEM DEBUG ===============")
-        
-        print("\n📊 General Info:")
-        print("   Total bars: \(bars.count)")
-        print("   Logged in: \(loggedInBar?.name ?? "None")")
-        print("   Owner mode: \(isOwnerMode)")
-        print("   Today: \(getCurrentWeekDay().displayName)")
-        
-        print("\n📊 Bars Status:")
-        for bar in bars {
-            debugBarStatus(for: bar.id)
-            print("") // Empty line for separation
-        }
-        
-        print("\n📊 Favorites Debug:")
-        debugFavorites()
-        
-        print("\n🔍 =============== END DEBUG ===============\n")
     }
 }
