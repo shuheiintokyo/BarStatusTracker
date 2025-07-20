@@ -25,6 +25,15 @@ struct CreateBarView: View {
     @State private var alertMessage = ""
     @State private var currentPage = 0
     
+    // ENHANCED: Biometric testing state
+    @State private var isTestingBiometric = false
+    @State private var biometricTestResult: BiometricTestResult?
+    
+    enum BiometricTestResult {
+        case success
+        case failed
+    }
+    
     var canProceedFromPage: Bool {
         switch currentPage {
         case 0: return !barName.isEmpty && password.count == 4
@@ -127,7 +136,7 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Page 1: Basic Info + FaceID
+    // MARK: - Page 1: Basic Info + ENHANCED FaceID
     var basicInfoAndFaceIDPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -184,30 +193,77 @@ struct CreateBarView: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    // FaceID Setup (if available)
+                    // ENHANCED: FaceID Setup with actual testing
                     if barViewModel.biometricAuthInfo.displayName != "Biometric" {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Quick Access (Optional)")
                                 .font(.headline)
                             
-                            Toggle(isOn: $enableFaceIDLogin) {
-                                HStack {
-                                    Image(systemName: barViewModel.biometricAuthInfo.iconName)
-                                        .foregroundColor(.blue)
-                                        .font(.title2)
-                                    
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Enable \(barViewModel.biometricAuthInfo.displayName)")
-                                            .font(.subheadline)
-                                            .fontWeight(.medium)
+                            VStack(spacing: 16) {
+                                Toggle(isOn: $enableFaceIDLogin) {
+                                    HStack {
+                                        Image(systemName: barViewModel.biometricAuthInfo.iconName)
+                                            .foregroundColor(.blue)
+                                            .font(.title2)
                                         
-                                        Text("Quick login without entering password")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Enable \(barViewModel.biometricAuthInfo.displayName)")
+                                                .font(.subheadline)
+                                                .fontWeight(.medium)
+                                            
+                                            Text("Quick login without entering password")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                }
+                                .toggleStyle(SwitchToggleStyle())
+                                .onChange(of: enableFaceIDLogin) { _, newValue in
+                                    if !newValue {
+                                        // Reset test result when disabled
+                                        biometricTestResult = nil
+                                    }
+                                }
+                                
+                                // NEW: Test Face ID when enabled
+                                if enableFaceIDLogin {
+                                    Button(action: testBiometricAuth) {
+                                        HStack {
+                                            if isTestingBiometric {
+                                                ProgressView()
+                                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                    .scaleEffect(0.8)
+                                            } else {
+                                                Image(systemName: biometricTestResult == .success ? "checkmark.circle.fill" : barViewModel.biometricAuthInfo.iconName)
+                                            }
+                                            
+                                            Text(isTestingBiometric ? "Testing..." : "Test \(barViewModel.biometricAuthInfo.displayName)")
+                                        }
+                                        .font(.subheadline)
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(biometricTestResult == .success ? Color.green : Color.blue)
+                                        .cornerRadius(10)
+                                    }
+                                    .disabled(isTestingBiometric)
+                                    
+                                    // Show test result
+                                    if let result = biometricTestResult {
+                                        HStack {
+                                            Image(systemName: result == .success ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                                .foregroundColor(result == .success ? .green : .orange)
+                                            
+                                            Text(result == .success ?
+                                                 "\(barViewModel.biometricAuthInfo.displayName) is working!" :
+                                                 "Please enable \(barViewModel.biometricAuthInfo.displayName) in Settings")
+                                                .font(.caption)
+                                                .foregroundColor(result == .success ? .green : .orange)
+                                        }
+                                        .padding(.top, 4)
                                     }
                                 }
                             }
-                            .toggleStyle(SwitchToggleStyle())
                             .padding()
                             .background(Color.blue.opacity(0.05))
                             .cornerRadius(12)
@@ -368,7 +424,11 @@ struct CreateBarView: View {
                     SummarySection(title: "Basic Information") {
                         InfoRow(label: "Bar Name", value: barName)
                         InfoRow(label: "Password", value: "••••")
-                        InfoRow(label: "Quick Access", value: enableFaceIDLogin ? "Enabled" : "Manual login only")
+                        InfoRow(label: "Quick Access", value: enableFaceIDLogin ?
+                                (biometricTestResult == .success ?
+                                 "✅ \(barViewModel.biometricAuthInfo.displayName) Enabled" :
+                                 "⚠️ \(barViewModel.biometricAuthInfo.displayName) (Not Tested)") :
+                                "Manual login only")
                     }
                     
                     // Location Info
@@ -397,9 +457,63 @@ struct CreateBarView: View {
                     }
                 }
                 
+                // ENHANCED: Biometric setup warning if enabled but not tested
+                if enableFaceIDLogin && biometricTestResult != .success {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("Biometric Setup Incomplete")
+                                .font(.headline)
+                                .foregroundColor(.orange)
+                        }
+                        
+                        Text("\(barViewModel.biometricAuthInfo.displayName) is enabled but hasn't been tested successfully. You may need to set it up manually after creating your bar.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Button("Test Now") {
+                            testBiometricAuth()
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(10)
+                }
+                
                 Spacer(minLength: 50)
             }
             .padding()
+        }
+    }
+    
+    // MARK: - ENHANCED: Biometric Test Method
+    private func testBiometricAuth() {
+        isTestingBiometric = true
+        
+        let context = LAContext()
+        var error: NSError?
+        
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
+            biometricTestResult = .failed
+            isTestingBiometric = false
+            return
+        }
+        
+        let reason = "Test \(barViewModel.biometricAuthInfo.displayName) for bar access"
+        
+        context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason) { success, error in
+            DispatchQueue.main.async {
+                isTestingBiometric = false
+                biometricTestResult = success ? .success : .failed
+                
+                if !success {
+                    // If test fails, disable the toggle
+                    enableFaceIDLogin = false
+                }
+            }
         }
     }
     
@@ -426,6 +540,9 @@ struct CreateBarView: View {
             return
         }
         
+        // ENHANCED: Only enable Face ID if it was successfully tested
+        let finalEnableFaceID = enableFaceIDLogin && biometricTestResult == .success
+        
         // Create BarLocation object
         let barLocation = BarLocation(
             country: selectedCountry.name,
@@ -448,7 +565,7 @@ struct CreateBarView: View {
         )
         
         // Create bar in Firebase
-        barViewModel.createNewBar(newBar, enableFaceID: enableFaceIDLogin) { success, message in
+        barViewModel.createNewBar(newBar, enableFaceID: finalEnableFaceID) { success, message in
             DispatchQueue.main.async {
                 isCreating = false
                 alertMessage = message
@@ -479,7 +596,7 @@ struct SummarySection<Content: View>: View {
     }
 }
 
-// MARK: - Info Row Component (same as before)
+// MARK: - Info Row Component
 struct InfoRow: View {
     let label: String
     let value: String

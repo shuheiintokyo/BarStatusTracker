@@ -11,23 +11,45 @@ struct MainContentView: View {
     @State private var showingBiometricNotRegistered = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Header with navigation icons
-            headerSection
+        ZStack {
+            // Modern gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(.systemBackground),
+                    Color(.systemGray6).opacity(0.3)
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
-            // Guest mode info banner (when owner is viewing as guest)
-            if barViewModel.loggedInBar != nil && !barViewModel.isOwnerMode {
-                guestModeBanner
-            }
-            
-            // Main Content - Just the bars list (NO ACTION CARDS)
-            ScrollView {
-                barsOnlyGrid
-            }
-            
-            // Bottom text
-            if !barViewModel.getAllBars().isEmpty {
-                bottomText
+            VStack(spacing: 0) {
+                // Enhanced header with modern design
+                modernHeaderSection
+                
+                // Guest mode info banner (when owner is viewing as guest)
+                if barViewModel.loggedInBar != nil && !barViewModel.isOwnerMode {
+                    modernGuestModeBanner
+                }
+                
+                // Main Content with enhanced styling
+                ScrollView {
+                    LazyVStack(spacing: 20) {
+                        // Quick stats card
+                        if !barViewModel.getAllBars().isEmpty {
+                            quickStatsCard
+                        }
+                        
+                        // Bars grid with improved styling
+                        modernBarsGrid
+                        
+                        // Enhanced bottom statistics
+                        if !barViewModel.getAllBars().isEmpty {
+                            modernBottomStats
+                        }
+                    }
+                    .padding(.top, 10)
+                }
             }
         }
         .sheet(isPresented: $showingOwnerLogin) {
@@ -62,120 +84,186 @@ struct MainContentView: View {
         }
     }
     
-    // MARK: - Header Section (UPDATED with schedule-aware info)
-    var headerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Bar Status Tracker")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+    // MARK: - Modern Header Section
+    var modernHeaderSection: some View {
+        VStack(spacing: 0) {
+            // Main header
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 8) {
+                    // App title with modern typography
+                    Text("Bar Status")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
                     
-                    // UPDATED: Schedule-aware subtitle
+                    Text("Tracker")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundColor(.blue)
+                        .offset(x: 8)
+                    
+                    // Enhanced subtitle with live data
                     let totalBars = barViewModel.getAllBars().count
                     let openToday = barViewModel.getAllBars().filter { $0.isOpenToday }.count
+                    let openNow = barViewModel.getAllBars().filter { $0.status == .open || $0.status == .openingSoon }.count
                     
-                    if totalBars > 0 {
-                        Text("Following \(totalBars) \(totalBars == 1 ? "bar" : "bars") • \(openToday) open today")
+                    HStack(spacing: 4) {
+                        Text("Following")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
-                    } else {
-                        Text("No bars available yet")
+                        
+                        Text("\(totalBars)")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+                        
+                        Text("bars")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+                        
+                        if totalBars > 0 {
+                            Text("•")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("\(openNow)")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.green)
+                            
+                            Text("open now")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
                 Spacer()
                 
-                // Simple navigation icons (like in screenshot)
-                HStack(spacing: 12) {
-                    // New Bar icon
-                    Button(action: { showingCreateBar = true }) {
-                        ZStack {
-                            Circle()
-                                .fill(.purple)
-                                .frame(width: 40, height: 40)
-                            Image(systemName: "plus")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
-                        }
+                // Modern navigation icons
+                modernNavigationIcons
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            
+            // Subtle separator
+            Rectangle()
+                .fill(Color.gray.opacity(0.1))
+                .frame(height: 1)
+        }
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 1, y: 1)
+        )
+    }
+    
+    // MARK: - Modern Navigation Icons
+    var modernNavigationIcons: some View {
+        HStack(spacing: 12) {
+            // Create Bar - Enhanced
+            ModernNavButton(
+                icon: "plus",
+                gradient: [.purple, .pink],
+                action: { showingCreateBar = true }
+            )
+            
+            // Search - Enhanced
+            ModernNavButton(
+                icon: "magnifyingglass",
+                gradient: [.orange, .red],
+                action: { showingSearchBars = true }
+            )
+            
+            // Browse - Enhanced
+            ModernNavButton(
+                icon: "globe",
+                gradient: [.green, .teal],
+                action: { showingBrowseByLocation = true }
+            )
+            
+            // Biometric - Enhanced
+            ModernNavButton(
+                icon: "faceid",
+                gradient: [.blue, .cyan],
+                action: { handleBiometricLogin() }
+            )
+            
+            // Auth - Enhanced
+            ModernNavButton(
+                icon: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key",
+                gradient: barViewModel.isOwnerMode ? [.red, .pink] : [.indigo, .blue],
+                action: {
+                    if barViewModel.isOwnerMode {
+                        showLogoutOptions()
+                    } else {
+                        showingOwnerLogin = true
                     }
-                    
-                    // Search icon
-                    Button(action: { showingSearchBars = true }) {
-                        ZStack {
-                            Circle()
-                                .fill(.orange)
-                                .frame(width: 40, height: 40)
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    
-                    // Browse by location icon
-                    Button(action: { showingBrowseByLocation = true }) {
-                        ZStack {
-                            Circle()
-                                .fill(.green)
-                                .frame(width: 40, height: 40)
-                            Image(systemName: "globe")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    
-                    // Quick biometric access icon
-                    Button(action: { handleBiometricLogin() }) {
-                        ZStack {
-                            Circle()
-                                .fill(.blue)
-                                .frame(width: 40, height: 40)
-                            Image(systemName: "faceid")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    
-                    // Login/Logout button
-                    authenticationButton
+                }
+            )
+        }
+    }
+    
+    // MARK: - Quick Stats Card
+    var quickStatsCard: some View {
+        let stats = barViewModel.getBarStatistics()
+        
+        return VStack(spacing: 16) {
+            HStack {
+                Text("Quick Overview")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                Spacer()
+                Image(systemName: "chart.bar.fill")
+                    .foregroundColor(.blue)
+            }
+            
+            HStack(spacing: 16) {
+                StatCard(
+                    title: "Total",
+                    value: "\(stats.totalBars)",
+                    icon: "building.2.fill",
+                    color: .blue
+                )
+                
+                StatCard(
+                    title: "Open Now",
+                    value: "\(stats.openNow)",
+                    icon: "checkmark.circle.fill",
+                    color: .green
+                )
+                
+                StatCard(
+                    title: "Open Today",
+                    value: "\(stats.openToday)",
+                    icon: "calendar.circle.fill",
+                    color: .orange
+                )
+                
+                if stats.manualOverrides > 0 {
+                    StatCard(
+                        title: "Manual",
+                        value: "\(stats.manualOverrides)",
+                        icon: "hand.raised.fill",
+                        color: .purple
+                    )
                 }
             }
         }
         .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
+        )
+        .padding(.horizontal)
     }
     
-    // MARK: - Guest Mode Banner
-    var guestModeBanner: some View {
-        HStack {
-            Image(systemName: "info.circle.fill")
-                .foregroundColor(.blue)
-            
-            Text("Viewing as guest - you're still logged in")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            Spacer()
-            
-            Button("Back to Owner View") {
-                barViewModel.switchToOwnerView()
-            }
-            .font(.subheadline)
-            .foregroundColor(.blue)
-        }
-        .padding()
-        .background(Color.blue.opacity(0.1))
-    }
-    
-    // MARK: - Bars Only Grid (NO ACTION CARDS)
-    var barsOnlyGrid: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 15), count: 2)
+    // MARK: - Modern Bars Grid
+    var modernBarsGrid: some View {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
         
-        return LazyVGrid(columns: columns, spacing: 15) {
-            // ONLY show actual bars - NO action cards
+        return LazyVGrid(columns: columns, spacing: 16) {
             ForEach(barViewModel.getAllBars()) { bar in
-                BarGridItem(
+                ModernBarCard(
                     bar: bar,
                     isOwnerMode: barViewModel.isOwnerMode,
                     barViewModel: barViewModel,
@@ -187,59 +275,107 @@ struct MainContentView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.top, 20)
     }
     
-    // MARK: - Bottom Text (UPDATED with schedule awareness)
-    var bottomText: some View {
+    // MARK: - Modern Guest Mode Banner
+    var modernGuestModeBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "info.circle.fill")
+                .foregroundColor(.blue)
+                .font(.title3)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Guest Mode")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Text("You're still logged in as owner")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Button("Switch Back") {
+                barViewModel.switchToOwnerView()
+            }
+            .font(.caption)
+            .fontWeight(.medium)
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.blue)
+            .cornerRadius(8)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.blue.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+    
+    // MARK: - Modern Bottom Stats
+    var modernBottomStats: some View {
         let allBars = barViewModel.getAllBars()
         let barCount = allBars.count
         let openNow = allBars.filter { $0.status == .open || $0.status == .openingSoon }.count
         let manualOverrides = allBars.filter { !$0.isFollowingSchedule }.count
+        let autoTransitions = allBars.filter { $0.isAutoTransitionActive }.count
         
-        return VStack(spacing: 8) {
+        return VStack(spacing: 16) {
             Text("You have \(barCount) favorite \(barCount == 1 ? "bar" : "bars")")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.headline)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
             
             if barCount > 0 {
                 HStack(spacing: 16) {
-                    Text("\(openNow) open now")
-                        .font(.caption)
-                        .foregroundColor(.green)
+                    ModernStatBadge(
+                        icon: "checkmark.circle.fill",
+                        text: "\(openNow) open",
+                        color: .green
+                    )
+                    
+                    ModernStatBadge(
+                        icon: "calendar.circle.fill",
+                        text: "Today",
+                        color: .blue
+                    )
                     
                     if manualOverrides > 0 {
-                        Text("\(manualOverrides) manual override\(manualOverrides == 1 ? "" : "s")")
-                            .font(.caption)
-                            .foregroundColor(.orange)
+                        ModernStatBadge(
+                            icon: "hand.raised.fill",
+                            text: "\(manualOverrides) manual",
+                            color: .orange
+                        )
+                    }
+                    
+                    if autoTransitions > 0 {
+                        ModernStatBadge(
+                            icon: "timer",
+                            text: "\(autoTransitions) auto",
+                            color: .purple
+                        )
                     }
                 }
             }
         }
-        .padding(.vertical, 20)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 5, y: 2)
+        )
+        .padding(.horizontal)
+        .padding(.bottom, 20)
     }
     
-    // MARK: - Authentication Button
-    var authenticationButton: some View {
-        Button(action: {
-            if barViewModel.isOwnerMode {
-                showLogoutOptions()
-            } else {
-                showingOwnerLogin = true
-            }
-        }) {
-            ZStack {
-                Circle()
-                    .fill(barViewModel.isOwnerMode ? .red : .blue)
-                    .frame(width: 40, height: 40)
-                Image(systemName: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
-                    .font(.system(size: 18))
-                    .foregroundColor(.white)
-            }
-        }
-    }
-    
-    // MARK: - Helper Methods
+    // MARK: - Helper Methods (unchanged)
     
     private func handleBiometricLogin() {
         guard barViewModel.isValidBiometricBar() else {
@@ -277,6 +413,217 @@ struct MainContentView: View {
            let window = windowScene.windows.first {
             window.rootViewController?.present(alert, animated: true)
         }
+    }
+}
+
+// MARK: - Modern UI Components
+
+struct ModernNavButton: View {
+    let icon: String
+    let gradient: [Color]
+    let action: () -> Void
+    
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = true
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isPressed = false
+                }
+                action()
+            }
+            
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        }) {
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(
+                        gradient: Gradient(colors: gradient),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .frame(width: 44, height: 44)
+                    .shadow(color: gradient.first?.opacity(0.3) ?? .clear, radius: 4, y: 2)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(.white)
+            }
+            .scaleEffect(isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
+        }
+    }
+}
+
+struct StatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.title2)
+                .fontWeight(.bold)
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(color.opacity(0.3), lineWidth: 1)
+                )
+        )
+    }
+}
+
+struct ModernBarCard: View {
+    let bar: Bar
+    let isOwnerMode: Bool
+    @ObservedObject var barViewModel: BarViewModel
+    let onTap: () -> Void
+    
+    @State private var isPressed = false
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.1)) {
+                isPressed = true
+            }
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isPressed = false
+                }
+                onTap()
+            }
+            
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        }) {
+            VStack(spacing: 0) {
+                // Status header
+                HStack {
+                    Image(systemName: bar.isFollowingSchedule ? "calendar" : "hand.raised.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.8))
+                    
+                    Spacer()
+                    
+                    if bar.isAutoTransitionActive {
+                        Image(systemName: "timer")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                }
+                .padding(.top, 12)
+                .padding(.horizontal, 12)
+                
+                Spacer()
+                
+                // Status icon
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.25))
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: bar.status.icon)
+                        .font(.title2)
+                        .foregroundColor(.white)
+                }
+                
+                Spacer()
+                
+                // Bar info
+                VStack(spacing: 6) {
+                    Text(bar.name)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    
+                    Text(bar.status.displayName)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.9))
+                        .fontWeight(.medium)
+                    
+                    if let todaysSchedule = bar.todaysSchedule {
+                        Text(todaysSchedule.isOpen ? "Open today" : "Closed today")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(Color.white.opacity(0.2))
+                            .cornerRadius(8)
+                    }
+                }
+                .padding(.bottom, 16)
+            }
+            .frame(height: 140)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(LinearGradient(
+                        gradient: Gradient(colors: [
+                            bar.status.color,
+                            bar.status.color.opacity(0.8)
+                        ]),
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .shadow(color: bar.status.color.opacity(0.3), radius: 8, y: 4)
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct ModernStatBadge: View {
+    let icon: String
+    let text: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundColor(color)
+            
+            Text(text)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(color.opacity(0.15))
+                .overlay(
+                    Capsule()
+                        .stroke(color.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
 }
 
