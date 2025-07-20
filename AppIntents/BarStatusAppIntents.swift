@@ -1,7 +1,7 @@
 import AppIntents
 import Foundation
 
-// MARK: - Bar Status App Intents (Simplified)
+// MARK: - Updated Bar Status App Intents for 7-Day Schedule System
 
 @available(iOS 16.0, *)
 struct SetBarStatusIntent: AppIntent {
@@ -13,7 +13,6 @@ struct SetBarStatusIntent: AppIntent {
     
     @MainActor
     func perform() async throws -> some IntentResult {
-        // Get the current logged-in bar (this would be enhanced with proper user context)
         let barViewModel = BarViewModel()
         
         guard let loggedInBar = barViewModel.loggedInBar else {
@@ -23,8 +22,8 @@ struct SetBarStatusIntent: AppIntent {
         // Convert entity to BarStatus
         let newStatus = status.toBarStatus()
         
-        // Update the status
-        barViewModel.updateBarStatus(loggedInBar, newStatus: newStatus)
+        // Update the status (this will set a manual override)
+        barViewModel.setManualBarStatus(loggedInBar, newStatus: newStatus)
         
         let message = "Set \(loggedInBar.name) status to \(newStatus.displayName)"
         
@@ -60,11 +59,13 @@ struct CheckBarStatusIntent: AppIntent {
             }
         }
         
-        // Add today's regular hours if available
-        if bar.isOpenToday {
-            message += ". Regular hours today: \(bar.todaysHours.displayText)"
-        } else {
-            message += ". Normally closed today"
+        // Add today's schedule if available
+        if let todaysSchedule = bar.todaysSchedule {
+            if todaysSchedule.isOpen {
+                message += ". Today's hours: \(todaysSchedule.displayText)"
+            } else {
+                message += ". Closed today"
+            }
         }
         
         return .result(dialog: IntentDialog(message))
@@ -97,10 +98,154 @@ struct GetOpenBarsIntent: AppIntent {
     }
 }
 
+// MARK: - NEW: Check Today's Schedule Intent
+@available(iOS 16.0, *)
+struct CheckTodaysScheduleIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check Today's Schedule"
+    static var description = IntentDescription("Check your bar's schedule for today")
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        
+        guard let loggedInBar = barViewModel.loggedInBar else {
+            throw AppIntentError.barNotFound
+        }
+        
+        guard let todaysSchedule = loggedInBar.todaysSchedule else {
+            return .result(dialog: IntentDialog("No schedule set for today"))
+        }
+        
+        let dayName = todaysSchedule.dayName
+        let message: String
+        
+        if todaysSchedule.isOpen {
+            message = "Today (\(dayName)), \(loggedInBar.name) is scheduled to be open from \(todaysSchedule.openTime) to \(todaysSchedule.closeTime)"
+        } else {
+            message = "Today (\(dayName)), \(loggedInBar.name) is scheduled to be closed"
+        }
+        
+        return .result(dialog: IntentDialog(message))
+    }
+}
+
+// MARK: - NEW: Check This Week's Schedule Intent
+@available(iOS 16.0, *)
+struct CheckWeekScheduleIntent: AppIntent {
+    static var title: LocalizedStringResource = "Check Week Schedule"
+    static var description = IntentDescription("Check your bar's schedule for this week")
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        
+        guard let loggedInBar = barViewModel.loggedInBar else {
+            throw AppIntentError.barNotFound
+        }
+        
+        let weekSchedule = loggedInBar.weeklySchedule
+        let openDays = weekSchedule.schedules.filter { $0.isOpen }
+        
+        if openDays.isEmpty {
+            return .result(dialog: IntentDialog("\(loggedInBar.name) is closed all week"))
+        }
+        
+        let daysList = openDays.map { schedule in
+            "\(schedule.shortDayName) \(schedule.displayDate)"
+        }.joined(separator: ", ")
+        
+        let message = "\(loggedInBar.name) is open \(openDays.count) days this week: \(daysList)"
+        
+        return .result(dialog: IntentDialog(message))
+    }
+}
+
+// MARK: - NEW: Update Today's Hours Intent
+@available(iOS 16.0, *)
+struct UpdateTodaysHoursIntent: AppIntent {
+    static var title: LocalizedStringResource = "Update Today's Hours"
+    static var description = IntentDescription("Update your bar's hours for today")
+    
+    @Parameter(title: "Open Time")
+    var openTime: String?
+    
+    @Parameter(title: "Close Time")
+    var closeTime: String?
+    
+    @Parameter(title: "Is Open Today")
+    var isOpen: Bool
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        
+        guard let loggedInBar = barViewModel.loggedInBar else {
+            throw AppIntentError.barNotFound
+        }
+        
+        var updatedSchedule = loggedInBar.weeklySchedule
+        
+        // Find today's schedule and update it
+        guard let todayIndex = updatedSchedule.schedules.firstIndex(where: { $0.isToday }) else {
+            throw AppIntentError.invalidDay
+        }
+        
+        // Update today's schedule
+        updatedSchedule.schedules[todayIndex].isOpen = isOpen
+        
+        if let openTime = openTime {
+            updatedSchedule.schedules[todayIndex].openTime = openTime
+        }
+        
+        if let closeTime = closeTime {
+            updatedSchedule.schedules[todayIndex].closeTime = closeTime
+        }
+        
+        // Update the bar's schedule
+        barViewModel.updateBarSchedule(loggedInBar, newSchedule: updatedSchedule)
+        
+        let scheduleText = isOpen ?
+            "open from \(updatedSchedule.schedules[todayIndex].openTime) to \(updatedSchedule.schedules[todayIndex].closeTime)" :
+            "closed"
+        
+        let message = "Updated \(loggedInBar.name) to be \(scheduleText) today"
+        
+        return .result(dialog: IntentDialog(message))
+    }
+}
+
+// MARK: - NEW: Return to Schedule Intent
+@available(iOS 16.0, *)
+struct ReturnToScheduleIntent: AppIntent {
+    static var title: LocalizedStringResource = "Follow Schedule"
+    static var description = IntentDescription("Return your bar to following its regular schedule")
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        
+        guard let loggedInBar = barViewModel.loggedInBar else {
+            throw AppIntentError.barNotFound
+        }
+        
+        let oldStatus = loggedInBar.status
+        barViewModel.setBarToFollowSchedule(loggedInBar)
+        
+        // Get the updated bar to see new status
+        let updatedBar = barViewModel.bars.first { $0.id == loggedInBar.id } ?? loggedInBar
+        let newStatus = updatedBar.status
+        
+        let message = "\(loggedInBar.name) is now following its schedule. Status changed from \(oldStatus.displayName) to \(newStatus.displayName)"
+        
+        return .result(dialog: IntentDialog(message))
+    }
+}
+
+// MARK: - UPDATED: Check Bar Hours Intent (for 7-day schedule)
 @available(iOS 16.0, *)
 struct CheckBarHoursIntent: AppIntent {
     static var title: LocalizedStringResource = "Check Bar Hours"
-    static var description = IntentDescription("Check a bar's regular operating hours")
+    static var description = IntentDescription("Check a bar's schedule for the week")
     
     @Parameter(title: "Bar Name")
     var barName: String
@@ -114,23 +259,27 @@ struct CheckBarHoursIntent: AppIntent {
             throw AppIntentError.barNotFound
         }
         
-        // Get today's hours
+        // Get today's schedule
         let todayMessage: String
-        if bar.isOpenToday {
-            todayMessage = "Today: \(bar.todaysHours.displayText)"
+        if let todaysSchedule = bar.todaysSchedule {
+            if todaysSchedule.isOpen {
+                todayMessage = "Today: \(todaysSchedule.displayText)"
+            } else {
+                todayMessage = "Closed today"
+            }
         } else {
-            todayMessage = "Closed today"
+            todayMessage = "No schedule for today"
         }
         
-        // Get this week's schedule
-        let openDays = WeekDay.allCases.filter { bar.operatingHours.getDayHours(for: $0).isOpen }
+        // Get this week's open days
+        let openDays = bar.weeklySchedule.schedules.filter { $0.isOpen }
         
         let weekMessage: String
         if openDays.isEmpty {
-            weekMessage = "No regular hours set"
+            weekMessage = "Closed all week"
         } else {
-            let dayNames = openDays.map { $0.shortName }.joined(separator: ", ")
-            weekMessage = "Usually open: \(dayNames)"
+            let dayNames = openDays.map { "\($0.shortDayName) \($0.displayDate)" }.joined(separator: ", ")
+            weekMessage = "Open \(openDays.count) days this week: \(dayNames)"
         }
         
         let message = "\(bar.name) - \(todayMessage). \(weekMessage)"
@@ -139,91 +288,7 @@ struct CheckBarHoursIntent: AppIntent {
     }
 }
 
-@available(iOS 16.0, *)
-struct CreateNewBarIntent: AppIntent {
-    static var title: LocalizedStringResource = "Create New Bar"
-    static var description = IntentDescription("Create a new bar profile in the app")
-    
-    @Parameter(title: "Bar Name")
-    var barName: String
-    
-    @Parameter(title: "Address")
-    var address: String
-    
-    @Parameter(title: "4-Digit Password")
-    var password: String
-    
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        let barViewModel = BarViewModel()
-        
-        // Validate password
-        guard password.count == 4 else {
-            throw AppIntentError.invalidPassword
-        }
-        
-        // Check if bar name already exists
-        if barViewModel.getAllBars().contains(where: { $0.name.lowercased() == barName.lowercased() }) {
-            throw AppIntentError.barAlreadyExists
-        }
-        
-        // Create new bar with default location (user would set specific location in app)
-        let newBar = Bar(
-            name: barName,
-            latitude: 35.6762, // Default to Tokyo
-            longitude: 139.6503,
-            address: address,
-            status: .closed,
-            description: "Created via Siri",
-            password: password
-        )
-        
-        // Create bar using Firebase
-        return await withCheckedContinuation { continuation in
-            barViewModel.createNewBar(newBar, enableFaceID: false) { success, message in
-                DispatchQueue.main.async {
-                    if success {
-                        continuation.resume(returning: .result(dialog: IntentDialog("Successfully created \(barName)! You can now log in and manage your bar in the app.")))
-                    } else {
-                        continuation.resume(returning: .result(dialog: IntentDialog("Failed to create bar: \(message)")))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@available(iOS 16.0, *)
-struct GetAllBarsIntent: AppIntent {
-    static var title: LocalizedStringResource = "List All Bars"
-    static var description = IntentDescription("Get a list of all available bars and their current status")
-    
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        let barViewModel = BarViewModel()
-        let bars = barViewModel.getAllBars()
-        
-        if bars.isEmpty {
-            return .result(dialog: IntentDialog("No bars are available in the app yet"))
-        }
-        
-        let barList = bars.prefix(10).map { bar in
-            let locationInfo = bar.location?.city ?? ""
-            let location = locationInfo.isEmpty ? "" : " in \(locationInfo)"
-            return "\(bar.name)\(location) - \(bar.status.displayName)"
-        }
-        
-        var message = "Available bars: " + barList.joined(separator: ", ")
-        
-        if bars.count > 10 {
-            message += " and \(bars.count - 10) more"
-        }
-        
-        return .result(dialog: IntentDialog(message))
-    }
-}
-
-// MARK: - Supporting Types
+// MARK: - Supporting Types (unchanged)
 
 @available(iOS 16.0, *)
 struct BarStatusEntity: AppEntity {
@@ -268,7 +333,7 @@ struct BarStatusQuery: EntityQuery {
     }
 }
 
-// MARK: - Error Types
+// MARK: - Error Types (updated)
 
 enum AppIntentError: Error, LocalizedError {
     case barNotFound
@@ -276,6 +341,8 @@ enum AppIntentError: Error, LocalizedError {
     case invalidStatus
     case invalidPassword
     case barAlreadyExists
+    case invalidDay
+    case scheduleNotFound
     
     var errorDescription: String? {
         switch self {
@@ -289,11 +356,15 @@ enum AppIntentError: Error, LocalizedError {
             return "Password must be exactly 4 digits."
         case .barAlreadyExists:
             return "A bar with this name already exists."
+        case .invalidDay:
+            return "Invalid day specified."
+        case .scheduleNotFound:
+            return "No schedule found for the specified day."
         }
     }
 }
 
-// MARK: - Shortcuts Provider (Simplified)
+// MARK: - UPDATED: Shortcuts Provider (with new intents)
 
 @available(iOS 16.0, *)
 struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
@@ -320,11 +391,51 @@ struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
                 systemImageName: "questionmark.circle"
             ),
             AppShortcut(
+                intent: CheckTodaysScheduleIntent(),
+                phrases: [
+                    "What are my bar's hours today in \(.applicationName)",
+                    "Check today's schedule in \(.applicationName)",
+                    "Am I open today in \(.applicationName)"
+                ],
+                shortTitle: "Check Today's Schedule",
+                systemImageName: "calendar.circle"
+            ),
+            AppShortcut(
+                intent: CheckWeekScheduleIntent(),
+                phrases: [
+                    "What's my schedule this week in \(.applicationName)",
+                    "Check this week's hours in \(.applicationName)",
+                    "Show my weekly schedule in \(.applicationName)"
+                ],
+                shortTitle: "Check Week Schedule",
+                systemImageName: "calendar.badge.clock"
+            ),
+            AppShortcut(
+                intent: UpdateTodaysHoursIntent(),
+                phrases: [
+                    "Update today's hours in \(.applicationName)",
+                    "Change my hours for today in \(.applicationName)",
+                    "Set today's schedule in \(.applicationName)"
+                ],
+                shortTitle: "Update Today's Hours",
+                systemImageName: "clock.badge.checkmark"
+            ),
+            AppShortcut(
+                intent: ReturnToScheduleIntent(),
+                phrases: [
+                    "Follow my schedule in \(.applicationName)",
+                    "Return to schedule in \(.applicationName)",
+                    "Stop manual override in \(.applicationName)"
+                ],
+                shortTitle: "Follow Schedule",
+                systemImageName: "calendar.badge.checkmark"
+            ),
+            AppShortcut(
                 intent: CheckBarHoursIntent(),
                 phrases: [
                     "What are \(.applicationName) hours",
                     "When is \(.applicationName) open",
-                    "Check \(.applicationName) operating hours"
+                    "Check \(.applicationName) schedule"
                 ],
                 shortTitle: "Check Bar Hours",
                 systemImageName: "clock"
@@ -340,16 +451,6 @@ struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
                 systemImageName: "list.bullet"
             ),
             AppShortcut(
-                intent: GetAllBarsIntent(),
-                phrases: [
-                    "List all bars in \(.applicationName)",
-                    "Show me all bars in \(.applicationName)",
-                    "What bars are available in \(.applicationName)"
-                ],
-                shortTitle: "List All Bars",
-                systemImageName: "building.2.crop.circle"
-            ),
-            AppShortcut(
                 intent: CreateNewBarIntent(),
                 phrases: [
                     "Create a new bar in \(.applicationName)",
@@ -360,5 +461,58 @@ struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
                 systemImageName: "plus.circle"
             )
         ]
+    }
+}
+
+// MARK: - Legacy Create Bar Intent (keep for compatibility)
+@available(iOS 16.0, *)
+struct CreateNewBarIntent: AppIntent {
+    static var title: LocalizedStringResource = "Create New Bar"
+    static var description = IntentDescription("Create a new bar profile in the app")
+    
+    @Parameter(title: "Bar Name")
+    var barName: String
+    
+    @Parameter(title: "Address")
+    var address: String
+    
+    @Parameter(title: "4-Digit Password")
+    var password: String
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        
+        // Validate password
+        guard password.count == 4 else {
+            throw AppIntentError.invalidPassword
+        }
+        
+        // Check if bar name already exists
+        if barViewModel.getAllBars().contains(where: { $0.name.lowercased() == barName.lowercased() }) {
+            throw AppIntentError.barAlreadyExists
+        }
+        
+        // Create new bar with default 7-day schedule
+        let newBar = Bar(
+            name: barName,
+            address: address,
+            description: "Created via Siri",
+            username: barName,
+            password: password
+        )
+        
+        // Create bar using Firebase
+        return await withCheckedContinuation { continuation in
+            barViewModel.createNewBar(newBar, enableFaceID: false) { success, message in
+                DispatchQueue.main.async {
+                    if success {
+                        continuation.resume(returning: .result(dialog: IntentDialog("Successfully created \(barName)! You can now log in and set your 7-day schedule in the app.")))
+                    } else {
+                        continuation.resume(returning: .result(dialog: IntentDialog("Failed to create bar: \(message)")))
+                    }
+                }
+            }
+        }
     }
 }

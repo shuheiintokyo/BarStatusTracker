@@ -87,6 +87,28 @@ class FirebaseManager: ObservableObject {
         }
     }
     
+    // MARK: - NEW: 7-Day Schedule Management
+    
+    func updateBarSchedule(barId: String, weeklySchedule: WeeklySchedule) {
+        let barRef = db.collection("bars").document(barId)
+        
+        barRef.updateData([
+            "weeklySchedule": weeklySchedule.toDictionary(),
+            "lastUpdated": Timestamp(date: Date())
+        ]) { [weak self] error in
+            if let error = error {
+                DispatchQueue.main.async {
+                    self?.errorMessage = "Error updating schedule: \(error.localizedDescription)"
+                }
+                print("❌ Firebase schedule update error: \(error.localizedDescription)")
+            } else {
+                print("✅ Successfully updated 7-day schedule for bar: \(barId)")
+            }
+        }
+    }
+    
+    // MARK: - Other Bar Property Updates
+    
     func updateBarDescription(barId: String, newDescription: String) {
         let barRef = db.collection("bars").document(barId)
         
@@ -104,19 +126,22 @@ class FirebaseManager: ObservableObject {
         }
     }
     
+    // DEPRECATED: Use updateBarSchedule instead
     func updateBarOperatingHours(barId: String, operatingHours: OperatingHours) {
+        print("⚠️ Deprecated method called: updateBarOperatingHours. This method is no longer used with the 7-day schedule system.")
+        
+        // For backward compatibility, just update timestamp
         let barRef = db.collection("bars").document(barId)
         
         barRef.updateData([
-            "operatingHours": operatingHours.toDictionary(),
             "lastUpdated": Timestamp(date: Date())
         ]) { [weak self] error in
             if let error = error {
                 DispatchQueue.main.async {
-                    self?.errorMessage = "Error updating operating hours: \(error.localizedDescription)"
+                    self?.errorMessage = "Error updating timestamp: \(error.localizedDescription)"
                 }
             } else {
-                print("✅ Successfully updated operating hours for bar: \(barId)")
+                print("✅ Updated timestamp for bar: \(barId) (deprecated operating hours call)")
             }
         }
     }

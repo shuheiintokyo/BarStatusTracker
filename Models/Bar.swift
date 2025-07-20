@@ -1,7 +1,154 @@
 import Foundation
 import FirebaseFirestore
 
-// MARK: - Operating Hours Models
+// MARK: - New 7-Day Rolling Schedule Models
+
+struct DailySchedule: Codable, Identifiable {
+    let id = UUID()
+    let date: Date
+    var isOpen: Bool = false
+    var openTime: String = "18:00" // 6 PM default
+    var closeTime: String = "06:00" // 6 AM next day default
+    
+    var displayDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
+    
+    var dayName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: date)
+    }
+    
+    var shortDayName: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: date)
+    }
+    
+    var displayText: String {
+        if !isOpen {
+            return "Closed"
+        }
+        return "\(openTime) - \(closeTime)"
+    }
+    
+    var isToday: Bool {
+        Calendar.current.isDate(date, inSameDayAs: Date())
+    }
+    
+    func toDictionary() -> [String: Any] {
+        return [
+            "date": Timestamp(date: date),
+            "isOpen": isOpen,
+            "openTime": openTime,
+            "closeTime": closeTime
+        ]
+    }
+    
+    static func fromDictionary(_ dict: [String: Any]) -> DailySchedule? {
+        guard let timestamp = dict["date"] as? Timestamp else { return nil }
+        
+        var schedule = DailySchedule(date: timestamp.dateValue())
+        schedule.isOpen = dict["isOpen"] as? Bool ?? false
+        schedule.openTime = dict["openTime"] as? String ?? "18:00"
+        schedule.closeTime = dict["closeTime"] as? String ?? "06:00"
+        return schedule
+    }
+}
+
+struct WeeklySchedule: Codable {
+    var schedules: [DailySchedule] = []
+    
+    init() {
+        generateNext7Days()
+    }
+    
+    // Generate schedule for next 7 days starting from today
+    mutating func generateNext7Days() {
+        schedules.removeAll()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        for i in 0..<7 {
+            if let date = calendar.date(byAdding: .day, value: i, to: today) {
+                schedules.append(DailySchedule(date: date))
+            }
+        }
+    }
+    
+    // Get today's schedule
+    var todaysSchedule: DailySchedule? {
+        return schedules.first { $0.isToday }
+    }
+    
+    // Get schedule for a specific date
+    func getSchedule(for date: Date) -> DailySchedule? {
+        return schedules.first { Calendar.current.isDate($0.date, inSameDayAs: date) }
+    }
+    
+    // Update schedule for a specific date
+    mutating func updateSchedule(for date: Date, with newSchedule: DailySchedule) {
+        if let index = schedules.firstIndex(where: { Calendar.current.isDate($0.date, inSameDayAs: date) }) {
+            schedules[index] = newSchedule
+        }
+    }
+    
+    // Check if we need to roll forward (if oldest date is more than 1 day old)
+    mutating func rollForwardIfNeeded() {
+        guard let oldestDate = schedules.first?.date else { return }
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        if oldestDate < today {
+            // Need to roll forward
+            let daysDifference = calendar.dateComponents([.day], from: oldestDate, to: today).day ?? 0
+            
+            if daysDifference >= 7 {
+                // Complete regeneration if more than 7 days old
+                generateNext7Days()
+            } else {
+                // Roll forward by removing old days and adding new ones
+                schedules.removeFirst(daysDifference)
+                
+                let lastDate = schedules.last?.date ?? today
+                for i in 1...daysDifference {
+                    if let newDate = calendar.date(byAdding: .day, value: i, to: lastDate) {
+                        schedules.append(DailySchedule(date: newDate))
+                    }
+                }
+            }
+        }
+    }
+    
+    func toDictionary() -> [String: Any] {
+        let schedulesArray = schedules.map { $0.toDictionary() }
+        return [
+            "schedules": schedulesArray
+        ]
+    }
+    
+    static func fromDictionary(_ dict: [String: Any]) -> WeeklySchedule {
+        var weeklySchedule = WeeklySchedule()
+        
+        if let schedulesArray = dict["schedules"] as? [[String: Any]] {
+            weeklySchedule.schedules = schedulesArray.compactMap { DailySchedule.fromDictionary($0) }
+        }
+        
+        // Ensure we have 7 days and roll forward if needed
+        weeklySchedule.rollForwardIfNeeded()
+        if weeklySchedule.schedules.count < 7 {
+            weeklySchedule.generateNext7Days()
+        }
+        
+        return weeklySchedule
+    }
+}
+
+// MARK: - Legacy Models (for migration support)
 struct OperatingHours: Codable {
     var monday: DayHours = DayHours()
     var tuesday: DayHours = DayHours()
@@ -20,18 +167,6 @@ struct OperatingHours: Codable {
         case .friday: return friday
         case .saturday: return saturday
         case .sunday: return sunday
-        }
-    }
-    
-    mutating func setDayHours(for day: WeekDay, hours: DayHours) {
-        switch day {
-        case .monday: monday = hours
-        case .tuesday: tuesday = hours
-        case .wednesday: wednesday = hours
-        case .thursday: thursday = hours
-        case .friday: friday = hours
-        case .saturday: saturday = hours
-        case .sunday: sunday = hours
         }
     }
     
@@ -131,13 +266,13 @@ struct SocialLinks: Codable {
     var website: String = ""
 }
 
-// MARK: - Enhanced Bar Model WITH Consistent Status Logic
+// MARK: - Enhanced Bar Model WITH 7-Day Schedule System
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
     let name: String
     let address: String
     
-    // ENHANCED: Status system with strict logic
+    // ENHANCED: Status system with simplified logic
     private var manualStatus: BarStatus? = nil  // nil means "follow schedule"
     private var _isFollowingSchedule: Bool = true  // ALWAYS true by default
     
@@ -151,22 +286,25 @@ struct Bar: Identifiable, Codable {
     var username: String
     var password: String
     
-    // Operating hours
-    var operatingHours: OperatingHours = OperatingHours()
+    // NEW: 7-day rolling schedule (replaces operatingHours)
+    var weeklySchedule: WeeklySchedule = WeeklySchedule()
+    
+    // LEGACY: Keep for migration support only
+    private var legacyOperatingHours: OperatingHours? = nil
     
     // Auto-transition timer fields (for manual overrides)
     var autoTransitionTime: Date?
     var pendingStatus: BarStatus?
     var isAutoTransitionActive: Bool = false
     
-    // MARK: - MAIN STATUS PROPERTY (Always computed, consistent logic)
+    // MARK: - MAIN STATUS PROPERTY (Simplified Logic)
     var status: BarStatus {
         get {
-            // If there's an active manual override AND it's from owner controls
+            // If there's an active manual override
             if !_isFollowingSchedule, let manualStatus = manualStatus {
                 return manualStatus
             } else {
-                // ALWAYS follow schedule by default
+                // ALWAYS follow today's schedule by default
                 return scheduleBasedStatus
             }
         }
@@ -182,21 +320,27 @@ struct Bar: Identifiable, Codable {
         get { manualStatus }
     }
     
-    // MARK: - Schedule-Based Status Logic (Enhanced)
+    // MARK: - Schedule-Based Status Logic (Updated for 7-Day System)
     var scheduleBasedStatus: BarStatus {
-        let now = Date()
-        let calendar = Calendar.current
-        let currentWeekday = getCurrentWeekDay()
-        let todayHours = operatingHours.getDayHours(for: currentWeekday)
+        // Ensure schedule is up to date
+        var mutableSelf = self
+        mutableSelf.weeklySchedule.rollForwardIfNeeded()
         
-        // If not scheduled to be open today, ALWAYS closed
-        guard todayHours.isOpen else {
+        guard let todaysSchedule = mutableSelf.weeklySchedule.todaysSchedule else {
             return .closed
         }
         
+        // If not scheduled to be open today, ALWAYS closed
+        guard todaysSchedule.isOpen else {
+            return .closed
+        }
+        
+        let now = Date()
+        let calendar = Calendar.current
+        
         // Get opening and closing times for today
-        guard let openTime = getTimeToday(from: todayHours.openTime),
-              let closeTime = getTimeToday(from: todayHours.closeTime) else {
+        guard let openTime = getTimeToday(from: todaysSchedule.openTime),
+              let closeTime = getTimeToday(from: todaysSchedule.closeTime) else {
             return .closed
         }
         
@@ -222,7 +366,7 @@ struct Bar: Identifiable, Codable {
         }
     }
     
-    // MARK: - STATUS CONTROL METHODS (Only for Owner)
+    // MARK: - STATUS CONTROL METHODS (Simplified)
     
     /// Set manual status override (Owner only)
     mutating func setManualStatusOverride(_ newStatus: BarStatus) {
@@ -242,12 +386,25 @@ struct Bar: Identifiable, Codable {
         print("📅 Now following schedule: \(scheduleBasedStatus.displayName)")
     }
     
+    /// Update the 7-day schedule (Owner only)
+    mutating func updateWeeklySchedule(_ newSchedule: WeeklySchedule) {
+        self.weeklySchedule = newSchedule
+        self.lastUpdated = Date()
+        
+        // If following schedule, this might change current status
+        if _isFollowingSchedule {
+            print("📅 Schedule updated, new status: \(scheduleBasedStatus.displayName)")
+        }
+    }
+    
     /// Force refresh timestamp (for schedule changes)
     mutating func refreshTimestamp() {
         self.lastUpdated = Date()
+        // Also roll forward schedule if needed
+        self.weeklySchedule.rollForwardIfNeeded()
     }
     
-    // MARK: - STATUS INFORMATION METHODS
+    // MARK: - STATUS INFORMATION METHODS (Updated)
     
     /// Get detailed status info for UI
     var statusDisplayInfo: (status: BarStatus, source: String, description: String, isConflicting: Bool) {
@@ -263,21 +420,27 @@ struct Bar: Identifiable, Codable {
                 isConflicting
             )
         } else {
-            let today = getCurrentWeekDay()
-            let todayHours = operatingHours.getDayHours(for: today)
-            
-            if todayHours.isOpen {
+            guard let todaysSchedule = weeklySchedule.todaysSchedule else {
                 return (
                     scheduleStatus,
                     "Schedule",
-                    "Based on \(today.displayName) hours",
+                    "No schedule set for today",
+                    false
+                )
+            }
+            
+            if todaysSchedule.isOpen {
+                return (
+                    scheduleStatus,
+                    "Today's Schedule",
+                    "Based on today's hours: \(todaysSchedule.displayText)",
                     false
                 )
             } else {
                 return (
                     scheduleStatus,
-                    "Schedule",
-                    "Closed on \(today.displayName)s",
+                    "Today's Schedule",
+                    "Closed today",
                     false
                 )
             }
@@ -294,13 +457,24 @@ struct Bar: Identifiable, Codable {
     
     /// Get today's operating status
     var isOpenToday: Bool {
-        let today = getCurrentWeekDay()
-        return operatingHours.getDayHours(for: today).isOpen
+        return weeklySchedule.todaysSchedule?.isOpen ?? false
     }
     
+    var todaysSchedule: DailySchedule? {
+        return weeklySchedule.todaysSchedule
+    }
+    
+    // LEGACY: Support for old property access
     var todaysHours: DayHours {
-        let today = getCurrentWeekDay()
-        return operatingHours.getDayHours(for: today)
+        guard let todaysSchedule = weeklySchedule.todaysSchedule else {
+            return DayHours()
+        }
+        
+        return DayHours(
+            isOpen: todaysSchedule.isOpen,
+            openTime: todaysSchedule.openTime,
+            closeTime: todaysSchedule.closeTime
+        )
     }
     
     // MARK: - AUTO-TRANSITION METHODS (Keep existing)
@@ -362,23 +536,48 @@ struct Bar: Identifiable, Codable {
         return calendar.date(byAdding: timeComponents, to: today)
     }
     
-    private func getCurrentWeekDay() -> WeekDay {
+    // MARK: - MIGRATION HELPERS
+    
+    /// Migrate from old OperatingHours to new WeeklySchedule
+    static func migrateOperatingHoursToWeeklySchedule(_ operatingHours: OperatingHours) -> WeeklySchedule {
+        var weeklySchedule = WeeklySchedule()
         let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: Date())
+        let today = calendar.startOfDay(for: Date())
         
-        switch weekday {
-        case 1: return WeekDay.sunday
-        case 2: return WeekDay.monday
-        case 3: return WeekDay.tuesday
-        case 4: return WeekDay.wednesday
-        case 5: return WeekDay.thursday
-        case 6: return WeekDay.friday
-        case 7: return WeekDay.saturday
-        default: return WeekDay.monday
+        // Generate 7 days starting from today and apply old weekly pattern
+        for i in 0..<7 {
+            guard let date = calendar.date(byAdding: .day, value: i, to: today) else { continue }
+            
+            let weekday = calendar.component(.weekday, from: date)
+            let oldWeekDay = mapCalendarWeekdayToOldWeekDay(weekday)
+            let oldDayHours = operatingHours.getDayHours(for: oldWeekDay)
+            
+            var dailySchedule = DailySchedule(date: date)
+            dailySchedule.isOpen = oldDayHours.isOpen
+            dailySchedule.openTime = oldDayHours.openTime
+            dailySchedule.closeTime = oldDayHours.closeTime
+            
+            weeklySchedule.schedules[i] = dailySchedule
+        }
+        
+        print("🔄 Migrated operating hours to 7-day schedule")
+        return weeklySchedule
+    }
+    
+    private static func mapCalendarWeekdayToOldWeekDay(_ calendarWeekday: Int) -> WeekDay {
+        switch calendarWeekday {
+        case 1: return .sunday
+        case 2: return .monday
+        case 3: return .tuesday
+        case 4: return .wednesday
+        case 5: return .thursday
+        case 6: return .friday
+        case 7: return .saturday
+        default: return .monday
         }
     }
     
-    // MARK: - FIREBASE CONVERSION (Updated)
+    // MARK: - FIREBASE CONVERSION (Updated for 7-Day Schedule)
     
     func toDictionary() -> [String: Any] {
         var dict: [String: Any] = [
@@ -397,7 +596,7 @@ struct Bar: Identifiable, Codable {
             "username": username,
             "password": password,
             "isAutoTransitionActive": isAutoTransitionActive,
-            "operatingHours": operatingHours.toDictionary(),
+            "weeklySchedule": weeklySchedule.toDictionary(),
             "isFollowingSchedule": isFollowingSchedule
         ]
         
@@ -427,7 +626,7 @@ struct Bar: Identifiable, Codable {
         return dict
     }
     
-    // MARK: - FIREBASE LOADING (Updated with proper defaults)
+    // MARK: - FIREBASE LOADING (Updated with Migration Support)
     
     static func fromDictionary(_ data: [String: Any], documentId: String) -> Bar? {
         guard let name = data["name"] as? String,
@@ -438,10 +637,15 @@ struct Bar: Identifiable, Codable {
             return nil
         }
         
-        // Operating hours
-        var operatingHours = OperatingHours()
-        if let hoursDict = data["operatingHours"] as? [String: Any] {
-            operatingHours = OperatingHours.fromDictionary(hoursDict)
+        // Try to load new 7-day schedule first
+        var weeklySchedule = WeeklySchedule()
+        if let scheduleDict = data["weeklySchedule"] as? [String: Any] {
+            weeklySchedule = WeeklySchedule.fromDictionary(scheduleDict)
+        } else if let oldOperatingHours = data["operatingHours"] as? [String: Any] {
+            // MIGRATION: Convert old operating hours to new schedule
+            let operatingHours = OperatingHours.fromDictionary(oldOperatingHours)
+            weeklySchedule = migrateOperatingHoursToWeeklySchedule(operatingHours)
+            print("🔄 Migrated bar '\(name)' from operating hours to 7-day schedule")
         }
         
         // Location data
@@ -459,7 +663,7 @@ struct Bar: Identifiable, Codable {
             description: description,
             username: username,
             password: password,
-            operatingHours: operatingHours,
+            weeklySchedule: weeklySchedule,
             location: location
         )
         bar.id = documentId
@@ -514,10 +718,10 @@ struct Bar: Identifiable, Codable {
         return bar
     }
     
-    // MARK: - INITIALIZATION METHODS (Updated to ensure proper defaults)
+    // MARK: - INITIALIZATION METHODS (Updated for 7-Day Schedule)
     
-    /// PRIMARY INITIALIZER - Always starts following schedule
-    init(name: String, address: String, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours(), location: BarLocation? = nil) {
+    /// PRIMARY INITIALIZER - Always starts following 7-day schedule
+    init(name: String, address: String, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, weeklySchedule: WeeklySchedule = WeeklySchedule(), location: BarLocation? = nil) {
         self.name = name
         self.address = address
         self.description = description
@@ -526,26 +730,30 @@ struct Bar: Identifiable, Codable {
         self.ownerID = ownerID
         self.username = username
         self.password = password
-        self.operatingHours = operatingHours
+        self.weeklySchedule = weeklySchedule
         self.location = location
         
         // CRITICAL: Always start following schedule
-        self.isFollowingSchedule = true
+        self._isFollowingSchedule = true
         self.manualStatus = nil
         
-        print("✅ Created new bar '\(name)' - following schedule by default")
+        print("✅ Created new bar '\(name)' - following 7-day schedule by default")
     }
     
     // MARK: - BACKWARD COMPATIBILITY INITIALIZERS (Deprecated but supported)
     
     /// DEPRECATED: Use primary initializer instead
     init(name: String, address: String, status: BarStatus, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours(), location: BarLocation? = nil) {
-        self.init(name: name, address: address, description: description, socialLinks: socialLinks, ownerID: ownerID, username: username, password: password, operatingHours: operatingHours, location: location)
+        
+        // Convert old operating hours to new 7-day schedule
+        let migratedSchedule = Bar.migrateOperatingHoursToWeeklySchedule(operatingHours)
+        
+        self.init(name: name, address: address, description: description, socialLinks: socialLinks, ownerID: ownerID, username: username, password: password, weeklySchedule: migratedSchedule, location: location)
         
         // Only set manual override if it differs from schedule
         if status != scheduleBasedStatus {
             self.manualStatus = status
-            self.isFollowingSchedule = false
+            self._isFollowingSchedule = false
             print("⚠️ Created bar '\(name)' with manual override: \(status.displayName)")
         }
     }
@@ -557,7 +765,7 @@ struct Bar: Identifiable, Codable {
         // Only set manual override if it differs from schedule
         if status != scheduleBasedStatus {
             self.manualStatus = status
-            self.isFollowingSchedule = false
+            self._isFollowingSchedule = false
             print("⚠️ Created bar '\(name)' with legacy manual override: \(status.displayName)")
         }
     }

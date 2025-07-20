@@ -4,21 +4,19 @@ struct CreateBarView: View {
     @ObservedObject var barViewModel: BarViewModel
     @Environment(\.dismiss) private var dismiss
     
-    // Basic info
+    // Page 1: Basic info + FaceID
     @State private var barName = ""
     @State private var password = ""
-    @State private var description = ""
-    @State private var address = ""
+    @State private var enableFaceIDLogin = false
     
-    // 🌍 Location info (REQUIRED)
+    // Page 2: Location info
     @State private var selectedCountry: Country?
     @State private var selectedCity: City?
+    @State private var address = ""
+    @State private var description = ""
     
-    // Operating hours
-    @State private var operatingHours = OperatingHours()
-    
-    // Face ID option
-    @State private var enableFaceIDLogin = false
+    // Page 3: 7-day schedule
+    @State private var weeklySchedule = WeeklySchedule()
     
     // UI state
     @State private var isCreating = false
@@ -26,11 +24,12 @@ struct CreateBarView: View {
     @State private var alertMessage = ""
     @State private var currentPage = 0
     
-    var canProceedToNextPage: Bool {
+    var canProceedFromPage: Bool {
         switch currentPage {
-        case 0: return !barName.isEmpty && password.count == 4 && selectedCountry != nil && selectedCity != nil
-        case 1: return true // Operating hours is optional
-        case 2: return true // Face ID is optional
+        case 0: return !barName.isEmpty && password.count == 4
+        case 1: return selectedCountry != nil && selectedCity != nil
+        case 2: return true // Schedule is optional
+        case 3: return true // Confirmation page
         default: return false
         }
     }
@@ -38,23 +37,27 @@ struct CreateBarView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Progress indicator with NaN protection
-                ProgressView(value: max(0.0, min(1.0, Double(currentPage + 1))), total: 3.0)
+                // Progress indicator
+                ProgressView(value: max(0.0, min(1.0, Double(currentPage + 1))), total: 4.0)
                     .progressViewStyle(LinearProgressViewStyle())
                     .padding()
                 
                 TabView(selection: $currentPage) {
-                    // Page 1: Basic Info + Location
-                    basicInfoPage
+                    // Page 1: Basic Info + FaceID
+                    basicInfoAndFaceIDPage
                         .tag(0)
                     
-                    // Page 2: Operating Hours
-                    operatingHoursPage
+                    // Page 2: Location Info
+                    locationInfoPage
                         .tag(1)
                     
-                    // Page 3: Face ID & Final
-                    finalPage
+                    // Page 3: 7-Day Schedule
+                    scheduleSetupPage
                         .tag(2)
+                    
+                    // Page 4: Confirmation
+                    confirmationPage
+                        .tag(3)
                 }
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 
@@ -71,13 +74,13 @@ struct CreateBarView: View {
                     
                     Spacer()
                     
-                    if currentPage < 2 {
+                    if currentPage < 3 {
                         Button("Next") {
                             withAnimation {
                                 currentPage += 1
                             }
                         }
-                        .disabled(!canProceedToNextPage)
+                        .disabled(!canProceedFromPage)
                         .padding()
                     } else {
                         Button(action: createBar) {
@@ -93,11 +96,11 @@ struct CreateBarView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(
-                                canProceedToNextPage && !isCreating ? Color.green : Color.gray
+                                canProceedFromPage && !isCreating ? Color.green : Color.gray
                             )
                             .cornerRadius(10)
                         }
-                        .disabled(!canProceedToNextPage || isCreating)
+                        .disabled(!canProceedFromPage || isCreating)
                         .padding()
                     }
                 }
@@ -123,16 +126,17 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Basic Info Page (UPDATED with Required Location)
-    var basicInfoPage: some View {
+    // MARK: - Page 1: Basic Info + FaceID
+    var basicInfoAndFaceIDPage: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 24) {
+                // Header
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Basic Information")
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Enter your bar's essential details and location")
+                    Text("Enter your bar's name and login credentials")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -179,7 +183,72 @@ struct CreateBarView: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    // 🌍 Required: Location Selection
+                    // FaceID Setup (if available)
+                    if barViewModel.biometricAuthInfo.displayName != "Biometric" {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Quick Access (Optional)")
+                                .font(.headline)
+                            
+                            Toggle(isOn: $enableFaceIDLogin) {
+                                HStack {
+                                    Image(systemName: barViewModel.biometricAuthInfo.iconName)
+                                        .foregroundColor(.blue)
+                                        .font(.title2)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Enable \(barViewModel.biometricAuthInfo.displayName)")
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        
+                                        Text("Quick login without entering password")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .toggleStyle(SwitchToggleStyle())
+                            .padding()
+                            .background(Color.blue.opacity(0.05))
+                            .cornerRadius(12)
+                        }
+                    }
+                }
+                
+                // Required fields note
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                    Text("* Required fields")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(8)
+                
+                Spacer(minLength: 50)
+            }
+            .padding()
+        }
+    }
+    
+    // MARK: - Page 2: Location Info
+    var locationInfoPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Header
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Location Information")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Help customers find your bar")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                VStack(spacing: 20) {
+                    // Required: Location Selection
                     LocationPicker(
                         selectedCountry: $selectedCountry,
                         selectedCity: $selectedCity
@@ -220,90 +289,55 @@ struct CreateBarView: View {
                     }
                 }
                 
-                // Required fields note
-                HStack {
-                    Image(systemName: "info.circle")
-                        .foregroundColor(.blue)
-                    Text("* Required fields")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(8)
-                
-                // 🌍 Location importance note
-                HStack {
-                    Image(systemName: "location.circle")
-                        .foregroundColor(.green)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Why location matters:")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                        Text("• Helps customers find your bar easily")
-                            .font(.caption2)
-                        Text("• Distinguishes bars with similar names")
-                            .font(.caption2)
-                        Text("• Enables location-based search and browsing")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(Color.green.opacity(0.05))
-                .cornerRadius(8)
-                
                 Spacer(minLength: 50)
             }
             .padding()
         }
     }
     
-    // MARK: - Operating Hours Page (Updated with Dual Slider)
-    var operatingHoursPage: some View {
+    // MARK: - Page 3: 7-Day Schedule Setup
+    var scheduleSetupPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Header
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Operating Hours")
+                    Text("7-Day Schedule")
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Set your regular operating days and hours (6 PM - 6 AM)")
+                    Text("Set your opening hours for the next 7 days starting from today")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 
+                // Calendar-style schedule editor
                 VStack(spacing: 16) {
-                    ForEach(WeekDay.allCases, id: \.self) { day in
-                        ImprovedDayHoursEditor(
-                            day: day,
-                            dayHours: Binding(
-                                get: { operatingHours.getDayHours(for: day) },
-                                set: { newValue in
-                                    var updated = operatingHours
-                                    updated.setDayHours(for: day, hours: newValue)
-                                    operatingHours = updated
-                                }
+                    ForEach(Array(weeklySchedule.schedules.enumerated()), id: \.element.id) { index, schedule in
+                        DailyScheduleEditor(
+                            schedule: Binding(
+                                get: { weeklySchedule.schedules[index] },
+                                set: { weeklySchedule.schedules[index] = $0 }
                             )
                         )
                     }
                 }
                 
+                // Tips section
                 VStack(alignment: .leading, spacing: 8) {
                     Text("💡 Tips")
                         .font(.headline)
                     
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("• Drag the green circles to set your opening and closing times")
+                        Text("• Today's schedule will determine your current bar status")
+                        Text("• Drag the time sliders to set your opening and closing times")
                         Text("• Times are in 30-minute increments from 6 PM to 6 AM")
-                        Text("• These are your regular hours for customer reference")
-                        Text("• You can always update your real-time status in the app")
+                        Text("• You can always update your schedule later in the app")
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
                 }
                 .padding()
-                .background(Color.blue.opacity(0.05))
+                .background(Color.green.opacity(0.05))
                 .cornerRadius(10)
                 
                 Spacer(minLength: 50)
@@ -312,59 +346,32 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Final Page (UPDATED with Location Summary)
-    var finalPage: some View {
+    // MARK: - Page 4: Confirmation
+    var confirmationPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                // Header
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Almost Done!")
+                    Text("Review & Confirm")
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Set up quick access and review your information")
+                    Text("Review your information before creating your bar")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
                 
-                // Face ID Setup
-                if barViewModel.biometricAuthInfo.displayName != "Biometric" {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Quick Access Setup")
-                            .font(.headline)
-                        
-                        Toggle(isOn: $enableFaceIDLogin) {
-                            HStack {
-                                Image(systemName: barViewModel.biometricAuthInfo.iconName)
-                                    .foregroundColor(.blue)
-                                
-                                VStack(alignment: .leading) {
-                                    Text("Enable \(barViewModel.biometricAuthInfo.displayName)")
-                                        .font(.subheadline)
-                                        .fontWeight(.medium)
-                                    
-                                    Text("Quick login without entering password")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .toggleStyle(SwitchToggleStyle())
-                    }
-                    .padding()
-                    .background(Color.green.opacity(0.05))
-                    .cornerRadius(10)
-                }
-                
-                // Summary
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Review Your Information")
-                        .font(.headline)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
+                // Summary sections
+                VStack(spacing: 16) {
+                    // Basic Info
+                    SummarySection(title: "Basic Information") {
                         InfoRow(label: "Bar Name", value: barName)
                         InfoRow(label: "Password", value: "••••")
-                        
-                        // 🌍 Show selected location
+                        InfoRow(label: "Quick Access", value: enableFaceIDLogin ? "Enabled" : "Manual login only")
+                    }
+                    
+                    // Location Info
+                    SummarySection(title: "Location") {
                         if let country = selectedCountry, let city = selectedCity {
                             InfoRow(label: "Location", value: "\(city.name), \(country.name) \(country.flag)")
                         }
@@ -376,17 +383,18 @@ struct CreateBarView: View {
                         if !description.isEmpty {
                             InfoRow(label: "Description", value: String(description.prefix(50)) + (description.count > 50 ? "..." : ""))
                         }
-                        
-                        // Operating days summary
-                        let openDays = WeekDay.allCases.filter { operatingHours.getDayHours(for: $0).isOpen }
-                        if !openDays.isEmpty {
-                            InfoRow(label: "Operating Days", value: openDays.map { $0.shortName }.joined(separator: ", "))
+                    }
+                    
+                    // Schedule Summary
+                    SummarySection(title: "7-Day Schedule") {
+                        ForEach(weeklySchedule.schedules) { schedule in
+                            InfoRow(
+                                label: "\(schedule.shortDayName) \(schedule.displayDate)",
+                                value: schedule.displayText
+                            )
                         }
                     }
                 }
-                .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(10)
                 
                 Spacer(minLength: 50)
             }
@@ -394,7 +402,7 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Create Bar Function (UPDATED with Location)
+    // MARK: - Create Bar Function
     private func createBar() {
         isCreating = true
         
@@ -417,25 +425,24 @@ struct CreateBarView: View {
             return
         }
         
-        // 🌍 Create BarLocation object
+        // Create BarLocation object
         let barLocation = BarLocation(
             country: selectedCountry.name,
             countryCode: selectedCountry.id,
             city: selectedCity.name
         )
         
-        // Create final address (combine street address with city if provided)
+        // Create final address
         let finalAddress = address.isEmpty ? selectedCity.name : address
         
-        // Create new bar with location
+        // Create new bar with 7-day schedule
         let newBar = Bar(
             name: barName,
             address: finalAddress,
-            status: .closed,
             description: description,
             username: barName,
             password: password,
-            operatingHours: operatingHours,
+            weeklySchedule: weeklySchedule,
             location: barLocation
         )
         
@@ -450,7 +457,92 @@ struct CreateBarView: View {
     }
 }
 
-// MARK: - Info Row
+// MARK: - Daily Schedule Editor Component
+struct DailyScheduleEditor: View {
+    @Binding var schedule: DailySchedule
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(schedule.dayName)
+                        .font(.headline)
+                        .foregroundColor(schedule.isToday ? .blue : .primary)
+                    
+                    Text(schedule.displayDate)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if schedule.isToday {
+                        Text("Today")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+                .frame(width: 100, alignment: .leading)
+                
+                Spacer()
+                
+                Toggle("", isOn: $schedule.isOpen)
+                    .toggleStyle(SwitchToggleStyle(tint: .green))
+            }
+            
+            if schedule.isOpen {
+                DualTimeSlider(
+                    openTime: Binding(
+                        get: { schedule.openTime },
+                        set: { schedule.openTime = $0 }
+                    ),
+                    closeTime: Binding(
+                        get: { schedule.closeTime },
+                        set: { schedule.closeTime = $0 }
+                    )
+                )
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(schedule.isOpen ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            schedule.isToday ? Color.blue.opacity(0.3) :
+                            schedule.isOpen ? Color.green.opacity(0.2) : Color.clear,
+                            lineWidth: schedule.isToday ? 2 : 1
+                        )
+                )
+        )
+    }
+}
+
+// MARK: - Summary Section Component
+struct SummarySection<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                content
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(10)
+    }
+}
+
+// MARK: - Info Row Component (same as before)
 struct InfoRow: View {
     let label: String
     let value: String

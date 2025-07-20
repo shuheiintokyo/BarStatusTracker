@@ -11,13 +11,13 @@ struct BarDetailView: View {
         return barViewModel.bars.first { $0.id == bar.id } ?? bar
     }
     
-    // Editing states
+    // Editing states - UPDATED for 7-day schedule
     @State private var editingDescription = ""
     @State private var showingEditDescription = false
-    @State private var showingEditOperatingHours = false
-    @State private var showingEditPassword = false
-    @State private var editingOperatingHours = OperatingHours()
+    @State private var showingEditWeeklySchedule = false  // CHANGED from showingEditOperatingHours
+    @State private var editingWeeklySchedule = WeeklySchedule()  // CHANGED from editingOperatingHours
     @State private var editingPassword = ""
+    @State private var showingEditPassword = false
     
     // Social Links editing states
     @State private var editingSocialLinks = SocialLinks()
@@ -32,8 +32,8 @@ struct BarDetailView: View {
                     
                     Divider()
                     
-                    // Operating Hours
-                    operatingHoursSection
+                    // UPDATED: 7-Day Schedule Section (replaces Operating Hours)
+                    scheduleSection
                     
                     Divider()
                     
@@ -69,12 +69,13 @@ struct BarDetailView: View {
                 barViewModel.updateBarDescription(currentBar, newDescription: newDescription)
             }
         }
-        .sheet(isPresented: $showingEditOperatingHours) {
-            EditOperatingHoursView(
-                operatingHours: $editingOperatingHours,
+        // UPDATED: Sheet for 7-day schedule editing
+        .sheet(isPresented: $showingEditWeeklySchedule) {
+            ScheduleEditorView(
+                schedule: editingWeeklySchedule,
                 barName: currentBar.name
-            ) { newHours in
-                barViewModel.updateBarOperatingHours(currentBar, newHours: newHours)
+            ) { newSchedule in
+                barViewModel.updateBarSchedule(currentBar, newSchedule: newSchedule)
             }
         }
         .sheet(isPresented: $showingEditPassword) {
@@ -95,7 +96,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Header Section
+    // MARK: - Header Section (unchanged)
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -150,7 +151,7 @@ struct BarDetailView: View {
                     .font(.caption)
                 
                 if currentBar.isFollowingSchedule {
-                    Text("Following schedule")
+                    Text("Following today's schedule")
                         .font(.caption)
                         .foregroundColor(.green)
                 } else {
@@ -196,136 +197,102 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Operating Hours Section
-    var operatingHoursSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    // MARK: - NEW: 7-Day Schedule Section (replaces Operating Hours)
+    var scheduleSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Operating Hours")
+                Text("7-Day Schedule")
                     .font(.headline)
                 
                 if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                     Spacer()
-                    Button("Edit") {
-                        editingOperatingHours = currentBar.operatingHours
-                        showingEditOperatingHours = true
+                    Button("Edit Schedule") {
+                        editingWeeklySchedule = currentBar.weeklySchedule
+                        showingEditWeeklySchedule = true
                     }
                     .font(.caption)
                     .foregroundColor(.blue)
                 }
             }
             
-            // Today's hours (highlighted)
-            let today = getCurrentWeekDay()
-            let todayHours = currentBar.operatingHours.getDayHours(for: today)
-            
-            if todayHours.isOpen {
-                HStack {
-                    Text("Today (\(today.displayName)):")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    
-                    Spacer()
-                    
-                    Text(todayHours.displayText)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.green)
-                }
-                .padding()
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                )
-            } else {
-                HStack {
-                    Text("Today (\(today.displayName)):")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    
-                    Spacer()
-                    
-                    Text("Closed")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.red)
-                }
-                .padding()
-                .background(Color.red.opacity(0.1))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
-                )
-            }
-            
-            // Schedule vs Reality notification for owners
-            if isOwnerMode && barViewModel.canEdit(bar: currentBar) && !currentBar.isFollowingSchedule {
-                VStack(alignment: .leading, spacing: 4) {
+            // Today's schedule (highlighted)
+            if let todaysSchedule = currentBar.todaysSchedule {
+                VStack(spacing: 8) {
                     HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text("Manual Override Active")
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(.orange)
-                    }
-                    
-                    Text("Current status (\(currentBar.status.displayName)) differs from schedule (\(currentBar.scheduleBasedStatus.displayName))")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(6)
-            }
-            
-            // All week hours
-            VStack(spacing: 4) {
-                ForEach(WeekDay.allCases, id: \.self) { day in
-                    let dayHours = currentBar.operatingHours.getDayHours(for: day)
-                    let isToday = day == today
-                    
-                    HStack {
-                        Text(day.displayName)
-                            .font(.caption)
-                            .fontWeight(isToday ? .bold : .regular)
-                            .foregroundColor(isToday ? .primary : .secondary)
-                            .frame(width: 80, alignment: .leading)
+                        VStack(alignment: .leading) {
+                            HStack(spacing: 4) {
+                                Text("Today")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.blue)
+                                
+                                Text("(\(todaysSchedule.dayName))")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
+                            Text(todaysSchedule.displayDate)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                         
                         Spacer()
                         
-                        Text(dayHours.displayText)
-                            .font(.caption)
-                            .fontWeight(isToday ? .bold : .regular)
-                            .foregroundColor(dayHours.isOpen ? (isToday ? .green : .primary) : .secondary)
+                        Text(todaysSchedule.displayText)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(todaysSchedule.isOpen ? .green : .red)
+                    }
+                    
+                    // Schedule vs Reality notification for owners
+                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) && !currentBar.isFollowingSchedule {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("Manual Override Active")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.orange)
+                            }
+                            
+                            Text("Current status (\(currentBar.status.displayName)) differs from today's schedule (\(currentBar.scheduleBasedStatus.displayName))")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(todaysSchedule.isOpen ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.blue.opacity(0.3), lineWidth: 2)
+                        )
+                )
+            }
+            
+            // Next 6 days overview
+            VStack(alignment: .leading, spacing: 8) {
+                Text("This Week")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundColor(.secondary)
+                
+                VStack(spacing: 6) {
+                    ForEach(currentBar.weeklySchedule.schedules) { schedule in
+                        ScheduleRowCompact(schedule: schedule, isToday: schedule.isToday)
                     }
                 }
             }
-            .padding(.horizontal, 8)
         }
     }
     
-    // Helper function to get current weekday
-    private func getCurrentWeekDay() -> WeekDay {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: Date())
-        
-        switch weekday {
-        case 1: return WeekDay.sunday
-        case 2: return WeekDay.monday
-        case 3: return WeekDay.tuesday
-        case 4: return WeekDay.wednesday
-        case 5: return WeekDay.thursday
-        case 6: return WeekDay.friday
-        case 7: return WeekDay.saturday
-        default: return WeekDay.monday
-        }
-    }
-    
-    // MARK: - Description Section
+    // MARK: - Description Section (unchanged)
     var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -349,7 +316,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Social Links Section
+    // MARK: - Social Links Section (unchanged)
     var socialLinksSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -398,7 +365,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Owner Settings Section
+    // MARK: - Owner Settings Section (unchanged)
     var ownerSettingsSection: some View {
         VStack(alignment: .leading, spacing: 15) {
             Text("Owner Settings")
@@ -431,7 +398,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Helper Functions
+    // MARK: - Helper Functions (unchanged)
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         
@@ -450,250 +417,129 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - Editing Views (Simplified)
-struct EditOperatingHoursView: View {
-    @Binding var operatingHours: OperatingHours
-    let barName: String
-    let onSave: (OperatingHours) -> Void
-    @Environment(\.dismiss) private var dismiss
+// MARK: - NEW: Compact Schedule Row Component
+struct ScheduleRowCompact: View {
+    let schedule: DailySchedule
+    let isToday: Bool
     
     var body: some View {
-        NavigationView {
-            VStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Set your regular operating hours using the dual-handle sliders. Drag the green circles to set opening and closing times (6 PM - 6 AM, 30-minute increments).")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.bottom)
-                        
-                        ForEach(WeekDay.allCases, id: \.self) { day in
-                            ImprovedDayHoursEditor(
-                                day: day,
-                                dayHours: Binding(
-                                    get: { operatingHours.getDayHours(for: day) },
-                                    set: { operatingHours.setDayHours(for: day, hours: $0) }
-                                )
-                            )
-                        }
-                    }
-                    .padding()
-                }
-                
-                Spacer()
-            }
-            .navigationTitle("Operating Hours")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        onSave(operatingHours)
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct EditPasswordView: View {
-    let currentPassword: String
-    let barName: String
-    let onSave: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
-    
-    @State private var newPassword = ""
-    @State private var confirmPassword = ""
-    @State private var showingAlert = false
-    @State private var alertMessage = ""
-    
-    private var canSave: Bool {
-        newPassword.count == 4 && confirmPassword == newPassword && newPassword != currentPassword
-    }
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Change Login Password")
-                        .font(.title2)
-                        .fontWeight(.bold)
+        HStack {
+            // Day info
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(schedule.shortDayName)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(isToday ? .blue : .primary)
                     
-                    Text("Enter a new 4-digit password for \(barName)")
-                        .font(.subheadline)
+                    Text(schedule.displayDate)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
-                }
-                
-                VStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Current Password")
-                            .font(.headline)
-                        
-                        Text("••••")
-                            .font(.title3)
-                            .fontDesign(.monospaced)
-                            .foregroundColor(.secondary)
-                    }
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("New Password")
-                            .font(.headline)
-                        
-                        SecureField("Enter new 4-digit password", text: $newPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: newPassword) { _, newValue in
-                                if newValue.count > 4 {
-                                    newPassword = String(newValue.prefix(4))
-                                }
-                            }
+                    if isToday {
+                        Text("TODAY")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(4)
                     }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Confirm New Password")
-                            .font(.headline)
-                        
-                        SecureField("Re-enter new password", text: $confirmPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: confirmPassword) { _, newValue in
-                                if newValue.count > 4 {
-                                    confirmPassword = String(newValue.prefix(4))
-                                }
-                            }
-                        
-                        if !confirmPassword.isEmpty && confirmPassword != newPassword {
-                            Text("Passwords don't match")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Change Password")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        if canSave {
-                            onSave(newPassword)
-                            dismiss()
-                        } else {
-                            alertMessage = "Please enter a valid 4-digit password that's different from your current one"
-                            showingAlert = true
-                        }
-                    }
-                    .disabled(!canSave)
                 }
             }
+            
+            Spacer()
+            
+            // Schedule display
+            HStack(spacing: 6) {
+                Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundColor(schedule.isOpen ? .green : .red)
+                    .font(.caption)
+                
+                Text(schedule.displayText)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(schedule.isOpen ? .green : .red)
+            }
         }
-        .alert("Password Error", isPresented: $showingAlert) {
-            Button("OK") { }
-        } message: {
-            Text(alertMessage)
-        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isToday ? Color.blue.opacity(0.05) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isToday ? Color.blue.opacity(0.2) : Color.clear, lineWidth: 1)
+                )
+        )
     }
 }
 
-struct EditSocialLinksView: View {
-    @Binding var socialLinks: SocialLinks
+// MARK: - Schedule Editor View (same as in StatusControlView)
+struct ScheduleEditorView: View {
+    @State private var schedule: WeeklySchedule
     let barName: String
-    let onSave: (SocialLinks) -> Void
+    let onSave: (WeeklySchedule) -> Void
     @Environment(\.dismiss) private var dismiss
     
-    @State private var tempInstagram = ""
-    @State private var tempTwitter = ""
-    @State private var tempFacebook = ""
-    @State private var tempWebsite = ""
+    init(schedule: WeeklySchedule, barName: String, onSave: @escaping (WeeklySchedule) -> Void) {
+        self._schedule = State(initialValue: schedule)
+        self.barName = barName
+        self.onSave = onSave
+    }
     
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(spacing: 20) {
+                    // Header
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Social Links")
+                        Text("Edit 7-Day Schedule")
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        Text("Help customers find \(barName) online")
+                        Text("Adjust your opening hours for each day")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    VStack(spacing: 20) {
-                        SocialLinkEditor(
-                            icon: "camera",
-                            title: "Instagram",
-                            placeholder: "https://instagram.com/yourbar",
-                            text: $tempInstagram,
-                            description: "Your Instagram profile or page",
-                            isAssetImage: false
-                        )
-                        
-                        SocialLinkEditor(
-                            icon: "message",
-                            title: "X (Twitter)",
-                            placeholder: "https://x.com/yourbar",
-                            text: $tempTwitter,
-                            description: "Your X (Twitter) profile or page",
-                            isAssetImage: false
-                        )
-                        
-                        SocialLinkEditor(
-                            icon: "person.2",
-                            title: "Facebook",
-                            placeholder: "https://facebook.com/yourbar",
-                            text: $tempFacebook,
-                            description: "Your Facebook page",
-                            isAssetImage: false
-                        )
-                        
-                        SocialLinkEditor(
-                            icon: "globe",
-                            title: "Website",
-                            placeholder: "https://yourbar.com",
-                            text: $tempWebsite,
-                            description: "Your official website",
-                            isAssetImage: false
-                        )
+                    // Schedule editors
+                    VStack(spacing: 16) {
+                        ForEach(Array(schedule.schedules.enumerated()), id: \.element.id) { index, dailySchedule in
+                            DailyScheduleEditor(
+                                schedule: Binding(
+                                    get: { schedule.schedules[index] },
+                                    set: { schedule.schedules[index] = $0 }
+                                )
+                            )
+                        }
                     }
                     
+                    // Tips
                     VStack(alignment: .leading, spacing: 8) {
                         Text("💡 Tips")
                             .font(.headline)
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("• Make sure URLs start with 'https://' or 'http://'")
-                            Text("• Leave fields empty if you don't have that social media")
-                            Text("• Test your links after saving to make sure they work")
+                            Text("• Changes take effect immediately")
+                            Text("• Today's schedule determines your current bar status")
+                            Text("• Drag the time sliders to adjust opening and closing times")
+                            Text("• Toggle off days when you're closed")
                         }
                         .font(.caption)
                         .foregroundColor(.secondary)
                     }
                     .padding()
                     .background(Color.blue.opacity(0.05))
-                    .cornerRadius(10)
+                    .cornerRadius(12)
                     
                     Spacer(minLength: 50)
                 }
                 .padding()
             }
-            .navigationTitle("Edit Social Links")
+            .navigationTitle("Schedule for \(barName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -704,77 +550,24 @@ struct EditSocialLinksView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        saveSocialLinks()
+                        onSave(schedule)
+                        dismiss()
                     }
                 }
             }
         }
-        .onAppear {
-            tempInstagram = socialLinks.instagram
-            tempTwitter = socialLinks.twitter
-            tempFacebook = socialLinks.facebook
-            tempWebsite = socialLinks.website
-        }
-    }
-    
-    private func saveSocialLinks() {
-        let validatedSocialLinks = SocialLinks(
-            instagram: validateURL(tempInstagram),
-            twitter: validateURL(tempTwitter),
-            facebook: validateURL(tempFacebook),
-            website: validateURL(tempWebsite)
-        )
-        
-        onSave(validatedSocialLinks)
-        dismiss()
-    }
-    
-    private func validateURL(_ urlString: String) -> String {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if trimmed.isEmpty {
-            return ""
-        }
-        
-        if !trimmed.lowercased().hasPrefix("http://") && !trimmed.lowercased().hasPrefix("https://") {
-            return "https://" + trimmed
-        }
-        
-        return trimmed
     }
 }
 
-struct SocialLinkEditor: View {
-    let icon: String
-    let title: String
-    let placeholder: String
-    @Binding var text: String
-    let description: String
-    let isAssetImage: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(.blue)
-                
-                Text(title)
-                    .font(.headline)
-            }
-            
-            TextField(placeholder, text: $text)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .keyboardType(.URL)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
-            
-            Text(description)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .background(Color.gray.opacity(0.05))
-        .cornerRadius(10)
-    }
+#Preview {
+    BarDetailView(
+        bar: Bar(
+            name: "Test Bar",
+            address: "123 Test St",
+            username: "testbar",
+            password: "1234"
+        ),
+        barViewModel: BarViewModel(),
+        isOwnerMode: true
+    )
 }

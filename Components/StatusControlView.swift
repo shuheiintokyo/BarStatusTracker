@@ -9,26 +9,24 @@ struct StatusControlView: View {
         barViewModel.bars.first { $0.id == bar.id }
     }
     
+    @State private var editingSchedule: WeeklySchedule?
+    @State private var showingScheduleEditor = false
+    
     var body: some View {
         VStack(spacing: 20) {
-            // Current Status Display with Source Info
+            // Current Status Display
             currentStatusHeader
             
-            // Schedule vs Manual Status Info - ENHANCED
-            statusSourceInfo
+            // Today's Schedule Info
+            todaysScheduleInfo
             
             // Auto-transition display (if active)
             if let current = currentBar, current.isAutoTransitionActive {
                 autoTransitionCard
             }
             
-            // Status Control Grid
-            statusControlGrid
-            
-            // Follow Schedule Button (if manual override is active)
-            if let current = currentBar, !current.isFollowingSchedule {
-                followScheduleButton
-            }
+            // 7-Day Schedule Management
+            scheduleManagementSection
         }
         .padding()
         .background(
@@ -39,12 +37,22 @@ struct StatusControlView: View {
                         .stroke(Color.blue.opacity(0.2), lineWidth: 1)
                 )
         )
+        .sheet(isPresented: $showingScheduleEditor) {
+            if let editingSchedule = editingSchedule {
+                ScheduleEditorView(
+                    schedule: editingSchedule,
+                    barName: currentBar?.name ?? bar.name
+                ) { newSchedule in
+                    barViewModel.updateBarSchedule(currentBar ?? bar, newSchedule: newSchedule)
+                }
+            }
+        }
     }
     
     // MARK: - Current Status Header
     var currentStatusHeader: some View {
         VStack(spacing: 8) {
-            Text("Bar Status")
+            Text("Current Status")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .textCase(.uppercase)
@@ -79,161 +87,93 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Status Source Information
-    var statusSourceInfo: some View {
+    // MARK: - Today's Schedule Info
+    var todaysScheduleInfo: some View {
         Group {
-            if let current = currentBar {
-                let statusInfo = current.statusDisplayInfo
-                
+            if let current = currentBar, let todaysSchedule = current.todaysSchedule {
                 VStack(spacing: 12) {
-                    // Main source info
-                    HStack(spacing: 8) {
-                        Image(systemName: current.isFollowingSchedule ? "calendar" : "hand.raised.fill")
-                            .foregroundColor(current.isFollowingSchedule ? .green : .orange)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(statusInfo.source)
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(current.isFollowingSchedule ? .green : .orange)
-                            
-                            Text(statusInfo.description)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
+                    HStack {
+                        Text("Today's Schedule")
+                            .font(.headline)
                         
                         Spacer()
                         
-                        // Show actual schedule status if manual override is active
-                        if !current.isFollowingSchedule {
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text("Schedule says:")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                                
-                                HStack(spacing: 4) {
-                                    Image(systemName: current.scheduleBasedStatus.icon)
-                                        .font(.caption)
-                                        .foregroundColor(current.scheduleBasedStatus.color)
-                                    Text(current.scheduleBasedStatus.displayName)
-                                        .font(.caption2)
-                                        .foregroundColor(current.scheduleBasedStatus.color)
-                                        .fontWeight(.medium)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Show today's operating hours for context
-                    todaysHoursInfo(for: current)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(current.isFollowingSchedule ? Color.green.opacity(0.1) : Color.orange.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(current.isFollowingSchedule ? Color.green.opacity(0.3) : Color.orange.opacity(0.3), lineWidth: 1)
-                        )
-                )
-            }
-        }
-    }
-    
-    // MARK: - Today's Hours Info
-    private func todaysHoursInfo(for bar: Bar) -> some View {
-        let today = getCurrentWeekDay()
-        let todayHours = bar.operatingHours.getDayHours(for: today)
-        
-        return VStack(spacing: 4) {
-            HStack {
-                Text("Today (\(today.displayName)):")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                
-                Spacer()
-                
-                if todayHours.isOpen {
-                    Text(todayHours.displayText)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.green)
-                } else {
-                    Text("Closed")
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.red)
-                }
-            }
-            
-            // Show conflict warning if manual override conflicts with schedule
-            if !bar.isFollowingSchedule && bar.status != bar.scheduleBasedStatus {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                    
-                    Text("Manual override active - differs from schedule")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
-                    
-                    Spacer()
-                }
-            }
-        }
-        .padding(.top, 8)
-        .padding(.horizontal, 4)
-    }
-    
-    // MARK: - Follow Schedule Button
-    var followScheduleButton: some View {
-        VStack(spacing: 8) {
-            Button(action: {
-                barViewModel.setBarToFollowSchedule(currentBar ?? bar)
-            }) {
-                HStack {
-                    Image(systemName: "calendar.badge.checkmark")
-                        .font(.title3)
-                    Text("Follow Schedule")
-                        .font(.headline)
-                    
-                    Spacer()
-                    
-                    // Preview what the status would be
-                    if let current = currentBar {
+                        // Status source indicator
                         HStack(spacing: 4) {
-                            Text("→")
-                                .foregroundColor(.white.opacity(0.7))
-                            Image(systemName: current.scheduleBasedStatus.icon)
+                            Image(systemName: current.isFollowingSchedule ? "calendar" : "hand.raised.fill")
+                                .foregroundColor(current.isFollowingSchedule ? .green : .orange)
                                 .font(.caption)
-                            Text(current.scheduleBasedStatus.displayName)
+                            
+                            Text(current.isFollowingSchedule ? "Following Schedule" : "Manual Override")
                                 .font(.caption)
+                                .foregroundColor(current.isFollowingSchedule ? .green : .orange)
                         }
-                        .foregroundColor(.white.opacity(0.9))
+                    }
+                    
+                    // Today's hours display
+                    HStack {
+                        Text("Today (\(todaysSchedule.dayName)):")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Spacer()
+                        
+                        if todaysSchedule.isOpen {
+                            Text(todaysSchedule.displayText)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.green)
+                        } else {
+                            Text("Closed")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.red)
+                        }
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(todaysSchedule.isOpen ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(todaysSchedule.isOpen ? Color.green.opacity(0.3) : Color.red.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                    
+                    // Manual override notification
+                    if !current.isFollowingSchedule {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.orange)
+                                Text("Manual Override Active")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.orange)
+                                
+                                Spacer()
+                                
+                                Button("Return to Schedule") {
+                                    barViewModel.setBarToFollowSchedule(current)
+                                }
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                            }
+                            
+                            Text("Current status (\(current.status.displayName)) differs from schedule (\(current.scheduleBasedStatus.displayName))")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color.orange.opacity(0.1))
+                        .cornerRadius(12)
                     }
                 }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.green, .blue]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(12)
             }
-            
-            // Helpful text
-            Text("This will change your status to match your operating hours schedule")
-                .font(.caption2)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
         }
     }
     
-    // MARK: - Auto-transition Card
+    // MARK: - Auto-transition Card (keep existing)
     var autoTransitionCard: some View {
         HStack(spacing: 12) {
             ZStack {
@@ -291,29 +231,66 @@ struct StatusControlView: View {
         )
     }
     
-    // MARK: - Status Control Grid
-    var statusControlGrid: some View {
-        VStack(spacing: 12) {
-            Text("Change Status")
+    // MARK: - 7-Day Schedule Management Section
+    var scheduleManagementSection: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Text("7-Day Schedule")
+                    .font(.headline)
+                
+                Spacer()
+                
+                Button("Edit Schedule") {
+                    editingSchedule = currentBar?.weeklySchedule ?? bar.weeklySchedule
+                    showingScheduleEditor = true
+                }
                 .font(.caption)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+                .foregroundColor(.blue)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(12)
+            }
             
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
-                ForEach(BarStatus.allCases, id: \.self) { status in
-                    StatusButton(
-                        status: status,
-                        currentStatus: currentBar?.status ?? bar.status,
-                        scheduleStatus: currentBar?.scheduleBasedStatus ?? bar.scheduleBasedStatus,
-                        isManualOverride: !(currentBar?.isFollowingSchedule ?? true),
-                        action: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                barViewModel.setManualBarStatus(currentBar ?? bar, newStatus: status)
-                            }
-                        }
-                    )
+            // Compact 7-day overview
+            VStack(spacing: 8) {
+                ForEach(currentBar?.weeklySchedule.schedules ?? bar.weeklySchedule.schedules) { schedule in
+                    ScheduleRow(schedule: schedule)
                 }
             }
+            
+            // Quick actions
+            VStack(spacing: 8) {
+                Text("Quick Actions")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                
+                HStack(spacing: 12) {
+                    QuickActionButton(
+                        title: "Override: Open Now",
+                        icon: "checkmark.circle.fill",
+                        color: .green
+                    ) {
+                        barViewModel.setManualBarStatus(currentBar ?? bar, newStatus: .open)
+                    }
+                    
+                    QuickActionButton(
+                        title: "Override: Closed Now",
+                        icon: "xmark.circle.fill",
+                        color: .red
+                    ) {
+                        barViewModel.setManualBarStatus(currentBar ?? bar, newStatus: .closed)
+                    }
+                }
+                
+                Text("These override your schedule temporarily")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(12)
         }
     }
     
@@ -335,203 +312,180 @@ struct StatusControlView: View {
             return "\(days)d ago"
         }
     }
+}
+
+// MARK: - Schedule Row Component
+struct ScheduleRow: View {
+    let schedule: DailySchedule
     
-    private func getCurrentWeekDay() -> WeekDay {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: Date())
-        
-        switch weekday {
-        case 1: return WeekDay.sunday
-        case 2: return WeekDay.monday
-        case 3: return WeekDay.tuesday
-        case 4: return WeekDay.wednesday
-        case 5: return WeekDay.thursday
-        case 6: return WeekDay.friday
-        case 7: return WeekDay.saturday
-        default: return WeekDay.monday
+    var body: some View {
+        HStack {
+            // Day info
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(schedule.shortDayName)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(schedule.isToday ? .blue : .primary)
+                    
+                    if schedule.isToday {
+                        Text("TODAY")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+                
+                Text(schedule.displayDate)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 60, alignment: .leading)
+            
+            Spacer()
+            
+            // Status
+            HStack(spacing: 8) {
+                Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundColor(schedule.isOpen ? .green : .red)
+                    .font(.caption)
+                
+                Text(schedule.displayText)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(schedule.isOpen ? .green : .red)
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(schedule.isToday ? Color.blue.opacity(0.05) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(schedule.isToday ? Color.blue.opacity(0.2) : Color.clear, lineWidth: 1)
+                )
+        )
+    }
+}
+
+// MARK: - Quick Action Button Component
+struct QuickActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(title)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(color)
+            .cornerRadius(8)
         }
     }
 }
 
-// MARK: - Status Button Component
-struct StatusButton: View {
-    let status: BarStatus
-    let currentStatus: BarStatus
-    let scheduleStatus: BarStatus
-    let isManualOverride: Bool
-    let action: () -> Void
+// MARK: - Schedule Editor View
+struct ScheduleEditorView: View {
+    @State private var schedule: WeeklySchedule
+    let barName: String
+    let onSave: (WeeklySchedule) -> Void
+    @Environment(\.dismiss) private var dismiss
     
-    @State private var isPressed = false
-    
-    private var isSelected: Bool {
-        status == currentStatus
-    }
-    
-    private var isScheduleRecommended: Bool {
-        status == scheduleStatus && !isSelected
-    }
-    
-    private var buttonInfo: (title: String, subtitle: String, badge: String) {
-        switch status {
-        case .openingSoon:
-            return ("Opening", "Soon", "15m")
-        case .open:
-            return ("Open", "Now", "")
-        case .closingSoon:
-            return ("Closing", "Soon", "15m")
-        case .closed:
-            return ("Closed", "Now", "")
-        }
+    init(schedule: WeeklySchedule, barName: String, onSave: @escaping (WeeklySchedule) -> Void) {
+        self._schedule = State(initialValue: schedule)
+        self.barName = barName
+        self.onSave = onSave
     }
     
     var body: some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.1)) {
-                isPressed = true
-            }
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isPressed = false
-                }
-                action()
-            }
-            
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
-        }) {
-            VStack(spacing: 8) {
-                // Icon with enhanced background
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? status.color : status.color.opacity(0.15))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Circle()
-                                .stroke(
-                                    isSelected ? Color.white.opacity(0.3) :
-                                    isScheduleRecommended ? status.color.opacity(0.6) :
-                                    status.color.opacity(0.3),
-                                    lineWidth: isScheduleRecommended ? 3 : 2
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Edit 7-Day Schedule")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Adjust your opening hours for each day")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    // Schedule editors
+                    VStack(spacing: 16) {
+                        ForEach(Array(schedule.schedules.enumerated()), id: \.element.id) { index, dailySchedule in
+                            DailyScheduleEditor(
+                                schedule: Binding(
+                                    get: { schedule.schedules[index] },
+                                    set: { schedule.schedules[index] = $0 }
                                 )
-                        )
-                        .shadow(
-                            color: isSelected ? status.color.opacity(0.4) : Color.clear,
-                            radius: isSelected ? 8 : 0
-                        )
-                    
-                    Image(systemName: status.icon)
-                        .font(.title2)
-                        .foregroundColor(isSelected ? .white : status.color)
-                        .fontWeight(isSelected ? .bold : .medium)
-                    
-                    // Manual override indicator
-                    if isSelected && isManualOverride {
-                        VStack {
-                            HStack {
-                                Spacer()
-                                Circle()
-                                    .fill(Color.orange)
-                                    .frame(width: 12, height: 12)
-                                    .overlay(
-                                        Image(systemName: "hand.raised.fill")
-                                            .font(.system(size: 6))
-                                            .foregroundColor(.white)
-                                    )
-                            }
-                            Spacer()
+                            )
                         }
                     }
                     
-                    // Schedule recommendation indicator
-                    if isScheduleRecommended {
-                        VStack {
-                            HStack {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 12, height: 12)
-                                    .overlay(
-                                        Image(systemName: "calendar")
-                                            .font(.system(size: 6))
-                                            .foregroundColor(.white)
-                                    )
-                                Spacer()
-                            }
-                            Spacer()
+                    // Tips
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("💡 Tips")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("• Changes take effect immediately")
+                            Text("• Today's schedule determines your current bar status")
+                            Text("• Drag the time sliders to adjust opening and closing times")
+                            Text("• Toggle off days when you're closed")
                         }
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(12)
+                    
+                    Spacer(minLength: 50)
+                }
+                .padding()
+            }
+            .navigationTitle("Schedule for \(barName)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
                     }
                 }
                 
-                // Text info
-                VStack(spacing: 2) {
-                    Text(buttonInfo.title)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(isSelected ? status.color : .primary)
-                    
-                    Text(buttonInfo.subtitle)
-                        .font(.caption2)
-                        .foregroundColor(isSelected ? status.color.opacity(0.8) : .secondary)
-                    
-                    if !buttonInfo.badge.isEmpty {
-                        Text(buttonInfo.badge)
-                            .font(.caption2)
-                            .foregroundColor(.orange)
-                            .fontWeight(.bold)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange.opacity(0.2))
-                            .cornerRadius(4)
-                    }
-                    
-                    // Schedule recommendation text
-                    if isScheduleRecommended {
-                        Text("Schedule")
-                            .font(.caption2)
-                            .foregroundColor(.green)
-                            .fontWeight(.bold)
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        onSave(schedule)
+                        dismiss()
                     }
                 }
             }
-            .padding(.vertical, 16)
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        isSelected ?
-                        status.color.opacity(0.15) :
-                        isScheduleRecommended ?
-                        status.color.opacity(0.08) :
-                        Color.white.opacity(0.8)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                isSelected ?
-                                status.color.opacity(0.6) :
-                                isScheduleRecommended ?
-                                status.color.opacity(0.4) :
-                                Color.gray.opacity(0.2),
-                                lineWidth: isSelected ? 2 : isScheduleRecommended ? 2 : 1
-                            )
-                    )
-                    .shadow(
-                        color: isSelected ? status.color.opacity(0.2) : Color.black.opacity(0.05),
-                        radius: isSelected ? 6 : 2,
-                        x: 0,
-                        y: isSelected ? 4 : 1
-                    )
-            )
-            .scaleEffect({
-                let pressedScale = isPressed ? 0.95 : 1.0
-                let selectedScale = isSelected ? 1.05 : 1.0
-                let combinedScale = isPressed ? pressedScale : selectedScale
-                return combinedScale.isFinite ? max(0.5, min(2.0, combinedScale)) : 1.0
-            }())
-            .animation(.easeInOut(duration: 0.15), value: isSelected)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
-        .buttonStyle(PlainButtonStyle())
     }
+}
+
+#Preview {
+    StatusControlView(bar: Bar(
+        name: "Test Bar",
+        address: "Test Address",
+        username: "testbar",
+        password: "1234"
+    ), barViewModel: BarViewModel())
 }

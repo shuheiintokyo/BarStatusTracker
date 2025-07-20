@@ -37,9 +37,9 @@ class BarViewModel: ObservableObject {
         uiUpdateTimer?.invalidate()
     }
     
-    // MARK: - ENHANCED STATUS MANAGEMENT (Owner Only)
+    // MARK: - SIMPLIFIED STATUS MANAGEMENT (7-Day Schedule Based)
     
-    /// Set manual status override (Owner only - through control panel)
+    /// Set manual status override (Owner only - for quick actions)
     func setManualBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else {
             print("❌ Unauthorized attempt to change bar status")
@@ -88,7 +88,32 @@ class BarViewModel: ObservableObject {
         objectWillChange.send()
     }
     
-    // MARK: - SCHEDULE MONITORING (Enhanced for Consistency)
+    /// Update the 7-day schedule (Owner only) - MAIN CONTROL METHOD
+    func updateBarSchedule(_ bar: Bar, newSchedule: WeeklySchedule) {
+        guard canEdit(bar: bar) else {
+            print("❌ Unauthorized attempt to update bar schedule")
+            return
+        }
+        
+        var updatedBar = bar
+        let oldStatus = bar.status
+        
+        // Update the schedule
+        updatedBar.updateWeeklySchedule(newSchedule)
+        let newStatus = updatedBar.status
+        
+        print("📅 Owner updated \(bar.name) schedule: \(oldStatus.displayName) → \(newStatus.displayName)")
+        
+        // Update in Firebase
+        firebaseManager.updateBarSchedule(barId: bar.id, weeklySchedule: newSchedule)
+        
+        // Update local state
+        updateLocalBarState(updatedBar)
+        
+        objectWillChange.send()
+    }
+    
+    // MARK: - SCHEDULE MONITORING (Updated for 7-Day System)
     
     private func startScheduleMonitoring() {
         // Check for schedule-based status changes every minute
@@ -106,7 +131,7 @@ class BarViewModel: ObservableObject {
             for var bar in self.bars {
                 let oldComputedStatus = bar.status
                 
-                // Refresh timestamp to trigger status recomputation
+                // Refresh timestamp and roll forward schedule if needed
                 bar.refreshTimestamp()
                 let newComputedStatus = bar.status
                 
@@ -119,7 +144,7 @@ class BarViewModel: ObservableObject {
                         hasChanges = true
                     }
                     
-                    // Update in Firebase (timestamp update)
+                    // Update in Firebase (timestamp and potentially rolled-forward schedule)
                     self.firebaseManager.updateBarWithAutoTransition(bar: bar)
                     
                     // Update logged-in bar if needed
@@ -135,23 +160,28 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - STATUS CONSISTENCY ENFORCEMENT
+    // MARK: - SCHEDULE CONSISTENCY ENFORCEMENT
     
-    /// Ensure all bars follow their proper logic (called on app start)
-    private func enforceStatusConsistency() {
-        let today = getCurrentWeekDay()
+    /// Ensure all bars have up-to-date 7-day schedules (called on app start)
+    private func enforceScheduleConsistency() {
         var hasChanges = false
         
         for var bar in bars {
-            let todayHours = bar.operatingHours.getDayHours(for: today)
+            // Ensure schedule is rolled forward to current date
+            let oldScheduleCount = bar.weeklySchedule.schedules.count
+            bar.weeklySchedule.rollForwardIfNeeded()
+            let newScheduleCount = bar.weeklySchedule.schedules.count
             
-            // If today is a day the bar should be closed according to schedule
-            // AND there's a conflicting manual override, consider returning to schedule
-            if !todayHours.isOpen {
-                if bar.isStatusConflictingWithSchedule {
-                    print("📅 \(bar.name) has conflicting status on closed day (\(today.displayName)) - consider schedule")
-                    // Note: Don't auto-change manual overrides, but log the conflict
+            if oldScheduleCount != newScheduleCount || bar.weeklySchedule.schedules.count != 7 {
+                print("📅 \(bar.name) schedule updated: rolling forward or regenerating")
+                
+                if let index = bars.firstIndex(where: { $0.id == bar.id }) {
+                    bars[index] = bar
+                    hasChanges = true
                 }
+                
+                // Update in Firebase with new schedule
+                firebaseManager.updateBarSchedule(barId: bar.id, weeklySchedule: bar.weeklySchedule)
             }
             
             // Refresh timestamp for status consistency
@@ -214,7 +244,7 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - FIREBASE INTEGRATION (Enhanced)
+    // MARK: - FIREBASE INTEGRATION (Updated)
     
     private func setupFirebaseConnection() {
         firebaseManager.$bars
@@ -222,8 +252,8 @@ class BarViewModel: ObservableObject {
             .sink { [weak self] bars in
                 self?.bars = bars
                 
-                // Enforce status consistency on data load
-                self?.enforceStatusConsistency()
+                // Enforce schedule consistency on data load
+                self?.enforceScheduleConsistency()
             }
             .store(in: &cancellables)
         
@@ -307,7 +337,7 @@ class BarViewModel: ObservableObject {
         return loggedInBar.id == bar.id
     }
     
-    // MARK: - BAR MANAGEMENT (Updated)
+    // MARK: - BAR MANAGEMENT (Updated for 7-Day Schedule)
     
     func createNewBar(_ bar: Bar, enableFaceID: Bool, completion: @escaping (Bool, String) -> Void) {
         if bars.contains(where: { $0.name.lowercased() == bar.name.lowercased() }) {
@@ -351,7 +381,7 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - BAR PROPERTY UPDATES (Keep existing methods)
+    // MARK: - BAR PROPERTY UPDATES (Updated for 7-Day Schedule)
     
     func updateBarDescription(_ bar: Bar, newDescription: String) {
         guard canEdit(bar: bar) else { return }
@@ -364,21 +394,6 @@ class BarViewModel: ObservableObject {
         updateLocalBarState(updatedBar)
         
         objectWillChange.send()
-    }
-    
-    func updateBarOperatingHours(_ bar: Bar, newHours: OperatingHours) {
-        guard canEdit(bar: bar) else { return }
-        
-        firebaseManager.updateBarOperatingHours(barId: bar.id, operatingHours: newHours)
-        
-        var updatedBar = bar
-        updatedBar.operatingHours = newHours
-        updatedBar.refreshTimestamp()
-        updateLocalBarState(updatedBar)
-        
-        objectWillChange.send()
-        
-        // Schedule monitoring will pick up any status changes due to new hours
     }
     
     func updateBarPassword(_ bar: Bar, newPassword: String) {
@@ -503,10 +518,20 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - LEGACY SUPPORT (Deprecated but maintained for compatibility)
+    // MARK: - LEGACY SUPPORT (For compatibility with existing code)
     
     func updateBarStatus(_ bar: Bar, newStatus: BarStatus) {
         setManualBarStatus(bar, newStatus: newStatus)
+    }
+    
+    // DEPRECATED: Use updateBarSchedule instead
+    func updateBarOperatingHours(_ bar: Bar, newHours: OperatingHours) {
+        print("⚠️ Deprecated method called: updateBarOperatingHours. Use updateBarSchedule instead.")
+        // For now, just update timestamp to trigger UI refresh
+        var updatedBar = bar
+        updatedBar.refreshTimestamp()
+        updateLocalBarState(updatedBar)
+        objectWillChange.send()
     }
     
     // MARK: - FORCE REFRESH METHOD
@@ -517,31 +542,13 @@ class BarViewModel: ObservableObject {
         // Refresh Firebase data
         firebaseManager.fetchBars()
         
-        // Check for schedule changes
+        // Check for schedule changes and roll forward
         checkForScheduleBasedStatusChanges()
         
-        // Ensure status consistency
-        enforceStatusConsistency()
+        // Ensure schedule consistency
+        enforceScheduleConsistency()
         
         // Update UI
         objectWillChange.send()
-    }
-    
-    // MARK: - HELPER METHODS
-    
-    private func getCurrentWeekDay() -> WeekDay {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: Date())
-        
-        switch weekday {
-        case 1: return WeekDay.sunday
-        case 2: return WeekDay.monday
-        case 3: return WeekDay.tuesday
-        case 4: return WeekDay.wednesday
-        case 5: return WeekDay.thursday
-        case 6: return WeekDay.friday
-        case 7: return WeekDay.saturday
-        default: return WeekDay.monday
-        }
     }
 }
