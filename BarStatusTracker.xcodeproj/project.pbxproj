@@ -10,9 +10,6 @@
 		057326922E23F5BE00E474C6 /* LocationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057326912E23F5B800E474C6 /* LocationModels.swift */; };
 		0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */; };
 		0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E39E2E1A12C700C367FF /* CreateBarView.swift */; };
-		0597E3A22E1A2A4900C367FF /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3A12E1A2A4100C367FF /* NotificationManager.swift */; };
-		0597E3A42E1A2B5800C367FF /* NotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3A32E1A2B5100C367FF /* NotificationDelegate.swift */; };
-		0597E3A62E2343ED00C367FF /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3A52E2343E800C367FF /* NotificationSettingsView.swift */; };
 		0597E3AE2E23CC9700C367FF /* DualTimeSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3AD2E23CC9500C367FF /* DualTimeSlider.swift */; };
 		0597E3B02E23CCE200C367FF /* SearchBarsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3AF2E23CCE000C367FF /* SearchBarsView.swift */; };
 		05A13C1B2E18BBE900A69687 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 05A13C182E18BBE900A69687 /* Assets.xcassets */; };
@@ -38,7 +35,6 @@
 		05A13C602E18F1D500A69687 /* FirebaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */; };
 		05A13C632E19536D00A69687 /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C622E19536A00A69687 /* UserPreferences.swift */; };
 		05A13C652E1953B800A69687 /* UserPreferencesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C642E1953B400A69687 /* UserPreferencesManager.swift */; };
-		05A13C672E1953F600A69687 /* FavoriteButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C662E1953ED00A69687 /* FavoriteButton.swift */; };
 		05FDBDBD2E23F731003F6DB1 /* LocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */; };
 /* End PBXBuildFile section */
 
@@ -77,9 +73,6 @@
 		0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicDeviceAnalytics.swift; sourceTree = "<group>"; };
 		0597E39E2E1A12C700C367FF /* CreateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBarView.swift; sourceTree = "<group>"; };
 		0597E3A02E1A29DC00C367FF /* BarStatusTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BarStatusTracker.entitlements; sourceTree = "<group>"; };
-		0597E3A12E1A2A4100C367FF /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
-		0597E3A32E1A2B5100C367FF /* NotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDelegate.swift; sourceTree = "<group>"; };
-		0597E3A52E2343E800C367FF /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
 		0597E3AD2E23CC9500C367FF /* DualTimeSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualTimeSlider.swift; sourceTree = "<group>"; };
 		0597E3AF2E23CCE000C367FF /* SearchBarsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchBarsView.swift; sourceTree = "<group>"; };
 		05A13BED2E18B67900A69687 /* BarStatusTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarStatusTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -106,7 +99,6 @@
 		05A13C612E19517F00A69687 /* BarStatusTracker-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "BarStatusTracker-Info.plist"; sourceTree = "<group>"; };
 		05A13C622E19536A00A69687 /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
 		05A13C642E1953B400A69687 /* UserPreferencesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferencesManager.swift; sourceTree = "<group>"; };
-		05A13C662E1953ED00A69687 /* FavoriteButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavoriteButton.swift; sourceTree = "<group>"; };
 		05A13C692E19543D00A69687 /* BarStatusAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarStatusAppIntents.swift; sourceTree = "<group>"; };
 		05A13C702E1955DF00A69687 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		05A13C722E1955DF00A69687 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -200,7 +192,6 @@
 		05A13C382E18C05100A69687 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				0597E3A52E2343E800C367FF /* NotificationSettingsView.swift */,
 				0597E39E2E1A12C700C367FF /* CreateBarView.swift */,
 				05A13C432E18C0D300A69687 /* EditDescriptionView.swift */,
 				05A13C422E18C0C900A69687 /* OwnerLoginView.swift */,
@@ -214,7 +205,6 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
-				0597E3A12E1A2A4100C367FF /* NotificationManager.swift */,
 				0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */,
 				05A13C642E1953B400A69687 /* UserPreferencesManager.swift */,
 				05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */,
@@ -230,8 +220,6 @@
 				05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */,
 				0597E3AF2E23CCE000C367FF /* SearchBarsView.swift */,
 				0597E3AD2E23CC9500C367FF /* DualTimeSlider.swift */,
-				0597E3A32E1A2B5100C367FF /* NotificationDelegate.swift */,
-				05A13C662E1953ED00A69687 /* FavoriteButton.swift */,
 				05A13C462E18C0F400A69687 /* SocialLinksView.swift */,
 				05A13C452E18C0E800A69687 /* StatusControlView.swift */,
 				05A13C442E18C0DF00A69687 /* BarGridItem.swift */,
@@ -407,11 +395,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				05A13C4A2E18C5C200A69687 /* OwnerLoginView.swift in Sources */,
-				05A13C672E1953F600A69687 /* FavoriteButton.swift in Sources */,
 				05A13C532E18C63200A69687 /* Bar.swift in Sources */,
 				05A13C4B2E18C5C800A69687 /* BarDetailView.swift in Sources */,
-				0597E3A42E1A2B5800C367FF /* NotificationDelegate.swift in Sources */,
-				0597E3A22E1A2A4900C367FF /* NotificationManager.swift in Sources */,
 				0597E3AE2E23CC9700C367FF /* DualTimeSlider.swift in Sources */,
 				05A13C4E2E18C5DE00A69687 /* StatusControlView.swift in Sources */,
 				05A13C1C2E18BBE900A69687 /* BarStatusTrackerApp.swift in Sources */,
@@ -421,7 +406,6 @@
 				057326922E23F5BE00E474C6 /* LocationModels.swift in Sources */,
 				05A13C492E18C5BC00A69687 /* BarGridView.swift in Sources */,
 				05A13C482E18C5A200A69687 /* MainContentView.swift in Sources */,
-				0597E3A62E2343ED00C367FF /* NotificationSettingsView.swift in Sources */,
 				05A13C632E19536D00A69687 /* UserPreferences.swift in Sources */,
 				0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */,
 				05A13C4F2E18C5E300A69687 /* SocialLinksView.swift in Sources */,

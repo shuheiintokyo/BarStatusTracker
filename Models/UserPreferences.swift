@@ -1,8 +1,7 @@
 import Foundation
 
-// Simple user preferences for favorites
+// Simplified user preferences without favorites
 struct UserPreferences: Codable {
-    var favoriteBarIDs: Set<String> = []
     var deviceId: String
     
     // Initialize with automatic device ID
@@ -14,13 +13,4 @@ struct UserPreferences: Codable {
     init(deviceId: String) {
         self.deviceId = deviceId
     }
-}
-
-// Notification settings (simplified)
-struct NotificationSettings: Codable {
-    var statusChangeNotifications: Bool = true
-    var openingNotifications: Bool = true
-    var closingNotifications: Bool = true
-    
-    init() {}
 }

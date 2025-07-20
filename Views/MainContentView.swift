@@ -2,30 +2,73 @@ import SwiftUI
 
 struct MainContentView: View {
     @StateObject private var barViewModel = BarViewModel()
-    @EnvironmentObject var notificationManager: NotificationManager
     @State private var showingOwnerLogin = false
     @State private var showingBiometricAlert = false
     @State private var biometricError = ""
     @State private var showingCreateBar = false
     @State private var showingSearchBars = false
-    @State private var showingNotificationSettings = false
-    
     @State private var showingBiometricNotRegistered = false
+    
+    // Filter states
+    @State private var searchText = ""
+    @State private var selectedStatusFilter: BarStatus? = nil
+    @State private var selectedLocationFilter: String? = nil
+    
+    // Filtered bars based on search and filters
+    private var filteredBars: [Bar] {
+        var bars = barViewModel.getAllBars()
+        
+        // Apply search filter
+        if !searchText.isEmpty {
+            bars = bars.filter { bar in
+                bar.name.localizedCaseInsensitiveContains(searchText) ||
+                bar.address.localizedCaseInsensitiveContains(searchText) ||
+                (bar.location?.city.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                (bar.location?.country.localizedCaseInsensitiveContains(searchText) ?? false)
+            }
+        }
+        
+        // Apply status filter
+        if let statusFilter = selectedStatusFilter {
+            bars = bars.filter { $0.status == statusFilter }
+        }
+        
+        // Apply location filter
+        if let locationFilter = selectedLocationFilter {
+            bars = bars.filter { bar in
+                bar.location?.city == locationFilter || bar.location?.country == locationFilter
+            }
+        }
+        
+        return bars
+    }
+    
+    // Get unique locations for filter
+    private var availableLocations: [String] {
+        let allBars = barViewModel.getAllBars()
+        var locations = Set<String>()
+        
+        for bar in allBars {
+            if let location = bar.location {
+                locations.insert(location.city)
+                locations.insert(location.country)
+            }
+        }
+        
+        return Array(locations).sorted()
+    }
     
     var body: some View {
         NavigationView {
-            VStack {
-                // Header
+            VStack(spacing: 0) {
+                // Header with actions
                 headerSection
                 
-                // Show message for owners or grid for guests
-                if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
-                    // Owner mode - show welcome message and quick access
-                    ownerModeSection(loggedInBar: loggedInBar)
-                } else {
-                    // Guest mode - show all bars and action cards
-                    guestModeSection
-                }
+                // Search and filters
+                filterSection
+                
+                // Bar list
+                barListSection
             }
         }
         .sheet(isPresented: $showingOwnerLogin) {
@@ -42,9 +85,6 @@ struct MainContentView: View {
         .sheet(isPresented: $showingSearchBars) {
             SearchBarsView(barViewModel: barViewModel)
         }
-        .sheet(isPresented: $showingNotificationSettings) {
-            NotificationSettingsView(barViewModel: barViewModel)
-        }
         .alert("Authentication Error", isPresented: $showingBiometricAlert) {
             Button("OK") { }
         } message: {
@@ -58,95 +98,58 @@ struct MainContentView: View {
         } message: {
             Text("Face ID login is not set up for any bar account. Please log in manually first, then enable Face ID in the settings.")
         }
-        .onAppear {
-            // Connect notification manager to view model
-            barViewModel.setNotificationManager(notificationManager)
-        }
     }
     
     // MARK: - Header Section
     var headerSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Bar Status Tracker")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                if barViewModel.isOwnerMode {
-                    Text("Owner Dashboard")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                } else {
-                    let totalBars = barViewModel.getAllBars().count
-                    if totalBars == 0 {
-                        Text("Discover bars worldwide")
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Bar Status Tracker")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    
+                    if barViewModel.isOwnerMode {
+                        Text("Owner Dashboard")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     } else {
-                        Text("\(totalBars) \(totalBars == 1 ? "bar" : "bars") available")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        let totalBars = barViewModel.getAllBars().count
+                        let filteredCount = filteredBars.count
+                        if totalBars == 0 {
+                            Text("No bars available")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        } else if filteredCount != totalBars {
+                            Text("Showing \(filteredCount) of \(totalBars) bars")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("\(totalBars) \(totalBars == 1 ? "bar" : "bars") available")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
+                
+                Spacer()
+                
+                // Authentication buttons
+                authenticationButtons
             }
             
-            Spacer()
-            
-            // Authentication buttons
-            authenticationButtons
+            // Action buttons (Create New Bar and Search)
+            if !barViewModel.isOwnerMode {
+                actionButtonsSection
+            }
         }
         .padding()
+        .background(Color.gray.opacity(0.05))
     }
     
     // MARK: - Authentication Buttons
     var authenticationButtons: some View {
         HStack(spacing: 12) {
-            // Notification settings button
-            Button(action: {
-                showingNotificationSettings = true
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: notificationManager.isAuthorized ? "bell.fill" : "bell")
-                        .font(.title2)
-                        .foregroundColor(notificationManager.isAuthorized ? .green : .gray)
-                    Text("Alerts")
-                        .font(.caption2)
-                        .foregroundColor(notificationManager.isAuthorized ? .green : .gray)
-                }
-            }
-            
-            // Create bar button (always visible in guest mode)
-            if !barViewModel.isOwnerMode {
-                Button(action: {
-                    showingCreateBar = true
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.purple)
-                        Text("New Bar")
-                            .font(.caption2)
-                            .foregroundColor(.purple)
-                    }
-                }
-            }
-            
-            // Search bars button (always visible in guest mode)
-            if !barViewModel.isOwnerMode {
-                Button(action: {
-                    showingSearchBars = true
-                }) {
-                    VStack(spacing: 4) {
-                        Image(systemName: "magnifyingglass.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.orange)
-                        Text("Search")
-                            .font(.caption2)
-                            .foregroundColor(.orange)
-                    }
-                }
-            }
-            
             // Biometric authentication button
             if !barViewModel.isOwnerMode && shouldShowBiometricButton {
                 Button(action: {
@@ -174,6 +177,7 @@ struct MainContentView: View {
                 HStack {
                     Image(systemName: barViewModel.isOwnerMode ? "person.fill.badge.minus" : "person.badge.key")
                         .font(.title2)
+                        .foregroundColor(barViewModel.isOwnerMode ? .red : .blue)
                     
                     if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
                         VStack(alignment: .leading, spacing: 2) {
@@ -184,13 +188,191 @@ struct MainContentView: View {
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
+                    } else {
+                        Text("Login")
+                            .font(.caption)
+                            .foregroundColor(.blue)
                     }
                 }
             }
         }
     }
     
-    // MARK: - Biometric handling
+    // MARK: - Action Buttons Section
+    var actionButtonsSection: some View {
+        HStack(spacing: 12) {
+            // Create New Bar
+            Button(action: {
+                showingCreateBar = true
+            }) {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                    Text("Create New Bar")
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.purple, .blue]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+            }
+            
+            // Search Bars
+            Button(action: {
+                showingSearchBars = true
+            }) {
+                HStack {
+                    Image(systemName: "magnifyingglass.circle.fill")
+                        .font(.title3)
+                    Text("Search Bars")
+                        .font(.headline)
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: [.orange, .pink]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(12)
+            }
+        }
+    }
+    
+    // MARK: - Filter Section
+    var filterSection: some View {
+        VStack(spacing: 12) {
+            // Search bar
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray)
+                
+                TextField("Search bars by name, location...", text: $searchText)
+                    .textFieldStyle(PlainTextFieldStyle())
+                
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                    }
+                }
+            }
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(10)
+            
+            // Filter chips
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    // Status filters
+                    ForEach(BarStatus.allCases, id: \.self) { status in
+                        FilterChip(
+                            title: status.displayName,
+                            isSelected: selectedStatusFilter == status,
+                            color: status.color
+                        ) {
+                            selectedStatusFilter = selectedStatusFilter == status ? nil : status
+                        }
+                    }
+                    
+                    // Location filters
+                    if !availableLocations.isEmpty {
+                        ForEach(availableLocations.prefix(5), id: \.self) { location in
+                            FilterChip(
+                                title: location,
+                                isSelected: selectedLocationFilter == location,
+                                color: .green
+                            ) {
+                                selectedLocationFilter = selectedLocationFilter == location ? nil : location
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+    
+    // MARK: - Bar List Section
+    var barListSection: some View {
+        Group {
+            if filteredBars.isEmpty {
+                emptyStateView
+            } else {
+                List(filteredBars) { bar in
+                    BarListRow(bar: bar, barViewModel: barViewModel, isOwnerMode: barViewModel.isOwnerMode)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                }
+                .listStyle(PlainListStyle())
+                .refreshable {
+                    barViewModel.forceRefreshAllData()
+                }
+            }
+        }
+    }
+    
+    // MARK: - Empty State View
+    var emptyStateView: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "building.2")
+                .font(.system(size: 60))
+                .foregroundColor(.gray.opacity(0.5))
+            
+            VStack(spacing: 8) {
+                Text(searchText.isEmpty ? "No Bars Available" : "No Bars Found")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                
+                if searchText.isEmpty {
+                    Text("Be the first to create a bar!")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("Try adjusting your search or filters")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            if searchText.isEmpty {
+                Button("Create New Bar") {
+                    showingCreateBar = true
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.purple)
+                .cornerRadius(25)
+            } else {
+                Button("Clear Search") {
+                    searchText = ""
+                    selectedStatusFilter = nil
+                    selectedLocationFilter = nil
+                }
+                .font(.subheadline)
+                .foregroundColor(.blue)
+            }
+            
+            Spacer()
+        }
+        .padding(.top, 50)
+    }
+    
+    // MARK: - Helper Methods
     
     private var shouldShowBiometricButton: Bool {
         guard barViewModel.biometricAuthInfo.displayName != "Biometric" else {
@@ -219,156 +401,6 @@ struct MainContentView: View {
         }
     }
     
-    // MARK: - Owner Mode Section
-    func ownerModeSection(loggedInBar: Bar) -> some View {
-        VStack(spacing: 20) {
-            Text("Welcome back!")
-                .font(.title2)
-                .fontWeight(.semibold)
-            
-            Text("You're logged in as the owner of \(loggedInBar.name)")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            
-            // Quick status overview
-            VStack(spacing: 12) {
-                HStack {
-                    Image(systemName: loggedInBar.status.icon)
-                        .font(.title)
-                        .foregroundColor(loggedInBar.status.color)
-                    
-                    VStack(alignment: .leading) {
-                        Text("Current Status")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(loggedInBar.status.displayName)
-                            .font(.headline)
-                            .fontWeight(.medium)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing) {
-                        Text("Last Updated")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Text(timeAgo(loggedInBar.lastUpdated))
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                }
-                .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
-                
-                // Auto-transition info (if active)
-                if loggedInBar.isAutoTransitionActive, let pendingStatus = loggedInBar.pendingStatus {
-                    HStack {
-                        Image(systemName: "clock.fill")
-                            .foregroundColor(.orange)
-                        
-                        VStack(alignment: .leading) {
-                            Text("Auto-transition active")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                            Text("Will change to \(pendingStatus.displayName)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        TimeRemainingView(bar: loggedInBar, barViewModel: barViewModel)
-                    }
-                    .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(12)
-                }
-            }
-            .padding(.horizontal)
-            
-            // Main control button
-            Button(action: {
-                barViewModel.selectedBar = loggedInBar
-                barViewModel.showingDetail = true
-            }) {
-                HStack {
-                    Image(systemName: "building.2")
-                        .font(.title2)
-                    Text("Go to \(loggedInBar.name) Controls")
-                        .font(.headline)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.blue, .purple]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .cornerRadius(12)
-            }
-            .padding(.horizontal)
-            
-            // View all bars button
-            Button(action: {
-                barViewModel.switchToGuestView()
-            }) {
-                HStack {
-                    Image(systemName: "map")
-                        .font(.title2)
-                    Text("View All Bars")
-                        .font(.headline)
-                }
-                .foregroundColor(.blue)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.blue, lineWidth: 2)
-                )
-                .cornerRadius(12)
-            }
-            .padding(.horizontal)
-            
-            Spacer()
-        }
-        .padding(.top, 30)
-    }
-    
-    // MARK: - Guest Mode Section (Simplified)
-    var guestModeSection: some View {
-        VStack {
-            // Show owner info if logged in but in guest view
-            if barViewModel.loggedInBar != nil {
-                HStack {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundColor(.blue)
-                    Text("Viewing as guest - you're still logged in")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Button("Back to Owner View") {
-                        barViewModel.switchToOwnerView()
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-                .padding(.horizontal)
-                .padding(.bottom, 8)
-            }
-            
-            // Show all bars and action cards
-            BarGridView(barViewModel: barViewModel, isOwnerMode: false)
-        }
-    }
-    
-    // MARK: - Helper Methods
-    
     private func showLogoutOptions() {
         let alert = UIAlertController(title: "Logout Options", message: nil, preferredStyle: .actionSheet)
         
@@ -387,59 +419,170 @@ struct MainContentView: View {
             window.rootViewController?.present(alert, animated: true)
         }
     }
+}
+
+// MARK: - Filter Chip Component
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(.medium)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    isSelected ? color : Color.gray.opacity(0.2)
+                )
+                .foregroundColor(
+                    isSelected ? .white : .primary
+                )
+                .cornerRadius(16)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Bar List Row Component
+struct BarListRow: View {
+    let bar: Bar
+    @ObservedObject var barViewModel: BarViewModel
+    let isOwnerMode: Bool
+    
+    var body: some View {
+        Button(action: {
+            barViewModel.selectedBar = bar
+            barViewModel.showingDetail = true
+        }) {
+            HStack(spacing: 12) {
+                // Status indicator
+                VStack {
+                    Image(systemName: bar.status.icon)
+                        .font(.title2)
+                        .foregroundColor(bar.status.color)
+                    
+                    Text(bar.status.displayName)
+                        .font(.caption2)
+                        .foregroundColor(bar.status.color)
+                        .fontWeight(.medium)
+                }
+                .frame(width: 70)
+                
+                // Bar details
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(bar.name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        if isOwnerMode && barViewModel.loggedInBar?.id == bar.id {
+                            Image(systemName: "crown.fill")
+                                .font(.caption)
+                                .foregroundColor(.yellow)
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    if let location = bar.location {
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            Text(location.displayName)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if !bar.address.isEmpty {
+                        HStack {
+                            Image(systemName: "mappin")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            Text(bar.address)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    // Status source info
+                    HStack(spacing: 8) {
+                        if bar.isFollowingSchedule {
+                            HStack(spacing: 2) {
+                                Image(systemName: "calendar")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                                Text("Schedule")
+                                    .font(.caption2)
+                                    .foregroundColor(.green)
+                            }
+                        } else {
+                            HStack(spacing: 2) {
+                                Image(systemName: "hand.raised.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                Text("Manual")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                        
+                        if bar.isAutoTransitionActive {
+                            HStack(spacing: 2) {
+                                Image(systemName: "timer")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                Text("Auto")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                            }
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Last updated
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("Updated")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    Text(timeAgo(bar.lastUpdated))
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .fontWeight(.medium)
+                }
+            }
+            .padding()
+            .background(Color.white)
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
     
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         
         if interval < 60 {
-            return "just now"
+            return "now"
         } else if interval < 3600 {
             let minutes = Int(interval / 60)
-            return "\(minutes)m ago"
+            return "\(minutes)m"
         } else if interval < 86400 {
             let hours = Int(interval / 3600)
-            return "\(hours)h ago"
+            return "\(hours)h"
         } else {
             let days = Int(interval / 86400)
-            return "\(days)d ago"
-        }
-    }
-}
-
-// MARK: - Helper View
-struct TimeRemainingView: View {
-    let bar: Bar
-    let barViewModel: BarViewModel
-    
-    private var timeRemainingText: String? {
-        guard let timeRemaining = bar.timeUntilAutoTransition,
-              timeRemaining > 0 else {
-            return nil
-        }
-        
-        let minutes = Int(timeRemaining / 60)
-        let seconds = Int(timeRemaining.truncatingRemainder(dividingBy: 60))
-        
-        if minutes > 0 {
-            return "\(minutes)m \(seconds)s"
-        } else {
-            return "\(seconds)s"
-        }
-    }
-    
-    var body: some View {
-        Group {
-            if let timeRemaining = timeRemainingText {
-                Text(timeRemaining)
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.orange)
-            }
+            return "\(days)d"
         }
     }
 }
 
 #Preview {
     MainContentView()
-        .environmentObject(NotificationManager())
 }

@@ -41,7 +41,7 @@ struct StatusControlView: View {
         )
     }
     
-    // MARK: - Current Status Header (ENHANCED)
+    // MARK: - Current Status Header
     var currentStatusHeader: some View {
         VStack(spacing: 8) {
             Text("Bar Status")
@@ -79,7 +79,7 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Status Source Information (ENHANCED)
+    // MARK: - Status Source Information
     var statusSourceInfo: some View {
         Group {
             if let current = currentBar {
@@ -140,7 +140,7 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Today's Hours Info (NEW)
+    // MARK: - Today's Hours Info
     private func todaysHoursInfo(for bar: Bar) -> some View {
         let today = getCurrentWeekDay()
         let todayHours = bar.operatingHours.getDayHours(for: today)
@@ -185,7 +185,7 @@ struct StatusControlView: View {
         .padding(.horizontal, 4)
     }
     
-    // MARK: - Follow Schedule Button (ENHANCED)
+    // MARK: - Follow Schedule Button
     var followScheduleButton: some View {
         VStack(spacing: 8) {
             Button(action: {
@@ -233,7 +233,7 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Auto-transition Card (existing)
+    // MARK: - Auto-transition Card
     var autoTransitionCard: some View {
         HStack(spacing: 12) {
             ZStack {
@@ -291,7 +291,7 @@ struct StatusControlView: View {
         )
     }
     
-    // MARK: - Status Control Grid (ENHANCED)
+    // MARK: - Status Control Grid
     var statusControlGrid: some View {
         VStack(spacing: 12) {
             Text("Change Status")
@@ -353,7 +353,7 @@ struct StatusControlView: View {
     }
 }
 
-// MARK: - Enhanced Status Button
+// MARK: - Status Button Component
 struct StatusButton: View {
     let status: BarStatus
     let currentStatus: BarStatus

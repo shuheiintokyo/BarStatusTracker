@@ -46,7 +46,7 @@ struct BarDetailView: View {
                     socialLinksSection
                     
                     // Owner Settings
-                    if isOwnerMode {
+                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                         Divider()
                         ownerSettingsSection
                     }
@@ -190,7 +190,7 @@ struct BarDetailView: View {
             }
             
             // Owner Controls
-            if isOwnerMode {
+            if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                 StatusControlView(bar: currentBar, barViewModel: barViewModel)
             }
         }
@@ -203,13 +203,14 @@ struct BarDetailView: View {
                 Text("Operating Hours")
                     .font(.headline)
                 
-                if isOwnerMode {
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                     Spacer()
                     Button("Edit") {
                         editingOperatingHours = currentBar.operatingHours
                         showingEditOperatingHours = true
                     }
                     .font(.caption)
+                    .foregroundColor(.blue)
                 }
             }
             
@@ -260,7 +261,7 @@ struct BarDetailView: View {
             }
             
             // Schedule vs Reality notification for owners
-            if isOwnerMode && !currentBar.isFollowingSchedule {
+            if isOwnerMode && barViewModel.canEdit(bar: currentBar) && !currentBar.isFollowingSchedule {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -331,13 +332,14 @@ struct BarDetailView: View {
                 Text("About")
                     .font(.headline)
                 
-                if isOwnerMode {
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                     Spacer()
                     Button("Edit") {
                         editingDescription = currentBar.description
                         showingEditDescription = true
                     }
                     .font(.caption)
+                    .foregroundColor(.blue)
                 }
             }
             
@@ -354,13 +356,14 @@ struct BarDetailView: View {
                 Text("Social Links")
                     .font(.headline)
                 
-                if isOwnerMode {
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                     Spacer()
                     Button("Edit") {
                         editingSocialLinks = currentBar.socialLinks
                         showingEditSocialLinks = true
                     }
                     .font(.caption)
+                    .foregroundColor(.blue)
                 }
             }
             
@@ -370,7 +373,7 @@ struct BarDetailView: View {
                !currentBar.socialLinks.facebook.isEmpty {
                 
                 SocialLinksView(socialLinks: currentBar.socialLinks)
-            } else if isOwnerMode {
+            } else if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                 VStack(spacing: 8) {
                     Text("No social links set up yet")
                         .font(.subheadline)
@@ -384,6 +387,13 @@ struct BarDetailView: View {
                 .padding()
                 .background(Color.blue.opacity(0.05))
                 .cornerRadius(8)
+            } else {
+                Text("No social links available")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .background(Color.gray.opacity(0.05))
+                    .cornerRadius(8)
             }
         }
     }
@@ -440,7 +450,7 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - Simplified Supporting Views
+// MARK: - Editing Views (Simplified)
 struct EditOperatingHoursView: View {
     @Binding var operatingHours: OperatingHours
     let barName: String
@@ -527,7 +537,7 @@ struct EditPasswordView: View {
                         
                         Text("••••")
                             .font(.title3)
-                            .fontFamily(.monospaced)
+                            .fontDesign(.monospaced)
                             .foregroundColor(.secondary)
                     }
                     
@@ -627,30 +637,30 @@ struct EditSocialLinksView: View {
                     
                     VStack(spacing: 20) {
                         SocialLinkEditor(
-                            icon: "instagram-icon",
+                            icon: "camera",
                             title: "Instagram",
                             placeholder: "https://instagram.com/yourbar",
                             text: $tempInstagram,
                             description: "Your Instagram profile or page",
-                            isAssetImage: true
+                            isAssetImage: false
                         )
                         
                         SocialLinkEditor(
-                            icon: "x-icon",
+                            icon: "message",
                             title: "X (Twitter)",
                             placeholder: "https://x.com/yourbar",
                             text: $tempTwitter,
                             description: "Your X (Twitter) profile or page",
-                            isAssetImage: true
+                            isAssetImage: false
                         )
                         
                         SocialLinkEditor(
-                            icon: "facebook-icon",
+                            icon: "person.2",
                             title: "Facebook",
                             placeholder: "https://facebook.com/yourbar",
                             text: $tempFacebook,
                             description: "Your Facebook page",
-                            isAssetImage: true
+                            isAssetImage: false
                         )
                         
                         SocialLinkEditor(
@@ -745,17 +755,9 @@ struct SocialLinkEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                if isAssetImage {
-                    Image(icon)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
-                        .foregroundColor(.blue)
-                } else {
-                    Image(systemName: icon)
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                }
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(.blue)
                 
                 Text(title)
                     .font(.headline)
@@ -774,11 +776,5 @@ struct SocialLinkEditor: View {
         .padding()
         .background(Color.gray.opacity(0.05))
         .cornerRadius(10)
-    }
-}
-
-extension Text {
-    func fontFamily(_ family: Font.Design) -> Text {
-        self.font(.system(.caption, design: family))
     }
 }

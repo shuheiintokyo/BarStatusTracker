@@ -17,9 +17,6 @@ class BarViewModel: ObservableObject {
     // Biometric authentication manager
     private var biometricAuth = BiometricAuthManager()
     
-    // Notification manager
-    @Published var notificationManager: NotificationManager?
-    
     // Enhanced timers for schedule and auto-transition monitoring
     private var scheduleMonitoringTimer: Timer?
     private var autoTransitionTimer: Timer?
@@ -66,11 +63,6 @@ class BarViewModel: ObservableObject {
             loggedInBar = updatedBar
         }
         
-        // Send notification if status actually changed
-        if oldStatus != newStatus {
-            sendStatusChangeNotification(bar: updatedBar, oldStatus: oldStatus, newStatus: newStatus)
-        }
-        
         objectWillChange.send()
     }
     
@@ -97,11 +89,6 @@ class BarViewModel: ObservableObject {
         // Update local logged-in bar reference
         if loggedInBar?.id == bar.id {
             loggedInBar = updatedBar
-        }
-        
-        // Send notification if status changed
-        if oldStatus != newStatus {
-            sendStatusChangeNotification(bar: updatedBar, oldStatus: oldStatus, newStatus: newStatus)
         }
         
         objectWillChange.send()
@@ -145,9 +132,6 @@ class BarViewModel: ObservableObject {
                     if self.loggedInBar?.id == bar.id {
                         self.loggedInBar?.lastUpdated = Date()
                     }
-                    
-                    // Send notification for status change
-                    self.sendStatusChangeNotification(bar: bar, oldStatus: currentStatus, newStatus: newScheduleStatus)
                 }
             }
             
@@ -200,31 +184,6 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Simplified Notification System
-    
-    private func sendStatusChangeNotification(bar: Bar, oldStatus: BarStatus, newStatus: BarStatus) {
-        // Only send notifications for Opening Soon and Closing Soon
-        guard newStatus == .openingSoon || newStatus == .closingSoon else {
-            print("🔕 Skipping notification for \(newStatus.displayName) - only notifying for Opening Soon/Closing Soon")
-            return
-        }
-        
-        // Send notification to all users since we removed favorites
-        NotificationCenter.default.post(
-            name: .barStatusChanged,
-            object: nil,
-            userInfo: [
-                "barId": bar.id,
-                "barName": bar.name,
-                "newStatus": newStatus,
-                "oldStatus": oldStatus,
-                "isScheduleBased": bar.isFollowingSchedule
-            ]
-        )
-        
-        print("📢 Posted notification for \(bar.name): \(oldStatus.displayName) → \(newStatus.displayName)")
-    }
-    
     // MARK: - Auto-transition Monitoring
     
     private func startAutoTransitionMonitoring() {
@@ -257,9 +216,6 @@ class BarViewModel: ObservableObject {
                     if self.loggedInBar?.id == bar.id {
                         self.loggedInBar = bar
                     }
-                    
-                    // Send notification
-                    self.sendStatusChangeNotification(bar: bar, oldStatus: oldStatus, newStatus: bar.status)
                     
                     self.objectWillChange.send()
                 }
@@ -296,12 +252,6 @@ class BarViewModel: ObservableObject {
             .assign(to: &$isLoading)
         
         setupBiometricAuth()
-    }
-    
-    // MARK: - Notification Manager Integration
-    
-    func setNotificationManager(_ manager: NotificationManager) {
-        self.notificationManager = manager
     }
     
     // MARK: - Authentication Methods
