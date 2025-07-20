@@ -297,15 +297,22 @@ struct Bar: Identifiable, Codable {
     var pendingStatus: BarStatus?
     var isAutoTransitionActive: Bool = false
     
-    // MARK: - MAIN STATUS PROPERTY (Simplified Logic)
+    // MARK: - MAIN STATUS PROPERTY (Simplified and Fixed Logic)
     var status: BarStatus {
         get {
-            // If there's an active manual override
+            // ALWAYS prioritize manual override if it exists
             if !_isFollowingSchedule, let manualStatus = manualStatus {
+                #if DEBUG
+                print("📱 \(name): Using manual override - \(manualStatus.displayName)")
+                #endif
                 return manualStatus
             } else {
-                // ALWAYS follow today's schedule by default
-                return scheduleBasedStatus
+                // Follow today's schedule
+                let computedStatus = scheduleBasedStatus
+                #if DEBUG
+                print("📅 \(name): Following schedule - \(computedStatus.displayName)")
+                #endif
+                return computedStatus
             }
         }
     }
@@ -320,7 +327,7 @@ struct Bar: Identifiable, Codable {
         get { manualStatus }
     }
     
-    // MARK: - Schedule-Based Status Logic (Updated for 7-Day System)
+    // MARK: - COMPLETELY FIXED: Schedule-Based Status Logic with Robust Overnight Handling
     var scheduleBasedStatus: BarStatus {
         // Ensure schedule is up to date
         var mutableSelf = self
@@ -338,31 +345,53 @@ struct Bar: Identifiable, Codable {
         let now = Date()
         let calendar = Calendar.current
         
-        // Get opening and closing times for today
-        guard let openTime = getTimeToday(from: todaysSchedule.openTime),
-              let closeTime = getTimeToday(from: todaysSchedule.closeTime) else {
+        // Parse times more robustly
+        guard let openTime = parseTimeToday(todaysSchedule.openTime),
+              let closeTime = parseTimeToday(todaysSchedule.closeTime) else {
             return .closed
         }
         
-        // Handle overnight hours (close time next day)
-        let actualCloseTime = closeTime < openTime ?
-            calendar.date(byAdding: .day, value: 1, to: closeTime)! : closeTime
+        // SIMPLIFIED LOGIC: Check if current time falls within operating hours
+        let isOvernightSchedule = closeTime <= openTime
         
-        // Calculate transition times (15 minutes before)
-        let openingSoonTime = calendar.date(byAdding: .minute, value: -15, to: openTime)!
-        let closingSoonTime = calendar.date(byAdding: .minute, value: -15, to: actualCloseTime)!
-        
-        // Determine status based on current time
-        if now < openingSoonTime {
-            return .closed
-        } else if now < openTime {
-            return .openingSoon
-        } else if now < closingSoonTime {
-            return .open
-        } else if now < actualCloseTime {
-            return .closingSoon
+        if isOvernightSchedule {
+            // Overnight schedule (e.g., 18:00 - 06:00)
+            let isCurrentlyOpen = now >= openTime || now < closeTime
+            
+            if !isCurrentlyOpen {
+                // Closed period between close and open time
+                let openingSoonTime = calendar.date(byAdding: .minute, value: -15, to: openTime)!
+                return now >= openingSoonTime ? .openingSoon : .closed
+            } else {
+                // Open period - check for closing soon
+                let closingSoonTime: Date
+                if now >= openTime {
+                    // Same day, check against tomorrow's close
+                    let tomorrowClose = calendar.date(byAdding: .day, value: 1, to: closeTime)!
+                    closingSoonTime = calendar.date(byAdding: .minute, value: -15, to: tomorrowClose)!
+                    return now >= closingSoonTime ? .closingSoon : .open
+                } else {
+                    // Early morning, check against today's close
+                    closingSoonTime = calendar.date(byAdding: .minute, value: -15, to: closeTime)!
+                    return now >= closingSoonTime ? .closingSoon : .open
+                }
+            }
         } else {
-            return .closed
+            // Same-day schedule (e.g., 09:00 - 17:00)
+            let openingSoonTime = calendar.date(byAdding: .minute, value: -15, to: openTime)!
+            let closingSoonTime = calendar.date(byAdding: .minute, value: -15, to: closeTime)!
+            
+            if now < openingSoonTime {
+                return .closed
+            } else if now < openTime {
+                return .openingSoon
+            } else if now < closingSoonTime {
+                return .open
+            } else if now < closeTime {
+                return .closingSoon
+            } else {
+                return .closed
+            }
         }
     }
     
@@ -404,19 +433,21 @@ struct Bar: Identifiable, Codable {
         self.weeklySchedule.rollForwardIfNeeded()
     }
     
-    // MARK: - STATUS INFORMATION METHODS (Updated)
-    
-    /// Get detailed status info for UI
+    // MARK: - ENHANCED: Status display info for debugging
     var statusDisplayInfo: (status: BarStatus, source: String, description: String, isConflicting: Bool) {
         let currentStatus = status
         let scheduleStatus = scheduleBasedStatus
         
         if !isFollowingSchedule, let manualStatus = manualStatus {
             let isConflicting = manualStatus != scheduleStatus
+            let description = isConflicting ?
+                "Manual: \(manualStatus.displayName), Schedule: \(scheduleStatus.displayName)" :
+                "Manual override matches schedule"
+            
             return (
                 manualStatus,
                 "Manual Override",
-                "Owner set manually",
+                description,
                 isConflicting
             )
         } else {
@@ -430,10 +461,13 @@ struct Bar: Identifiable, Codable {
             }
             
             if todaysSchedule.isOpen {
+                let now = Date()
+                let timeStr = DateFormatter.localizedString(from: now, dateStyle: .none, timeStyle: .short)
+                
                 return (
                     scheduleStatus,
                     "Today's Schedule",
-                    "Based on today's hours: \(todaysSchedule.displayText)",
+                    "Based on \(todaysSchedule.displayText) (now: \(timeStr))",
                     false
                 )
             } else {
@@ -521,19 +555,91 @@ struct Bar: Identifiable, Codable {
         return true
     }
     
-    // MARK: - HELPER METHODS
-    
-    private func getTimeToday(from timeString: String) -> Date? {
+    // MARK: - IMPROVED: Helper method for parsing times
+    private func parseTimeToday(_ timeString: String) -> Date? {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         
-        guard let time = formatter.date(from: timeString) else { return nil }
+        guard let time = formatter.date(from: timeString) else {
+            print("❌ Failed to parse time: \(timeString)")
+            return nil
+        }
         
         let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
-        return calendar.date(byAdding: timeComponents, to: today)
+        let result = calendar.date(byAdding: timeComponents, to: today)
+        
+        // Only log in debug mode
+        #if DEBUG
+        print("📅 \(name): Parsed \(timeString) -> \(result?.formatted(date: .omitted, time: .shortened) ?? "nil")")
+        #endif
+        
+        return result
+    }
+    
+    // MARK: - DEBUG: Test method for specific scenarios
+    func debugScheduleStatus(at testTime: Date? = nil) -> String {
+        let currentTime = testTime ?? Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        
+        guard let todaysSchedule = weeklySchedule.todaysSchedule else {
+            return "❌ No today's schedule"
+        }
+        
+        guard todaysSchedule.isOpen else {
+            return "⛔ Scheduled closed today"
+        }
+        
+        guard let openTime = parseTimeToday(todaysSchedule.openTime),
+              let closeTime = parseTimeToday(todaysSchedule.closeTime) else {
+            return "❌ Failed to parse times"
+        }
+        
+        let isOvernightSchedule = closeTime <= openTime
+        let timeStr = formatter.string(from: currentTime)
+        let openStr = formatter.string(from: openTime)
+        let closeStr = formatter.string(from: closeTime)
+        
+        var debug = """
+        🏪 \(name) Schedule Debug:
+        📅 Current: \(timeStr)
+        🕕 Opens: \(openStr)
+        🕐 Closes: \(closeStr)
+        🌙 Overnight: \(isOvernightSchedule ? "YES" : "NO")
+        """
+        
+        if isOvernightSchedule {
+            let isCurrentlyOpen = currentTime >= openTime || currentTime < closeTime
+            debug += "\n🟢 Should be open: \(isCurrentlyOpen ? "YES" : "NO")"
+            
+            if isCurrentlyOpen {
+                if currentTime >= openTime {
+                    debug += "\n📍 Status: After opening time today"
+                } else {
+                    debug += "\n📍 Status: Before closing time (early morning)"
+                }
+            } else {
+                debug += "\n📍 Status: In closed period between \(closeStr) and \(openStr)"
+            }
+        } else {
+            let isCurrentlyOpen = currentTime >= openTime && currentTime < closeTime
+            debug += "\n🟢 Should be open: \(isCurrentlyOpen ? "YES" : "NO")"
+            debug += "\n📍 Status: Regular day schedule"
+        }
+        
+        debug += "\n🔄 Computed status: \(scheduleBasedStatus.displayName)"
+        debug += "\n📱 Actual status: \(status.displayName)"
+        debug += "\n⚙️ Following schedule: \(isFollowingSchedule ? "YES" : "NO")"
+        
+        if let manualStatus = currentManualStatus {
+            debug += "\n✋ Manual override: \(manualStatus.displayName)"
+        }
+        
+        return debug
     }
     
     // MARK: - MIGRATION HELPERS

@@ -14,14 +14,17 @@ struct BarDetailView: View {
     // Editing states - UPDATED for 7-day schedule
     @State private var editingDescription = ""
     @State private var showingEditDescription = false
-    @State private var showingEditWeeklySchedule = false  // CHANGED from showingEditOperatingHours
-    @State private var editingWeeklySchedule = WeeklySchedule()  // CHANGED from editingOperatingHours
+    @State private var showingEditWeeklySchedule = false
+    @State private var editingWeeklySchedule = WeeklySchedule()
     @State private var editingPassword = ""
     @State private var showingEditPassword = false
     
     // Social Links editing states
     @State private var editingSocialLinks = SocialLinks()
     @State private var showingEditSocialLinks = false
+    
+    // Debug state
+    @State private var showingDebugInfo = false
     
     var body: some View {
         NavigationView {
@@ -51,12 +54,27 @@ struct BarDetailView: View {
                         ownerSettingsSection
                     }
                     
+                    // DEBUG INFO (in debug builds or for testing)
+                    if showingDebugInfo {
+                        Divider()
+                        debugSection
+                    }
+                    
                     Spacer(minLength: 100)
                 }
                 .padding()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    // Debug toggle button (only show if needed)
+                    Button("Debug") {
+                        showingDebugInfo.toggle()
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         dismiss()
@@ -69,7 +87,6 @@ struct BarDetailView: View {
                 barViewModel.updateBarDescription(currentBar, newDescription: newDescription)
             }
         }
-        // UPDATED: Sheet for 7-day schedule editing
         .sheet(isPresented: $showingEditWeeklySchedule) {
             ScheduleEditorView(
                 schedule: editingWeeklySchedule,
@@ -96,7 +113,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Header Section
+    // MARK: - ENHANCED Header Section with Debug Info
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -144,27 +161,64 @@ struct BarDetailView: View {
                 }
             }
             
-            // Show status source information
-            HStack(spacing: 8) {
-                Image(systemName: currentBar.isFollowingSchedule ? "calendar" : "hand.raised.fill")
-                    .foregroundColor(currentBar.isFollowingSchedule ? .green : .orange)
-                    .font(.caption)
-                
-                if currentBar.isFollowingSchedule {
-                    Text("Following today's schedule")
+            // ENHANCED: Detailed status information with debugging
+            let statusInfo = currentBar.statusDisplayInfo
+            
+            VStack(alignment: .leading, spacing: 8) {
+                // Status source
+                HStack(spacing: 8) {
+                    Image(systemName: currentBar.isFollowingSchedule ? "calendar" : "hand.raised.fill")
+                        .foregroundColor(currentBar.isFollowingSchedule ? .green : .orange)
                         .font(.caption)
-                        .foregroundColor(.green)
-                } else {
-                    Text("Manual override")
+                    
+                    Text(statusInfo.source)
                         .font(.caption)
-                        .foregroundColor(.orange)
+                        .foregroundColor(currentBar.isFollowingSchedule ? .green : .orange)
+                        .fontWeight(.medium)
+                    
+                    Spacer()
+                    
+                    Text("Updated \(timeAgo(currentBar.lastUpdated))")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
                 }
                 
-                Spacer()
-                
-                Text("Updated \(timeAgo(currentBar.lastUpdated))")
+                // Detailed description
+                Text(statusInfo.description)
                     .font(.caption2)
                     .foregroundColor(.secondary)
+                
+                // CONFLICT WARNING: Show if manual override conflicts with schedule
+                if statusInfo.isConflicting {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("Status Override Active")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.orange)
+                        }
+                        
+                        if let todaysSchedule = currentBar.todaysSchedule {
+                            Text("Manual status (\(currentBar.status.displayName)) differs from schedule (\(currentBar.scheduleBasedStatus.displayName))")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                            
+                            if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                                Button("Return to Schedule") {
+                                    barViewModel.setBarToFollowSchedule(currentBar)
+                                }
+                                .font(.caption2)
+                                .foregroundColor(.blue)
+                                .padding(.top, 4)
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(6)
+                }
             }
             .padding(.vertical, 4)
             
@@ -197,7 +251,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - UPDATED: 7-Day Schedule Section (replaces Operating Hours)
+    // MARK: - UPDATED: 7-Day Schedule Section
     var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -242,28 +296,6 @@ struct BarDetailView: View {
                             .fontWeight(.medium)
                             .foregroundColor(todaysSchedule.isOpen ? .green : .red)
                     }
-                    
-                    // Schedule vs Reality notification for owners
-                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) && !currentBar.isFollowingSchedule {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.orange)
-                                Text("Manual Override Active")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.orange)
-                            }
-                            
-                            Text("Current status (\(currentBar.status.displayName)) differs from today's schedule (\(currentBar.scheduleBasedStatus.displayName))")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 12)
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(6)
-                    }
                 }
                 .padding()
                 .background(
@@ -288,6 +320,66 @@ struct BarDetailView: View {
                         ScheduleRowCompact(schedule: schedule, isToday: schedule.isToday)
                     }
                 }
+            }
+        }
+    }
+    
+    // MARK: - DEBUG Section
+    var debugSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("🔍 Debug Information")
+                .font(.headline)
+                .foregroundColor(.blue)
+            
+            if let todaysSchedule = currentBar.todaysSchedule {
+                let scheduleStatus = currentBar.scheduleBasedStatus
+                let currentTime = Date()
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Group {
+                        debugInfoRow("Current Time", DateFormatter.localizedString(from: currentTime, dateStyle: .none, timeStyle: .medium))
+                        debugInfoRow("Schedule", todaysSchedule.displayText)
+                        debugInfoRow("Schedule Status", scheduleStatus.displayName, color: scheduleStatus.color)
+                        debugInfoRow("Actual Status", currentBar.status.displayName, color: currentBar.status.color)
+                        debugInfoRow("Following Schedule", currentBar.isFollowingSchedule ? "YES" : "NO", color: currentBar.isFollowingSchedule ? .green : .orange)
+                        
+                        if let manualStatus = currentBar.currentManualStatus {
+                            debugInfoRow("Manual Override", manualStatus.displayName, color: .orange)
+                        }
+                        
+                        if let openTime = parseTimeForDebug(todaysSchedule.openTime),
+                           let closeTime = parseTimeForDebug(todaysSchedule.closeTime) {
+                            let isOvernightSchedule = closeTime <= openTime
+                            debugInfoRow("Overnight Schedule", isOvernightSchedule ? "YES" : "NO")
+                            
+                            if isOvernightSchedule {
+                                let isCurrentlyOpen = currentTime >= openTime || currentTime < closeTime
+                                debugInfoRow("Should Be Open (Overnight)", isCurrentlyOpen ? "YES" : "NO", color: isCurrentlyOpen ? .green : .red)
+                            } else {
+                                let isCurrentlyOpen = currentTime >= openTime && currentTime < closeTime
+                                debugInfoRow("Should Be Open (Same Day)", isCurrentlyOpen ? "YES" : "NO", color: isCurrentlyOpen ? .green : .red)
+                            }
+                        }
+                    }
+                }
+                .padding()
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(10)
+                
+                // Full debug output
+                Text(currentBar.debugScheduleStatus())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+            } else {
+                Text("No schedule available for debugging")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
             }
         }
     }
@@ -398,7 +490,38 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Helper Functions
+    // MARK: - Helper Views and Functions
+    
+    private func debugInfoRow(_ label: String, _ value: String, color: Color? = nil) -> some View {
+        HStack {
+            Text("\(label):")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 120, alignment: .leading)
+            
+            Text(value)
+                .font(.caption)
+                .fontWeight(.medium)
+                .foregroundColor(color ?? .primary)
+            
+            Spacer()
+        }
+    }
+    
+    private func parseTimeForDebug(_ timeString: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        
+        guard let time = formatter.date(from: timeString) else { return nil }
+        
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        return calendar.date(byAdding: timeComponents, to: today)
+    }
+    
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         
@@ -474,4 +597,17 @@ struct ScheduleRowCompact: View {
                 )
         )
     }
+}
+
+#Preview {
+    BarDetailView(
+        bar: Bar(
+            name: "Test Bar",
+            address: "Test Address",
+            username: "testbar",
+            password: "1234"
+        ),
+        barViewModel: BarViewModel(),
+        isOwnerMode: false
+    )
 }

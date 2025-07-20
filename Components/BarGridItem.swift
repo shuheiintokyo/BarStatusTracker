@@ -37,42 +37,6 @@ struct BarGridItem: View {
                     .frame(height: 140)
                 
                 VStack(spacing: 0) {
-                    // Top section with indicators
-                    HStack {
-                        // UPDATED: Schedule/manual indicator (left side)
-                        HStack(spacing: 4) {
-                            Image(systemName: currentBar.isFollowingSchedule ? "calendar" : "hand.raised.fill")
-                                .font(.caption2)
-                                .foregroundColor(.white.opacity(0.8))
-                            
-                            if currentBar.isAutoTransitionActive {
-                                Image(systemName: "timer")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // REMOVED: Red heart icon as requested
-                    }
-                    .padding(.top, 12)
-                    .padding(.horizontal, 12)
-                    
-                    Spacer()
-                    
-                    // Center content - Status icon (white circle with checkmark like screenshot)
-                    ZStack {
-                        Circle()
-                            .fill(Color.white.opacity(0.3))
-                            .frame(width: 50, height: 50)
-                        
-                        Image(systemName: currentBar.status.icon)
-                            .font(.title2)
-                            .foregroundColor(.white)
-                    }
-                    
-                    Spacer()
                     
                     // Bottom section - Bar name, status, and schedule info
                     VStack(spacing: 4) {
@@ -82,11 +46,6 @@ struct BarGridItem: View {
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
-                        
-                        Text(currentBar.status.displayName)
-                            .font(.subheadline)
-                            .foregroundColor(.white)
-                            .fontWeight(.medium)
                         
                         // UPDATED: Schedule indicator instead of generic number
                         if let todaysSchedule = currentBar.todaysSchedule {
