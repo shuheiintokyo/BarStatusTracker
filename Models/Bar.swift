@@ -131,15 +131,15 @@ struct SocialLinks: Codable {
     var website: String = ""
 }
 
-// MARK: - Enhanced Bar Model WITH Backward Compatibility
+// MARK: - Enhanced Bar Model WITH Consistent Status Logic
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
     let name: String
     let address: String
     
-    // NEW: Enhanced status system with backward compatibility
-    var manualStatus: BarStatus? = nil  // nil means "follow schedule"
-    var isFollowingSchedule: Bool = true  // true = use operating hours, false = use manual override
+    // ENHANCED: Status system with strict logic
+    private var manualStatus: BarStatus? = nil  // nil means "follow schedule"
+    private var _isFollowingSchedule: Bool = true  // ALWAYS true by default
     
     var description: String
     var socialLinks: SocialLinks
@@ -154,89 +154,50 @@ struct Bar: Identifiable, Codable {
     // Operating hours
     var operatingHours: OperatingHours = OperatingHours()
     
-    // Auto-transition timer fields (keep existing for manual overrides)
+    // Auto-transition timer fields (for manual overrides)
     var autoTransitionTime: Date?
     var pendingStatus: BarStatus?
     var isAutoTransitionActive: Bool = false
     
-    var currentManualStatus: BarStatus? {
-        return manualStatus
-    }
-
-    /// Check if bar has a manual status override
-    var hasManualOverride: Bool {
-        return manualStatus != nil && !isFollowingSchedule
-    }
-
-    /// Get the source of the current status for display
-    var statusSource: String {
-        if isFollowingSchedule {
-            return "Schedule"
-        } else {
-            return "Manual"
-        }
-    }
-
-    /// Get detailed status info for debugging
-    var detailedStatusInfo: (current: BarStatus, source: String, manual: BarStatus?, schedule: BarStatus) {
-        return (
-            current: status,
-            source: statusSource,
-            manual: manualStatus,
-            schedule: scheduleBasedStatus
-        )
-    }
-
-    /// Status display information for UI
-    var statusDisplayInfo: (status: BarStatus, source: String, description: String) {
-        if !isFollowingSchedule, let manualStatus = manualStatus {
-            return (manualStatus, "Manual", "Owner set")
-        } else {
-            let scheduleStatus = scheduleBasedStatus
-            let today = getCurrentWeekDay()
-            let todayHours = operatingHours.getDayHours(for: today)
-            
-            if todayHours.isOpen {
-                return (scheduleStatus, "Schedule", "Based on \(today.displayName) hours")
-            } else {
-                return (scheduleStatus, "Schedule", "Closed \(today.displayName)s")
-            }
-        }
-    }
-    
-    // MARK: - Computed Status Property (Main Interface)
+    // MARK: - MAIN STATUS PROPERTY (Always computed, consistent logic)
     var status: BarStatus {
         get {
-            if !isFollowingSchedule, let manualStatus = manualStatus {
-                // Manual override is active
+            // If there's an active manual override AND it's from owner controls
+            if !_isFollowingSchedule, let manualStatus = manualStatus {
                 return manualStatus
             } else {
-                // Follow schedule
+                // ALWAYS follow schedule by default
                 return scheduleBasedStatus
             }
         }
-        set {
-            // BACKWARD COMPATIBILITY: Allow direct status setting
-            setManualStatus(newValue)
-        }
     }
     
-    // MARK: - Schedule-Based Status Logic
+    // MARK: - PUBLIC ACCESS TO STATUS CONTROL STATE
+    var isFollowingSchedule: Bool {
+        get { _isFollowingSchedule }
+        set { _isFollowingSchedule = newValue }
+    }
+    
+    var currentManualStatus: BarStatus? {
+        get { manualStatus }
+    }
+    
+    // MARK: - Schedule-Based Status Logic (Enhanced)
     var scheduleBasedStatus: BarStatus {
         let now = Date()
         let calendar = Calendar.current
         let currentWeekday = getCurrentWeekDay()
         let todayHours = operatingHours.getDayHours(for: currentWeekday)
         
-        // If not open today, always closed (like Saturday in your case)
+        // If not scheduled to be open today, ALWAYS closed
         guard todayHours.isOpen else {
-            return BarStatus.closed
+            return .closed
         }
         
         // Get opening and closing times for today
         guard let openTime = getTimeToday(from: todayHours.openTime),
               let closeTime = getTimeToday(from: todayHours.closeTime) else {
-            return BarStatus.closed
+            return .closed
         }
         
         // Handle overnight hours (close time next day)
@@ -249,19 +210,81 @@ struct Bar: Identifiable, Codable {
         
         // Determine status based on current time
         if now < openingSoonTime {
-            return BarStatus.closed
+            return .closed
         } else if now < openTime {
-            return BarStatus.openingSoon
+            return .openingSoon
         } else if now < closingSoonTime {
-            return BarStatus.open
+            return .open
         } else if now < actualCloseTime {
-            return BarStatus.closingSoon
+            return .closingSoon
         } else {
-            return BarStatus.closed
+            return .closed
         }
     }
     
-    // MARK: - Helper to check if status conflicts with schedule
+    // MARK: - STATUS CONTROL METHODS (Only for Owner)
+    
+    /// Set manual status override (Owner only)
+    mutating func setManualStatusOverride(_ newStatus: BarStatus) {
+        self.manualStatus = newStatus
+        self._isFollowingSchedule = false
+        self.lastUpdated = Date()
+        self.cancelAutoTransition()
+        print("🔧 Manual override set: \(newStatus.displayName)")
+    }
+    
+    /// Return to following schedule (Owner only)
+    mutating func returnToSchedule() {
+        self._isFollowingSchedule = true
+        self.manualStatus = nil
+        self.lastUpdated = Date()
+        self.cancelAutoTransition()
+        print("📅 Now following schedule: \(scheduleBasedStatus.displayName)")
+    }
+    
+    /// Force refresh timestamp (for schedule changes)
+    mutating func refreshTimestamp() {
+        self.lastUpdated = Date()
+    }
+    
+    // MARK: - STATUS INFORMATION METHODS
+    
+    /// Get detailed status info for UI
+    var statusDisplayInfo: (status: BarStatus, source: String, description: String, isConflicting: Bool) {
+        let currentStatus = status
+        let scheduleStatus = scheduleBasedStatus
+        
+        if !isFollowingSchedule, let manualStatus = manualStatus {
+            let isConflicting = manualStatus != scheduleStatus
+            return (
+                manualStatus,
+                "Manual Override",
+                "Owner set manually",
+                isConflicting
+            )
+        } else {
+            let today = getCurrentWeekDay()
+            let todayHours = operatingHours.getDayHours(for: today)
+            
+            if todayHours.isOpen {
+                return (
+                    scheduleStatus,
+                    "Schedule",
+                    "Based on \(today.displayName) hours",
+                    false
+                )
+            } else {
+                return (
+                    scheduleStatus,
+                    "Schedule",
+                    "Closed on \(today.displayName)s",
+                    false
+                )
+            }
+        }
+    }
+    
+    /// Check if status conflicts with schedule
     var isStatusConflictingWithSchedule: Bool {
         if !isFollowingSchedule {
             return status != scheduleBasedStatus
@@ -269,30 +292,19 @@ struct Bar: Identifiable, Codable {
         return false
     }
     
-    // MARK: - Status Management Methods
-    mutating func setManualStatus(_ status: BarStatus) {
-        self.manualStatus = status
-        self.isFollowingSchedule = false
-        self.lastUpdated = Date()
-        
-        // Clear any existing auto-transitions when manually setting
-        self.cancelAutoTransition()
-        
-        print("📱 Manual status set: \(status.displayName)")
+    /// Get today's operating status
+    var isOpenToday: Bool {
+        let today = getCurrentWeekDay()
+        return operatingHours.getDayHours(for: today).isOpen
     }
     
-    mutating func followSchedule() {
-        self.isFollowingSchedule = true
-        self.manualStatus = nil
-        self.lastUpdated = Date()
-        
-        // Clear any existing auto-transitions
-        self.cancelAutoTransition()
-        
-        print("📅 Now following schedule. Current status: \(scheduleBasedStatus.displayName)")
+    var todaysHours: DayHours {
+        let today = getCurrentWeekDay()
+        return operatingHours.getDayHours(for: today)
     }
     
-    // MARK: - Existing computed properties (updated)
+    // MARK: - AUTO-TRANSITION METHODS (Keep existing)
+    
     var shouldAutoTransition: Bool {
         guard isAutoTransitionActive,
               let transitionTime = autoTransitionTime,
@@ -311,17 +323,32 @@ struct Bar: Identifiable, Codable {
         return remaining > 0 ? remaining : 0
     }
     
-    var isOpenToday: Bool {
-        let today = getCurrentWeekDay()
-        return operatingHours.getDayHours(for: today).isOpen
+    mutating func startAutoTransition(to targetStatus: BarStatus, in minutes: Int = 60) {
+        self.autoTransitionTime = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        self.pendingStatus = targetStatus
+        self.isAutoTransitionActive = true
+        self.lastUpdated = Date()
     }
     
-    var todaysHours: DayHours {
-        let today = getCurrentWeekDay()
-        return operatingHours.getDayHours(for: today)
+    mutating func cancelAutoTransition() {
+        self.autoTransitionTime = nil
+        self.pendingStatus = nil
+        self.isAutoTransitionActive = false
+        self.lastUpdated = Date()
     }
     
-    // MARK: - Helper Methods
+    mutating func executeAutoTransition() -> Bool {
+        guard shouldAutoTransition,
+              let targetStatus = pendingStatus else {
+            return false
+        }
+        
+        self.setManualStatusOverride(targetStatus)
+        return true
+    }
+    
+    // MARK: - HELPER METHODS
+    
     private func getTimeToday(from timeString: String) -> Date? {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -351,32 +378,8 @@ struct Bar: Identifiable, Codable {
         }
     }
     
-    // MARK: - Existing auto-transition methods (keep for manual overrides)
-    mutating func startAutoTransition(to targetStatus: BarStatus, in minutes: Int = 60) {
-        self.autoTransitionTime = Date().addingTimeInterval(TimeInterval(minutes * 60))
-        self.pendingStatus = targetStatus
-        self.isAutoTransitionActive = true
-        self.lastUpdated = Date()
-    }
+    // MARK: - FIREBASE CONVERSION (Updated)
     
-    mutating func cancelAutoTransition() {
-        self.autoTransitionTime = nil
-        self.pendingStatus = nil
-        self.isAutoTransitionActive = false
-        self.lastUpdated = Date()
-    }
-    
-    mutating func executeAutoTransition() -> Bool {
-        guard shouldAutoTransition,
-              let targetStatus = pendingStatus else {
-            return false
-        }
-        
-        self.setManualStatus(targetStatus)  // Use new manual status method
-        return true
-    }
-    
-    // MARK: - Firebase conversion (updated with migration support)
     func toDictionary() -> [String: Any] {
         var dict: [String: Any] = [
             "id": id,
@@ -424,7 +427,8 @@ struct Bar: Identifiable, Codable {
         return dict
     }
     
-    // MARK: - Firebase loading (updated with migration support)
+    // MARK: - FIREBASE LOADING (Updated with proper defaults)
+    
     static func fromDictionary(_ data: [String: Any], documentId: String) -> Bar? {
         guard let name = data["name"] as? String,
               let address = data["address"] as? String,
@@ -449,28 +453,34 @@ struct Bar: Identifiable, Codable {
             location = BarLocation(country: country, countryCode: countryCode, city: city)
         }
         
-        var bar = Bar(name: name, address: address, description: description, username: username, password: password, operatingHours: operatingHours, location: location)
+        var bar = Bar(
+            name: name,
+            address: address,
+            description: description,
+            username: username,
+            password: password,
+            operatingHours: operatingHours,
+            location: location
+        )
         bar.id = documentId
+        
+        // Load status control state
+        bar._isFollowingSchedule = data["isFollowingSchedule"] as? Bool ?? true // DEFAULT: follow schedule
+        
+        if let manualStatusString = data["manualStatus"] as? String,
+           let manualStatus = BarStatus(rawValue: manualStatusString) {
+            bar.manualStatus = manualStatus
+        }
         
         // MIGRATION: Handle old status field from existing bars
         if let oldStatusString = data["status"] as? String,
-           let oldStatus = BarStatus(rawValue: oldStatusString) {
-            // This is an old bar - migrate to new system
-            if oldStatus != BarStatus.closed {
+           let oldStatus = BarStatus(rawValue: oldStatusString),
+           bar.manualStatus == nil {
+            // Migrate old manual status but prioritize schedule by default
+            if oldStatus != bar.scheduleBasedStatus {
                 bar.manualStatus = oldStatus
-                bar.isFollowingSchedule = false
-            } else {
-                bar.isFollowingSchedule = true
-                bar.manualStatus = nil
-            }
-            print("🔄 Migrated old bar \(name) with status: \(oldStatus.displayName)")
-        } else {
-            // New status system fields
-            bar.isFollowingSchedule = data["isFollowingSchedule"] as? Bool ?? true
-            
-            if let manualStatusString = data["manualStatus"] as? String,
-               let manualStatus = BarStatus(rawValue: manualStatusString) {
-                bar.manualStatus = manualStatus
+                bar._isFollowingSchedule = false
+                print("🔄 Migrated bar \(name) - found conflict, keeping manual override")
             }
         }
         
@@ -487,7 +497,7 @@ struct Bar: Identifiable, Codable {
             bar.lastUpdated = timestamp.dateValue()
         }
         
-        // Auto-transition fields (for manual overrides)
+        // Auto-transition fields
         bar.isAutoTransitionActive = data["isAutoTransitionActive"] as? Bool ?? false
         
         if let autoTransitionTimestamp = data["autoTransitionTime"] as? Timestamp {
@@ -504,9 +514,9 @@ struct Bar: Identifiable, Codable {
         return bar
     }
     
-    // MARK: - Multiple Initialization Methods (Full Backward Compatibility)
+    // MARK: - INITIALIZATION METHODS (Updated to ensure proper defaults)
     
-    // NEW: Primary initializer for new bars
+    /// PRIMARY INITIALIZER - Always starts following schedule
     init(name: String, address: String, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours(), location: BarLocation? = nil) {
         self.name = name
         self.address = address
@@ -519,54 +529,36 @@ struct Bar: Identifiable, Codable {
         self.operatingHours = operatingHours
         self.location = location
         
-        // New bars start following schedule (which defaults to closed)
+        // CRITICAL: Always start following schedule
         self.isFollowingSchedule = true
         self.manualStatus = nil
+        
+        print("✅ Created new bar '\(name)' - following schedule by default")
     }
     
-    // BACKWARD COMPATIBILITY: Original initializer with status
+    // MARK: - BACKWARD COMPATIBILITY INITIALIZERS (Deprecated but supported)
+    
+    /// DEPRECATED: Use primary initializer instead
     init(name: String, address: String, status: BarStatus, description: String = "", socialLinks: SocialLinks = SocialLinks(), ownerID: String? = nil, username: String, password: String, operatingHours: OperatingHours = OperatingHours(), location: BarLocation? = nil) {
-        self.name = name
-        self.address = address
-        self.description = description
-        self.socialLinks = socialLinks
-        self.lastUpdated = Date()
-        self.ownerID = ownerID
-        self.username = username
-        self.password = password
-        self.operatingHours = operatingHours
-        self.location = location
+        self.init(name: name, address: address, description: description, socialLinks: socialLinks, ownerID: ownerID, username: username, password: password, operatingHours: operatingHours, location: location)
         
-        // Handle initial status
-        if status != BarStatus.closed {
-            self.isFollowingSchedule = false
+        // Only set manual override if it differs from schedule
+        if status != scheduleBasedStatus {
             self.manualStatus = status
-        } else {
-            self.isFollowingSchedule = true
-            self.manualStatus = nil
+            self.isFollowingSchedule = false
+            print("⚠️ Created bar '\(name)' with manual override: \(status.displayName)")
         }
     }
     
-    // BACKWARD COMPATIBILITY: Old latitude/longitude initializer
-    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = BarStatus.closed, description: String = "", password: String) {
-        self.name = name
-        self.address = address
-        self.description = description
-        self.socialLinks = SocialLinks()
-        self.lastUpdated = Date()
-        self.ownerID = nil
-        self.username = name  // Use name as username for old bars
-        self.password = password
-        self.operatingHours = OperatingHours()
-        self.location = nil  // Could create BarLocation from lat/lng but not needed for backward compatibility
+    /// DEPRECATED: Use primary initializer instead
+    init(name: String, latitude: Double, longitude: Double, address: String, status: BarStatus = .closed, description: String = "", password: String) {
+        self.init(name: name, address: address, description: description, username: name, password: password)
         
-        // Handle initial status
-        if status != BarStatus.closed {
-            self.isFollowingSchedule = false
+        // Only set manual override if it differs from schedule
+        if status != scheduleBasedStatus {
             self.manualStatus = status
-        } else {
-            self.isFollowingSchedule = true
-            self.manualStatus = nil
+            self.isFollowingSchedule = false
+            print("⚠️ Created bar '\(name)' with legacy manual override: \(status.displayName)")
         }
     }
 }
