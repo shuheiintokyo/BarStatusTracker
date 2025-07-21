@@ -17,42 +17,44 @@ struct MainContentView: View {
     
     var body: some View {
         ZStack {
-            // FIXED: Increased opacity for visibility
-            StylishBackgroundView(
-                imageName: backgroundManager.getBackgroundImage(for: "main_app"),
-                opacity: 0.5,      // ← INCREASED from 0.15 to 0.5 for visibility
-                blurRadius: 2.0    // ← REDUCED blur for more definition
-            ) {
-                TabView(selection: $selectedTab) {
-                    // Home - All bars view
-                    HomeView(barViewModel: barViewModel)
-                        .tabItem {
-                            Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
-                        }
-                        .tag(0)
-                    
-                    // Discover - Search and location-based discovery
-                    DiscoverTabView(barViewModel: barViewModel)
-                        .tabItem {
-                            Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
-                        }
-                        .tag(1)
-                    
-                    // My Account - Owner and profile
-                    MyAccountView(
-                        barViewModel: barViewModel,
-                        showingOwnerLogin: $showingOwnerLogin,
-                        showingBiometricAlert: $showingBiometricAlert,
-                        showingBiometricNotRegistered: $showingBiometricNotRegistered,
-                        biometricError: $biometricError
-                    )
+            // STEP 1: SET BACKGROUND AT TOP LEVEL
+            Image(backgroundManager.getBackgroundImage(for: "main_app"))
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .opacity(0.3)
+                .blur(radius: 2.0)
+                .ignoresSafeArea(.all) // Cover EVERYTHING
+            
+            TabView(selection: $selectedTab) {
+                // Home - All bars view
+                HomeView(barViewModel: barViewModel)
                     .tabItem {
-                        Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
+                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
                     }
-                    .tag(2)
+                    .tag(0)
+                
+                // Discover - Search and location-based discovery
+                DiscoverTabView(barViewModel: barViewModel)
+                    .tabItem {
+                        Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
+                    }
+                    .tag(1)
+                
+                // My Account - Owner and profile
+                MyAccountView(
+                    barViewModel: barViewModel,
+                    showingOwnerLogin: $showingOwnerLogin,
+                    showingBiometricAlert: $showingBiometricAlert,
+                    showingBiometricNotRegistered: $showingBiometricNotRegistered,
+                    biometricError: $biometricError
+                )
+                .tabItem {
+                    Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
                 }
-                .accentColor(.blue)
+                .tag(2)
             }
+            .background(Color.clear) // Make TabView transparent
+            .accentColor(.blue)
             
             // Welcome overlay for first-time users
             if showingWelcome {
@@ -60,6 +62,13 @@ struct MainContentView: View {
             }
         }
         .onAppear {
+            // STEP 3: Make tab bar background transparent
+            let appearance = UITabBarAppearance()
+            appearance.configureWithTransparentBackground()
+            appearance.backgroundColor = UIColor.clear
+            UITabBar.appearance().standardAppearance = appearance
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+            
             // DEBUG: You can remove this later
             let imageName = backgroundManager.getBackgroundImage(for: "main_app")
             print("🖼️ Using background: \(imageName)")
@@ -93,7 +102,7 @@ struct MainContentView: View {
     }
 }
 
-// MARK: - Home View (Main bar listing)
+// MARK: - STEP 2: Home View (Background Removed, Made Transparent)
 
 struct HomeView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -149,7 +158,8 @@ struct HomeView: View {
                     quickActionsFAB
                 }
             }
-            .navigationTitle("Bar Status")
+            .background(Color.clear) // STEP 2: Make transparent
+            .navigationTitle("Bar Status Tracker")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -164,6 +174,7 @@ struct HomeView: View {
                 barViewModel.forceRefreshAllData()
             }
         }
+        .background(Color.clear) // Make NavigationView transparent too
         .sheet(isPresented: $showingCreateBar) {
             CreateBarView(barViewModel: barViewModel)
         }
@@ -261,7 +272,7 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Discover Tab View (Search and Location-based discovery)
+// MARK: - Discover Tab View (Made Transparent)
 
 struct DiscoverTabView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -352,9 +363,11 @@ struct DiscoverTabView: View {
                 }
                 .padding()
             }
+            .background(Color.clear) // Make transparent
             .navigationTitle("Discover")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .background(Color.clear) // Make NavigationView transparent
         .sheet(isPresented: $showingSearch) {
             SearchBarsView(barViewModel: barViewModel)
         }
@@ -364,7 +377,203 @@ struct DiscoverTabView: View {
     }
 }
 
-// MARK: - Supporting Components
+// MARK: - Account View (Made Transparent)
+
+struct MyAccountView: View {
+    @ObservedObject var barViewModel: BarViewModel
+    @Binding var showingOwnerLogin: Bool
+    @Binding var showingBiometricAlert: Bool
+    @Binding var showingBiometricNotRegistered: Bool
+    @Binding var biometricError: String
+
+    @State private var showingSignOutOptions = false
+
+    var body: some View {
+        NavigationView {
+            List {
+                if let loggedInBar = barViewModel.loggedInBar {
+                    ownerSection(for: loggedInBar)
+                } else {
+                    guestSection
+                }
+
+                Section("App") {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text("1.1")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .background(Color.clear) // Make List transparent
+            .scrollContentBackground(.hidden) // Hide List background
+            .navigationTitle("My Account")
+            .navigationBarTitleDisplayMode(.large)
+        }
+        .background(Color.clear) // Make NavigationView transparent
+        .actionSheet(isPresented: $showingSignOutOptions) {
+            ActionSheet(
+                title: Text("Sign Out"),
+                message: Text("Choose how you'd like to sign out"),
+                buttons: [
+                    .default(Text("Keep Quick Access")) {
+                        barViewModel.logout()
+                    },
+                    .destructive(Text("Remove Quick Access")) {
+                        barViewModel.fullLogout()
+                    },
+                    .cancel()
+                ]
+            )
+        }
+    }
+
+    private func ownerSection(for bar: Bar) -> some View {
+        Group {
+            Section {
+                OwnerBarCard(bar: bar, barViewModel: barViewModel)
+
+                Button(action: {
+                    barViewModel.selectedBar = bar
+                    barViewModel.showingDetail = true
+                }) {
+                    HStack {
+                        Text("Manage My Bar")
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+
+            } header: {
+                Text("Your Bar")
+            }
+
+            Section("Account") {
+                if barViewModel.canUseBiometricAuth {
+                    Button(action: {
+                        handleBiometricLogin()
+                    }) {
+                        HStack {
+                            Image(systemName: "faceid")
+                                .foregroundColor(.blue)
+                                .frame(width: 20)
+                            Text("Quick Access Settings")
+                                .foregroundColor(.blue)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+
+                Button(action: {
+                    print("🔄 Switching to Guest View...")
+                    withAnimation {
+                        barViewModel.switchToGuestView()
+                    }
+
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                }) {
+                    HStack {
+                        Image(systemName: "person.2")
+                            .foregroundColor(.blue)
+                            .frame(width: 20)
+                        Text("Switch to Guest View")
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                Button(action: {
+                    showingSignOutOptions = true
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.right.square")
+                            .foregroundColor(.red)
+                            .frame(width: 20)
+                        Text("Sign Out")
+                            .foregroundColor(.red)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+
+    private var guestSection: some View {
+        Section("Bar Owner Access") {
+            Button(action: {
+                showingOwnerLogin = true
+            }) {
+                HStack {
+                    Image(systemName: "person.badge.key")
+                        .foregroundColor(.blue)
+                        .frame(width: 20)
+                    Text("Sign In as Bar Owner")
+                        .foregroundColor(.blue)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if barViewModel.canUseBiometricAuth {
+                Button(action: {
+                    handleBiometricLogin()
+                }) {
+                    HStack {
+                        Image(systemName: barViewModel.biometricAuthInfo.iconName)
+                            .foregroundColor(.blue)
+                            .frame(width: 20)
+                        Text("Quick Access")
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+
+    private func handleBiometricLogin() {
+        guard barViewModel.isValidBiometricBar() else {
+            showingBiometricNotRegistered = true
+            return
+        }
+
+        barViewModel.authenticateWithBiometrics { success, error in
+            if success {
+                // Success handled by view model
+            } else {
+                biometricError = error ?? "Authentication failed"
+                showingBiometricAlert = true
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Components (No changes needed)
 
 struct StatBadge: View {
     let title: String
@@ -540,8 +749,6 @@ struct QuickActionRow: View {
     }
 }
 
-// MARK: - Welcome Flow (simplified)
-
 struct WelcomeOverlay: View {
     @Binding var isPresented: Bool
     @State private var currentPage = 0
@@ -649,208 +856,6 @@ struct WelcomePageView: View {
             }
         }
         .padding()
-    }
-}
-
-// MARK: - Fixed Account View Section in MainContentView.swift
-
-struct MyAccountView: View {
-    @ObservedObject var barViewModel: BarViewModel
-    @Binding var showingOwnerLogin: Bool
-    @Binding var showingBiometricAlert: Bool
-    @Binding var showingBiometricNotRegistered: Bool
-    @Binding var biometricError: String
-
-    // FIXED: Added state for alert handling
-    @State private var showingSignOutOptions = false
-
-    var body: some View {
-        NavigationView {
-            List {
-                if let loggedInBar = barViewModel.loggedInBar {
-                    ownerSection(for: loggedInBar)
-                } else {
-                    guestSection
-                }
-
-                Section("App") {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text("1.1")
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("My Account")
-            .navigationBarTitleDisplayMode(.large)
-        }
-        // FIXED: Added proper alert for sign out options
-        .actionSheet(isPresented: $showingSignOutOptions) {
-            ActionSheet(
-                title: Text("Sign Out"),
-                message: Text("Choose how you'd like to sign out"),
-                buttons: [
-                    .default(Text("Keep Quick Access")) {
-                        barViewModel.logout()
-                    },
-                    .destructive(Text("Remove Quick Access")) {
-                        barViewModel.fullLogout()
-                    },
-                    .cancel()
-                ]
-            )
-        }
-    }
-
-    private func ownerSection(for bar: Bar) -> some View {
-        Group {
-            Section {
-                OwnerBarCard(bar: bar, barViewModel: barViewModel)
-
-                // FIXED: Proper button in List context
-                Button(action: {
-                    barViewModel.selectedBar = bar
-                    barViewModel.showingDetail = true
-                }) {
-                    HStack {
-                        Text("Manage My Bar")
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-
-            } header: {
-                Text("Your Bar")
-            }
-
-            Section("Account") {
-                // FIXED: Quick Access Settings button
-                if barViewModel.canUseBiometricAuth {
-                    Button(action: {
-                        handleBiometricLogin()
-                    }) {
-                        HStack {
-                            Image(systemName: "faceid")
-                                .foregroundColor(.blue)
-                                .frame(width: 20)
-                            Text("Quick Access Settings")
-                                .foregroundColor(.blue)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
-                        }
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
-
-                // FIXED: Switch to Guest View button with proper action and feedback
-                Button(action: {
-                    print("🔄 Switching to Guest View...")  // Debug log
-                    withAnimation {
-                        barViewModel.switchToGuestView()
-                    }
-
-                    // Provide haptic feedback
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                    impactFeedback.impactOccurred()
-                }) {
-                    HStack {
-                        Image(systemName: "person.2")
-                            .foregroundColor(.blue)
-                            .frame(width: 20)
-                        Text("Switch to Guest View")
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-
-                // FIXED: Sign Out button with proper alert handling
-                Button(action: {
-                    showingSignOutOptions = true
-                }) {
-                    HStack {
-                        Image(systemName: "arrow.right.square")
-                            .foregroundColor(.red)
-                            .frame(width: 20)
-                        Text("Sign Out")
-                            .foregroundColor(.red)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-        }
-    }
-
-    private var guestSection: some View {
-        Section("Bar Owner Access") {
-            // FIXED: Sign In button
-            Button(action: {
-                showingOwnerLogin = true
-            }) {
-                HStack {
-                    Image(systemName: "person.badge.key")
-                        .foregroundColor(.blue)
-                        .frame(width: 20)
-                    Text("Sign In as Bar Owner")
-                        .foregroundColor(.blue)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-
-            // FIXED: Quick Access button
-            if barViewModel.canUseBiometricAuth {
-                Button(action: {
-                    handleBiometricLogin()
-                }) {
-                    HStack {
-                        Image(systemName: barViewModel.biometricAuthInfo.iconName)
-                            .foregroundColor(.blue)
-                            .frame(width: 20)
-                        Text("Quick Access")
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-        }
-    }
-
-    private func handleBiometricLogin() {
-        guard barViewModel.isValidBiometricBar() else {
-            showingBiometricNotRegistered = true
-            return
-        }
-
-        barViewModel.authenticateWithBiometrics { success, error in
-            if success {
-                // Success handled by view model
-            } else {
-                biometricError = error ?? "Authentication failed"
-                showingBiometricAlert = true
-            }
-        }
     }
 }
 

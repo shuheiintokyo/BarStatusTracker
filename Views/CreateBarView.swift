@@ -36,71 +36,85 @@ struct CreateBarView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Progress Bar
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 4)
-                        
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color.blue)
-                            .frame(width: geometry.size.width * (currentStep == 1 ? 0.5 : 1.0), height: 4)
-                            .animation(.easeInOut(duration: 0.3), value: currentStep)
-                    }
-                }
-                .frame(height: 4)
-                .padding(.horizontal)
+            ZStack {
+                // BACKGROUND COLOR - Option 1: Solid color
+                Color.blue.opacity(0.1)
+                    .ignoresSafeArea()
                 
-                if currentStep == 1 {
-                    essentialInfoStep
-                } else {
-                    optionalSetupStep
-                }
+                // BACKGROUND COLOR - Option 2: Use image (uncomment to use instead)
+                // Image(backgroundManager.getBackgroundImage(for: "create_bar"))
+                //     .resizable()
+                //     .aspectRatio(contentMode: .fill)
+                //     .opacity(0.2)
+                //     .blur(radius: 2.0)
+                //     .ignoresSafeArea()
                 
-                // Navigation Buttons
-                HStack {
-                    if currentStep == 2 {
-                        Button("Back") {
-                            withAnimation {
-                                currentStep = 1
-                            }
+                VStack(spacing: 0) {
+                    // Progress Bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 4)
+                            
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.blue)
+                                .frame(width: geometry.size.width * (currentStep == 1 ? 0.5 : 1.0), height: 4)
+                                .animation(.easeInOut(duration: 0.3), value: currentStep)
                         }
-                        .padding()
                     }
-                    
-                    Spacer()
+                    .frame(height: 4)
+                    .padding(.horizontal)
                     
                     if currentStep == 1 {
-                        Button("Next") {
-                            withAnimation {
-                                currentStep = 2
-                                setupSmartDefaults()
-                            }
-                        }
-                        .disabled(!canProceedStep1)
-                        .foregroundColor(canProceedStep1 ? .blue : .gray)
-                        .fontWeight(.semibold)
-                        .padding()
+                        essentialInfoStep
                     } else {
-                        Button(action: createBar) {
-                            HStack {
-                                if isCreating {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                        .scaleEffect(0.8)
+                        optionalSetupStep
+                    }
+                    
+                    // Navigation Buttons
+                    HStack {
+                        if currentStep == 2 {
+                            Button("Back") {
+                                withAnimation {
+                                    currentStep = 1
                                 }
-                                Text(isCreating ? "Creating..." : "Create Bar")
                             }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.green)
-                            .cornerRadius(12)
                         }
-                        .disabled(isCreating)
-                        .padding()
+                        
+                        Spacer()
+                        
+                        if currentStep == 1 {
+                            Button("Next") {
+                                withAnimation {
+                                    currentStep = 2
+                                    setupSmartDefaults()
+                                }
+                            }
+                            .disabled(!canProceedStep1)
+                            .foregroundColor(canProceedStep1 ? .blue : .gray)
+                            .fontWeight(.semibold)
+                            .padding()
+                        } else {
+                            Button(action: createBar) {
+                                HStack {
+                                    if isCreating {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(0.8)
+                                    }
+                                    Text(isCreating ? "Creating..." : "Create Bar")
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.green)
+                                .cornerRadius(12)
+                            }
+                            .disabled(isCreating)
+                            .padding()
+                        }
                     }
                 }
             }

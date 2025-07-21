@@ -22,61 +22,83 @@ struct OwnerLoginView: View {
 
     var body: some View {
         NavigationView {
-            GeometryReader { geometry in
-                ScrollView {
-                    VStack(spacing: 0) {
-                        // Header section with animation
-                        VStack(spacing: 24) {
-                            Spacer(minLength: 40)
-                            
-                            // Animated logo
-                            Image(systemName: "building.2.fill")
-                                .font(.system(size: 64))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [.blue, .purple],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .scaleEffect(logoScale)
-                                .onAppear {
-                                    withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
-                                        logoScale = 1.0
-                                    }
-                                    withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
-                                        contentOpacity = 1.0
-                                    }
-                                }
-                            
-                            VStack(spacing: 8) {
-                                Text("Welcome Back!")
-                                    .font(.title)
-                                    .fontWeight(.bold)
+            ZStack {
+                // GRADIENT BACKGROUND - Different from other views
+                LinearGradient(
+                    colors: [
+                        Color.purple.opacity(0.3),
+                        Color.blue.opacity(0.2),
+                        Color.indigo.opacity(0.4)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+                
+                // ALTERNATIVE: Use background image (uncomment to use instead)
+                // Image("backgroundimg03")
+                //     .resizable()
+                //     .aspectRatio(contentMode: .fill)
+                //     .opacity(0.3)
+                //     .blur(radius: 3.0)
+                //     .ignoresSafeArea()
+                
+                GeometryReader { geometry in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            // Header section with animation
+                            VStack(spacing: 24) {
+                                Spacer(minLength: 40)
                                 
-                                Text("Sign in to manage your bar")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                // Animated logo
+                                Image(systemName: "building.2.fill")
+                                    .font(.system(size: 64))
+                                    .foregroundStyle(
+                                        LinearGradient(
+                                            colors: [.blue, .purple],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .scaleEffect(logoScale)
+                                    .onAppear {
+                                        withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+                                            logoScale = 1.0
+                                        }
+                                        withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
+                                            contentOpacity = 1.0
+                                        }
+                                    }
+                                
+                                VStack(spacing: 8) {
+                                    Text("Welcome Back!")
+                                        .font(.title)
+                                        .fontWeight(.bold)
+                                    
+                                    Text("Sign in to manage your bar")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                                .opacity(contentOpacity)
+                            }
+                            .frame(minHeight: geometry.size.height * 0.3)
+                            
+                            // Login form
+                            VStack(spacing: 24) {
+                                loginFormSection
+                                
+                                // Quick access section (if available)
+                                if barViewModel.canUseBiometricAuth {
+                                    quickAccessSection
+                                }
+                                
+                                // Help section
+                                helpSection
                             }
                             .opacity(contentOpacity)
+                            .padding(.horizontal)
+                            .frame(minHeight: geometry.size.height * 0.7)
                         }
-                        .frame(minHeight: geometry.size.height * 0.3)
-                        
-                        // Login form
-                        VStack(spacing: 24) {
-                            loginFormSection
-                            
-                            // Quick access section (if available)
-                            if barViewModel.canUseBiometricAuth {
-                                quickAccessSection
-                            }
-                            
-                            // Help section
-                            helpSection
-                        }
-                        .opacity(contentOpacity)
-                        .padding(.horizontal)
-                        .frame(minHeight: geometry.size.height * 0.7)
                     }
                 }
             }
