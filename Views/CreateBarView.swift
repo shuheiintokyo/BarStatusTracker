@@ -1,7 +1,7 @@
 import SwiftUI
 import LocalAuthentication
 
-// MARK: - Improved CreateBarView (Same class name - no breaking changes)
+// MARK: - Improved CreateBarView (Fixed Country/City Selection)
 struct CreateBarView: View {
     @ObservedObject var barViewModel: BarViewModel
     @Environment(\.dismiss) private var dismiss
@@ -23,6 +23,11 @@ struct CreateBarView: View {
     @State private var isCreating = false
     @State private var showingAlert = false
     @State private var alertMessage = ""
+    
+    // FIXED: Added sheet state variables for country/city pickers
+    @State private var showingCountryPicker = false
+    @State private var showingCityPicker = false
+    @StateObject private var locationManager = LocationManager.shared
     
     var canProceedStep1: Bool {
         !barName.isEmpty && password.count == 4 && selectedCountry != nil && selectedCity != nil
@@ -106,6 +111,23 @@ struct CreateBarView: View {
                 }
             }
         }
+        // FIXED: Added sheet modifiers for country and city pickers
+        .sheet(isPresented: $showingCountryPicker) {
+            CountryPickerSheet(
+                selectedCountry: $selectedCountry,
+                selectedCity: $selectedCity,
+                locationManager: locationManager
+            )
+        }
+        .sheet(isPresented: $showingCityPicker) {
+            if let country = selectedCountry {
+                CityPickerSheet(
+                    country: country,
+                    selectedCity: $selectedCity,
+                    locationManager: locationManager
+                )
+            }
+        }
         .alert("Bar Creation", isPresented: $showingAlert) {
             Button("OK") {
                 if alertMessage.contains("successfully") {
@@ -147,7 +169,7 @@ struct CreateBarView: View {
                             .autocapitalization(.words)
                     }
                     
-                    // Location (Simplified)
+                    // FIXED: Location Selection with proper button actions
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Location")
@@ -157,8 +179,9 @@ struct CreateBarView: View {
                         }
                         
                         HStack(spacing: 12) {
+                            // FIXED: Country button with working action
                             Button(action: {
-                                // Show country picker - you can use your existing LocationPicker logic
+                                showingCountryPicker = true
                             }) {
                                 HStack {
                                     if let country = selectedCountry {
@@ -177,14 +200,21 @@ struct CreateBarView: View {
                                         .font(.caption)
                                 }
                                 .padding()
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.gray.opacity(0.1))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(selectedCountry != nil ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+                                        )
+                                )
                             }
                             .buttonStyle(PlainButtonStyle())
                             
+                            // FIXED: City button with working action
                             Button(action: {
                                 if selectedCountry != nil {
-                                    // Show city picker
+                                    showingCityPicker = true
                                 }
                             }) {
                                 HStack {
@@ -205,11 +235,37 @@ struct CreateBarView: View {
                                         .font(.caption)
                                 }
                                 .padding()
-                                .background(selectedCountry != nil ? Color.gray.opacity(0.1) : Color.gray.opacity(0.05))
-                                .cornerRadius(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(selectedCountry != nil ? Color.gray.opacity(0.1) : Color.gray.opacity(0.05))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(
+                                                    selectedCity != nil ? Color.blue.opacity(0.3) :
+                                                    selectedCountry != nil ? Color.gray.opacity(0.3) : Color.gray.opacity(0.1),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                )
                             }
                             .buttonStyle(PlainButtonStyle())
                             .disabled(selectedCountry == nil)
+                        }
+                        
+                        // FIXED: Added selected location display
+                        if let country = selectedCountry, let city = selectedCity {
+                            HStack {
+                                Image(systemName: "mappin.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("\(city.name), \(country.name)")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.green)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(8)
                         }
                     }
                     

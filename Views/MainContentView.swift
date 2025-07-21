@@ -642,7 +642,7 @@ struct WelcomePageView: View {
     }
 }
 
-// MARK: - Account View (Fixed)
+// MARK: - Fixed Account View Section in MainContentView.swift
 
 struct MyAccountView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -650,6 +650,9 @@ struct MyAccountView: View {
     @Binding var showingBiometricAlert: Bool
     @Binding var showingBiometricNotRegistered: Bool
     @Binding var biometricError: String
+    
+    // FIXED: Added state for alert handling
+    @State private var showingSignOutOptions = false
     
     var body: some View {
         NavigationView {
@@ -672,6 +675,22 @@ struct MyAccountView: View {
             .navigationTitle("My Account")
             .navigationBarTitleDisplayMode(.large)
         }
+        // FIXED: Added proper alert for sign out options
+        .actionSheet(isPresented: $showingSignOutOptions) {
+            ActionSheet(
+                title: Text("Sign Out"),
+                message: Text("Choose how you'd like to sign out"),
+                buttons: [
+                    .default(Text("Keep Quick Access")) {
+                        barViewModel.logout()
+                    },
+                    .destructive(Text("Remove Quick Access")) {
+                        barViewModel.fullLogout()
+                    },
+                    .cancel()
+                ]
+            )
+        }
     }
     
     private func ownerSection(for bar: Bar) -> some View {
@@ -679,48 +698,131 @@ struct MyAccountView: View {
             Section {
                 OwnerBarCard(bar: bar, barViewModel: barViewModel)
                 
-                Button("Manage My Bar") {
+                // FIXED: Proper button in List context
+                Button(action: {
                     barViewModel.selectedBar = bar
                     barViewModel.showingDetail = true
+                }) {
+                    HStack {
+                        Text("Manage My Bar")
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
                 }
-                .foregroundColor(.blue)
+                .buttonStyle(PlainButtonStyle())
+                
             } header: {
                 Text("Your Bar")
             }
             
             Section("Account") {
+                // FIXED: Quick Access Settings button
                 if barViewModel.canUseBiometricAuth {
-                    Button("Quick Access Settings") {
+                    Button(action: {
                         handleBiometricLogin()
+                    }) {
+                        HStack {
+                            Image(systemName: "faceid")
+                                .foregroundColor(.blue)
+                                .frame(width: 20)
+                            Text("Quick Access Settings")
+                                .foregroundColor(.blue)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
                     }
-                    .foregroundColor(.blue)
+                    .buttonStyle(PlainButtonStyle())
                 }
                 
-                Button("Switch to Guest View") {
-                    barViewModel.switchToGuestView()
+                // FIXED: Switch to Guest View button with proper action and feedback
+                Button(action: {
+                    print("🔄 Switching to Guest View...")  // Debug log
+                    withAnimation {
+                        barViewModel.switchToGuestView()
+                    }
+                    
+                    // Provide haptic feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                }) {
+                    HStack {
+                        Image(systemName: "person.2")
+                            .foregroundColor(.blue)
+                            .frame(width: 20)
+                        Text("Switch to Guest View")
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
                 }
-                .foregroundColor(.blue)
+                .buttonStyle(PlainButtonStyle())
                 
-                Button("Sign Out") {
-                    showLogoutOptions()
+                // FIXED: Sign Out button with proper alert handling
+                Button(action: {
+                    showingSignOutOptions = true
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.right.square")
+                            .foregroundColor(.red)
+                            .frame(width: 20)
+                        Text("Sign Out")
+                            .foregroundColor(.red)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
                 }
-                .foregroundColor(.red)
+                .buttonStyle(PlainButtonStyle())
             }
         }
     }
     
     private var guestSection: some View {
         Section("Bar Owner Access") {
-            Button("Sign In as Bar Owner") {
+            // FIXED: Sign In button
+            Button(action: {
                 showingOwnerLogin = true
-            }
-            .foregroundColor(.blue)
-            
-            if barViewModel.canUseBiometricAuth {
-                Button("Quick Access") {
-                    handleBiometricLogin()
+            }) {
+                HStack {
+                    Image(systemName: "person.badge.key")
+                        .foregroundColor(.blue)
+                        .frame(width: 20)
+                    Text("Sign In as Bar Owner")
+                        .foregroundColor(.blue)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
                 }
-                .foregroundColor(.blue)
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            // FIXED: Quick Access button
+            if barViewModel.canUseBiometricAuth {
+                Button(action: {
+                    handleBiometricLogin()
+                }) {
+                    HStack {
+                        Image(systemName: barViewModel.biometricAuthInfo.iconName)
+                            .foregroundColor(.blue)
+                            .frame(width: 20)
+                        Text("Quick Access")
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
             }
         }
     }
@@ -738,25 +840,6 @@ struct MyAccountView: View {
                 biometricError = error ?? "Authentication failed"
                 showingBiometricAlert = true
             }
-        }
-    }
-    
-    private func showLogoutOptions() {
-        let alert = UIAlertController(title: "Sign Out", message: "Choose how you'd like to sign out", preferredStyle: .actionSheet)
-        
-        alert.addAction(UIAlertAction(title: "Keep Quick Access", style: .default) { _ in
-            barViewModel.logout()
-        })
-        
-        alert.addAction(UIAlertAction(title: "Remove Quick Access", style: .destructive) { _ in
-            barViewModel.fullLogout()
-        })
-        
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-            window.rootViewController?.present(alert, animated: true)
         }
     }
 }
