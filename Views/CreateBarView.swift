@@ -52,13 +52,21 @@ struct CreateBarView: View {
                     // Navigation Buttons
                     navigationButtonsView
                 }
+                // Keyboard handling improvements
+                .onTapGesture {
+                    hideKeyboard()
+                }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
             }
             .navigationTitle("Create Bar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(.white)
+                    Button("Cancel") {
+                        hideKeyboard()
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
                 }
             }
         }
@@ -87,9 +95,12 @@ struct CreateBarView: View {
         } message: {
             Text(alertMessage)
         }
+        .onAppear {
+            enableSimulatorBiometrics()
+        }
     }
     
-    // MARK: - Progress Bar with Glass Effect (FIXED)
+    // MARK: - Progress Bar with Glass Effect
     var progressBarView: some View {
         VStack(spacing: 12) {
             // Step indicator
@@ -106,7 +117,7 @@ struct CreateBarView: View {
                     .foregroundColor(.white)
             }
             
-            // Progress bar - SIMPLIFIED to avoid type-checking issues
+            // Progress bar - separated for better type inference
             progressBar
         }
         .padding()
@@ -114,7 +125,7 @@ struct CreateBarView: View {
         .padding(.horizontal)
     }
     
-    // MARK: - Separated progress bar for better type inference
+    // MARK: - Progress Bar Components
     private var progressBar: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
@@ -133,7 +144,6 @@ struct CreateBarView: View {
         .frame(height: 6)
     }
     
-    // MARK: - Separated background to avoid Material opacity issues
     private var progressBarBackground: some View {
         RoundedRectangle(cornerRadius: 12)
             .fill(.thinMaterial)
@@ -143,7 +153,7 @@ struct CreateBarView: View {
         currentStep == 1 ? 0.5 : 1.0
     }
     
-    // MARK: - Step 1: Essential Information with Glass Effect (FIXED)
+    // MARK: - Step 1: Essential Information
     var essentialInfoStep: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -172,7 +182,7 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Separated sections to avoid type-checking timeouts
+    // MARK: - Step 1 Components
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Let's get started!")
@@ -205,8 +215,12 @@ struct CreateBarView: View {
             }
             
             TextField("Enter your bar name", text: $barName)
-                .textFieldStyle(GlassCreateBarTextFieldStyle())
+                .textFieldStyle(ImprovedGlassCreateBarTextFieldStyle())
                 .autocapitalization(.words)
+                .submitLabel(.next)
+                .onSubmit {
+                    hideKeyboard()
+                }
         }
         .padding()
         .background(sectionBackground)
@@ -237,7 +251,10 @@ struct CreateBarView: View {
     }
     
     private var countryButton: some View {
-        Button(action: { showingCountryPicker = true }) {
+        Button(action: {
+            hideKeyboard()
+            showingCountryPicker = true
+        }) {
             HStack {
                 if let country = selectedCountry {
                     Text(country.flag)
@@ -262,6 +279,7 @@ struct CreateBarView: View {
     
     private var cityButton: some View {
         Button(action: {
+            hideKeyboard()
             if selectedCountry != nil {
                 showingCityPicker = true
             }
@@ -336,13 +354,35 @@ struct CreateBarView: View {
             }
             
             SecureField("1234", text: $password)
-                .textFieldStyle(GlassCreateBarTextFieldStyle())
+                .textFieldStyle(ImprovedGlassCreateBarTextFieldStyle())
                 .keyboardType(.numberPad)
+                .submitLabel(.done)
                 .onChange(of: password) { _, newValue in
                     if newValue.count > 4 {
                         password = String(newValue.prefix(4))
                     }
+                    // Auto-dismiss keyboard when 4 digits entered
+                    if newValue.count == 4 {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            hideKeyboard()
+                        }
+                    }
                 }
+                .onSubmit {
+                    hideKeyboard()
+                }
+            
+            // Password validation feedback
+            HStack {
+                Image(systemName: password.count == 4 ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(password.count == 4 ? .green : .white.opacity(0.6))
+                    .font(.caption)
+                
+                Text("Must be exactly 4 digits")
+                    .font(.caption)
+                    .foregroundColor(password.count == 4 ? .green : .white.opacity(0.8))
+            }
+            .animation(.easeInOut(duration: 0.2), value: password.count)
         }
         .padding()
         .background(sectionBackground)
@@ -378,13 +418,7 @@ struct CreateBarView: View {
         .background(sectionBackground)
     }
     
-    // MARK: - Common background style
-    private var sectionBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.regularMaterial)
-    }
-    
-    // MARK: - Step 2: Optional Setup with Glass Effect (FIXED)
+    // MARK: - Step 2: Optional Setup
     var optionalSetupStep: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -402,6 +436,7 @@ struct CreateBarView: View {
         }
     }
     
+    // MARK: - Step 2 Components
     private var step2HeaderSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Almost done!")
@@ -429,6 +464,9 @@ struct CreateBarView: View {
                 .padding(8)
                 .background(textEditorBackground)
                 .foregroundColor(.white)
+                .onTapGesture {
+                    // Allow text editor to get focus
+                }
             
             Text("Tell customers what makes your bar special")
                 .font(.caption)
@@ -503,11 +541,12 @@ struct CreateBarView: View {
             .fill(.thinMaterial)
     }
     
-    // MARK: - Navigation Buttons with Glass Effect (FIXED)
+    // MARK: - Navigation Buttons
     var navigationButtonsView: some View {
         HStack {
             if currentStep == 2 {
                 Button("Back") {
+                    hideKeyboard()
                     withAnimation {
                         currentStep = 1
                     }
@@ -528,6 +567,7 @@ struct CreateBarView: View {
     
     private var nextButton: some View {
         Button("Next") {
+            hideKeyboard()
             withAnimation {
                 currentStep = 2
                 setupSmartDefaults()
@@ -548,7 +588,10 @@ struct CreateBarView: View {
     }
     
     private var createButton: some View {
-        Button(action: createBar) {
+        Button(action: {
+            hideKeyboard()
+            createBar()
+        }) {
             HStack {
                 if isCreating {
                     ProgressView()
@@ -582,7 +625,25 @@ struct CreateBarView: View {
             )
     }
     
+    // MARK: - Common Styles
+    private var sectionBackground: some View {
+        RoundedRectangle(cornerRadius: 16)
+            .fill(.regularMaterial)
+    }
+    
     // MARK: - Helper Methods
+    
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                       to: nil, from: nil, for: nil)
+    }
+    
+    private func enableSimulatorBiometrics() {
+        #if targetEnvironment(simulator)
+        print("💡 To test biometric auth in simulator:")
+        print("   Device > Face ID > Enrolled")
+        #endif
+    }
     
     private func setupSmartDefaults() {
         if useDefaultSchedule {
@@ -640,7 +701,32 @@ struct CreateBarView: View {
     }
 }
 
-// MARK: - Glass Effect Text Field Style for Create Bar
+// MARK: - Improved Text Field Style with Keyboard Handling
+
+struct ImprovedGlassCreateBarTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding()
+            .background(textFieldBackground)
+            .foregroundColor(.white)
+            .onSubmit {
+                // Automatically dismiss keyboard on submit
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                               to: nil, from: nil, for: nil)
+            }
+    }
+    
+    private var textFieldBackground: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(.thinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+    }
+}
+
+// MARK: - Legacy Text Field Style (for compatibility)
 
 struct GlassCreateBarTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
