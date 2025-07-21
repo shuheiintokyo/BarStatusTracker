@@ -37,6 +37,7 @@
 		05A13C652E1953B800A69687 /* UserPreferencesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A13C642E1953B400A69687 /* UserPreferencesManager.swift */; };
 		05FDBDBD2E23F731003F6DB1 /* LocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */; };
 		05FDBDC52E2CD2BE003F6DB1 /* DailyScheduleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDC42E2CD2B9003F6DB1 /* DailyScheduleEditor.swift */; };
+		05FDBDC72E2DCA16003F6DB1 /* UserFeedbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDC62E2DCA0C003F6DB1 /* UserFeedbackManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +106,7 @@
 		05A13C722E1955DF00A69687 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPicker.swift; sourceTree = "<group>"; };
 		05FDBDC42E2CD2B9003F6DB1 /* DailyScheduleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyScheduleEditor.swift; sourceTree = "<group>"; };
+		05FDBDC62E2DCA0C003F6DB1 /* UserFeedbackManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFeedbackManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -116,6 +118,11 @@
 		05A13C072E18B67A00A69687 /* BarStatusTrackerUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = BarStatusTrackerUITests;
+			sourceTree = "<group>";
+		};
+		05FDBDC82E2DCAB1003F6DB1 /* Utils */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Utils;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -151,6 +158,7 @@
 		05A13BE42E18B67900A69687 = {
 			isa = PBXGroup;
 			children = (
+				05FDBDC82E2DCAB1003F6DB1 /* Utils */,
 				0597E3A02E1A29DC00C367FF /* BarStatusTracker.entitlements */,
 				05A13C682E19542100A69687 /* AppIntents */,
 				05A13C612E19517F00A69687 /* BarStatusTracker-Info.plist */,
@@ -207,6 +215,7 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				05FDBDC62E2DCA0C003F6DB1 /* UserFeedbackManager.swift */,
 				0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */,
 				05A13C642E1953B400A69687 /* UserPreferencesManager.swift */,
 				05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */,
@@ -262,6 +271,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				05FDBDC82E2DCAB1003F6DB1 /* Utils */,
 			);
 			name = BarStatusTracker;
 			packageProductDependencies = (
@@ -416,6 +428,7 @@
 				05A13C4D2E18C5D800A69687 /* BarGridItem.swift in Sources */,
 				05A13C552E18D83C00A69687 /* BiometricAuthManager.swift in Sources */,
 				05A13C602E18F1D500A69687 /* FirebaseManager.swift in Sources */,
+				05FDBDC72E2DCA16003F6DB1 /* UserFeedbackManager.swift in Sources */,
 				05A13C502E18C61F00A69687 /* BarViewModel.swift in Sources */,
 				05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */,
 				0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */,

@@ -638,3 +638,90 @@ struct BarStatistics {
         return Double(openToday) / Double(totalBars) * 100
     }
 }
+
+// MARK: - Enhanced Bar View Model with Better Feedback
+extension BarViewModel {
+    private var feedbackManager: UserFeedbackManager {
+        UserFeedbackManager.shared
+    }
+    
+    func setManualBarStatusWithFeedback(_ bar: Bar, newStatus: BarStatus) {
+        guard canEdit(bar: bar) else {
+            feedbackManager.showError("You don't have permission to change this bar's status")
+            return
+        }
+        
+        let oldStatus = bar.status
+        setManualBarStatus(bar, newStatus: newStatus)
+        
+        // Provide immediate feedback
+        feedbackManager.showSuccess("Status changed from \(oldStatus.displayName) to \(newStatus.displayName)")
+        
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+    }
+    
+    func setBarToFollowScheduleWithFeedback(_ bar: Bar) {
+        guard canEdit(bar: bar) else {
+            feedbackManager.showError("You don't have permission to change this bar's schedule settings")
+            return
+        }
+        
+        let oldStatus = bar.status
+        setBarToFollowSchedule(bar)
+        
+        // Get the updated status after schedule change
+        let newStatus = bars.first(where: { $0.id == bar.id })?.status ?? bar.scheduleBasedStatus
+        
+        feedbackManager.showSuccess("Now following schedule. Status: \(newStatus.displayName)")
+        
+        // Success haptic
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        notificationFeedback.notificationOccurred(.success)
+    }
+    
+    func updateBarScheduleWithFeedback(_ bar: Bar, newSchedule: WeeklySchedule) {
+        guard canEdit(bar: bar) else {
+            feedbackManager.showError("You don't have permission to update this bar's schedule")
+            return
+        }
+        
+        updateBarSchedule(bar, newSchedule: newSchedule)
+        
+        feedbackManager.showSuccess("Schedule updated successfully")
+        
+        // Check if today's schedule affects current status
+        if let todaysSchedule = newSchedule.todaysSchedule {
+            if bar.isFollowingSchedule {
+                let expectedStatus = bar.scheduleBasedStatus
+                feedbackManager.showInfo("Current status: \(expectedStatus.displayName) based on today's schedule")
+            }
+        }
+    }
+    
+    func createNewBarWithEnhancedFeedback(_ bar: Bar, enableFaceID: Bool, completion: @escaping (Bool, String) -> Void) {
+        // Show loading feedback
+        feedbackManager.showInfo("Creating your bar...")
+        
+        createNewBar(bar, enableFaceID: enableFaceID) { [weak self] success, message in
+            DispatchQueue.main.async {
+                if success {
+                    self?.feedbackManager.showSuccess("🎉 \(bar.name) created successfully!")
+                    
+                    // Success haptic
+                    let notificationFeedback = UINotificationFeedbackGenerator()
+                    notificationFeedback.notificationOccurred(.success)
+                } else {
+                    self?.feedbackManager.showError(message)
+                    
+                    // Error haptic
+                    let notificationFeedback = UINotificationFeedbackGenerator()
+                    notificationFeedback.notificationOccurred(.error)
+                }
+                
+                completion(success, message)
+            }
+        }
+    }
+}
