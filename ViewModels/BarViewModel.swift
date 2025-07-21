@@ -1,7 +1,8 @@
 import SwiftUI
 import Combine
 
-// MARK: - Simplified BarViewModel
+// MARK: - Simplified and Fixed BarViewModel
+
 class BarViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var bars: [Bar] = []
@@ -10,20 +11,19 @@ class BarViewModel: ObservableObject {
     @Published var showingDetail = false
     @Published var loggedInBar: Bar? = nil
     @Published var isOwnerMode = false
+    @Published var errorMessage: String?
     
     // MARK: - Dependencies
-    private let dataService: BarDataService
-    private let authService: AuthenticationService
-    private let scheduleService: ScheduleService
+    private let firebaseManager: FirebaseManager
+    private let biometricManager: BiometricAuthManager
     private var cancellables = Set<AnyCancellable>()
+    private var statusUpdateTimer: Timer?
     
     // MARK: - Initialization
-    init(dataService: BarDataService = BarDataService(),
-         authService: AuthenticationService = AuthenticationService(),
-         scheduleService: ScheduleService = ScheduleService()) {
-        self.dataService = dataService
-        self.authService = authService
-        self.scheduleService = scheduleService
+    init(firebaseManager: FirebaseManager = FirebaseManager(),
+         biometricManager: BiometricAuthManager = BiometricAuthManager()) {
+        self.firebaseManager = firebaseManager
+        self.biometricManager = biometricManager
         
         setupBindings()
         startPeriodicUpdates()
@@ -31,82 +31,90 @@ class BarViewModel: ObservableObject {
     
     // MARK: - Setup
     private func setupBindings() {
-        // Bind data service to local state
-        dataService.$bars
+        // Bind Firebase manager to local state
+        firebaseManager.$bars
             .receive(on: DispatchQueue.main)
             .assign(to: &$bars)
         
-        dataService.$isLoading
+        firebaseManager.$isLoading
             .receive(on: DispatchQueue.main)
             .assign(to: &$isLoading)
         
-        // Update logged in bar when bars change
-        dataService.$bars
+        firebaseManager.$errorMessage
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$errorMessage)
+        
+        // Update logged in bar reference when bars change
+        firebaseManager.$bars
             .receive(on: DispatchQueue.main)
             .sink { [weak self] bars in
                 self?.updateLoggedInBarReference(from: bars)
+                self?.processAutoTransitions(for: bars)
             }
             .store(in: &cancellables)
     }
     
     private func startPeriodicUpdates() {
         // Update schedule-based statuses every minute
-        Timer.publish(every: 60, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
+        statusUpdateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
                 self?.refreshScheduleBasedStatuses()
             }
-            .store(in: &cancellables)
+        }
+    }
+    
+    deinit {
+        statusUpdateTimer?.invalidate()
     }
     
     // MARK: - Bar Management
-    func createBar(_ bar: Bar, enableBiometrics: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
-        dataService.createBar(bar) { [weak self] result in
+    
+    func createNewBar(_ bar: Bar, enableFaceID: Bool, completion: @escaping (Bool, String) -> Void) {
+        firebaseManager.createBar(bar) { [weak self] success, message in
             DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    if enableBiometrics {
-                        self?.authService.saveBiometricCredentials(barID: bar.id, barName: bar.name)
+                if success {
+                    if enableFaceID {
+                        self?.biometricManager.saveCredentials(barID: bar.id, barName: bar.name)
                         self?.loggedInBar = bar
                         self?.isOwnerMode = true
                     }
-                    completion(.success(()))
-                case .failure(let error):
-                    completion(.failure(error))
+                    completion(true, "Bar created successfully!")
+                } else {
+                    completion(false, message)
                 }
             }
         }
     }
     
-    func deleteBar(_ bar: Bar, completion: @escaping (Result<Void, Error>) -> Void) {
+    func deleteBar(_ bar: Bar, completion: @escaping (Bool, String) -> Void) {
         guard canEdit(bar: bar) else {
-            completion(.failure(BarError.unauthorized))
+            completion(false, "You don't have permission to delete this bar")
             return
         }
         
-        dataService.deleteBar(barId: bar.id) { [weak self] result in
+        firebaseManager.deleteBar(barId: bar.id) { [weak self] success, message in
             DispatchQueue.main.async {
-                switch result {
-                case .success:
+                if success {
                     if self?.loggedInBar?.id == bar.id {
                         self?.logout()
                     }
-                    completion(.success(()))
-                case .failure(let error):
-                    completion(.failure(error))
+                    completion(true, "Bar deleted successfully")
+                } else {
+                    completion(false, message)
                 }
             }
         }
     }
     
     // MARK: - Status Management
-    func setManualStatus(for bar: Bar, status: BarStatus) {
+    
+    func setManualBarStatus(_ bar: Bar, newStatus: BarStatus) {
         guard canEdit(bar: bar) else { return }
         
         var updatedBar = bar
-        updatedBar.setManualStatus(status)
+        updatedBar.setManualStatus(newStatus)
         
-        updateBar(updatedBar)
+        updateBarInFirebase(updatedBar)
     }
     
     func setBarToFollowSchedule(_ bar: Bar) {
@@ -115,49 +123,101 @@ class BarViewModel: ObservableObject {
         var updatedBar = bar
         updatedBar.followSchedule()
         
-        updateBar(updatedBar)
+        updateBarInFirebase(updatedBar)
     }
     
-    func updateBarSchedule(_ bar: Bar, schedule: WeeklySchedule) {
+    func updateBarSchedule(_ bar: Bar, newSchedule: WeeklySchedule) {
         guard canEdit(bar: bar) else { return }
         
         var updatedBar = bar
-        updatedBar.updateSchedule(schedule)
+        updatedBar.updateSchedule(newSchedule)
         
-        updateBar(updatedBar)
+        updateBarInFirebase(updatedBar)
+    }
+    
+    func updateBarDescription(_ bar: Bar, newDescription: String) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.description = newDescription
+        updatedBar.lastUpdated = Date()
+        
+        updateBarInFirebase(updatedBar)
+    }
+    
+    func updateBarPassword(_ bar: Bar, newPassword: String) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.password = newPassword
+        updatedBar.lastUpdated = Date()
+        
+        updateBarInFirebase(updatedBar)
+    }
+    
+    func updateBarSocialLinks(_ bar: Bar, newSocialLinks: SocialLinks) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.socialLinks = newSocialLinks
+        updatedBar.lastUpdated = Date()
+        
+        updateBarInFirebase(updatedBar)
+    }
+    
+    func setAutoTransition(for bar: Bar, to status: BarStatus, at time: Date) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.setAutoTransition(to: status, at: time)
+        
+        updateBarInFirebase(updatedBar)
+    }
+    
+    func cancelAutoTransition(for bar: Bar) {
+        guard canEdit(bar: bar) else { return }
+        
+        var updatedBar = bar
+        updatedBar.clearAutoTransition()
+        
+        updateBarInFirebase(updatedBar)
     }
     
     // MARK: - Authentication
+    
     func authenticateBar(username: String, password: String) -> Bool {
-        let isValid = bars.contains {
+        let matchingBar = bars.first {
             $0.username.lowercased() == username.lowercased() && $0.password == password
         }
         
-        if isValid, let bar = bars.first(where: {
-            $0.username.lowercased() == username.lowercased() && $0.password == password
-        }) {
+        if let bar = matchingBar {
             loggedInBar = bar
             isOwnerMode = true
-            authService.saveBiometricCredentials(barID: bar.id, barName: bar.name)
+            biometricManager.saveCredentials(barID: bar.id, barName: bar.name)
+            return true
         }
         
-        return isValid
+        return false
     }
     
-    func authenticateWithBiometrics(completion: @escaping (Result<Void, Error>) -> Void) {
-        authService.authenticateWithBiometrics { [weak self] result in
+    func authenticateWithBiometrics(completion: @escaping (Bool, String?) -> Void) {
+        guard biometricManager.isAvailable else {
+            completion(false, "Biometric authentication not available")
+            return
+        }
+        
+        biometricManager.authenticateWithBiometrics { [weak self] success, error in
             DispatchQueue.main.async {
-                switch result {
-                case .success(let barID):
+                if success, let barID = self?.biometricManager.savedBarID {
                     if let bar = self?.bars.first(where: { $0.id == barID }) {
                         self?.loggedInBar = bar
                         self?.isOwnerMode = true
-                        completion(.success(()))
+                        completion(true, nil)
                     } else {
-                        completion(.failure(AuthError.barNotFound))
+                        completion(false, "Saved bar no longer exists")
                     }
-                case .failure(let error):
-                    completion(.failure(error))
+                } else {
+                    completion(false, error)
                 }
             }
         }
@@ -170,23 +230,34 @@ class BarViewModel: ObservableObject {
     
     func fullLogout() {
         logout()
-        authService.clearBiometricCredentials()
+        biometricManager.clearCredentials()
+    }
+    
+    func switchToGuestView() {
+        isOwnerMode = false
+        // Keep loggedInBar for potential quick return
     }
     
     // MARK: - Helper Methods
+    
     func canEdit(bar: Bar) -> Bool {
         return loggedInBar?.id == bar.id
     }
     
     var canUseBiometricAuth: Bool {
-        return authService.isBiometricAuthAvailable
+        return biometricManager.biometricType != .none
     }
     
     var biometricAuthInfo: (iconName: String, displayName: String) {
-        return authService.biometricInfo
+        return (biometricManager.biometricIconName, biometricManager.biometricDisplayName)
+    }
+    
+    func isValidBiometricBar() -> Bool {
+        return biometricManager.isAvailable
     }
     
     // MARK: - Data Access
+    
     func getAllBars() -> [Bar] {
         return bars
     }
@@ -204,8 +275,38 @@ class BarViewModel: ObservableObject {
         return bars.filter { $0.isOpenToday }
     }
     
+    func forceRefreshAllData() {
+        firebaseManager.fetchBars()
+    }
+    
+    // MARK: - Auto-transition Support
+    
+    func getTimeRemainingText(for bar: Bar) -> String? {
+        guard bar.isAutoTransitionActive,
+              let transitionTime = bar.transitionTime else {
+            return nil
+        }
+        
+        let now = Date()
+        let timeInterval = transitionTime.timeIntervalSince(now)
+        
+        if timeInterval <= 0 {
+            return "Now"
+        }
+        
+        let hours = Int(timeInterval) / 3600
+        let minutes = Int(timeInterval % 3600) / 60
+        
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
+    
     // MARK: - Private Methods
-    private func updateBar(_ bar: Bar) {
+    
+    private func updateBarInFirebase(_ bar: Bar) {
         // Update local state immediately for responsive UI
         if let index = bars.firstIndex(where: { $0.id == bar.id }) {
             bars[index] = bar
@@ -215,8 +316,8 @@ class BarViewModel: ObservableObject {
             loggedInBar = bar
         }
         
-        // Persist to backend
-        dataService.updateBar(bar)
+        // Persist to Firebase
+        firebaseManager.updateBarWithAutoTransition(bar: bar)
     }
     
     private func updateLoggedInBarReference(from bars: [Bar]) {
@@ -228,13 +329,35 @@ class BarViewModel: ObservableObject {
         // This will trigger recalculation of schedule-based statuses
         objectWillChange.send()
     }
+    
+    private func processAutoTransitions(for bars: [Bar]) {
+        let now = Date()
+        
+        for bar in bars {
+            if bar.isAutoTransitionActive,
+               let transitionTime = bar.transitionTime,
+               let pendingStatus = bar.pendingStatus,
+               now >= transitionTime {
+                
+                // Execute the auto-transition
+                var updatedBar = bar
+                updatedBar.setManualStatus(pendingStatus)
+                updatedBar.clearAutoTransition()
+                
+                updateBarInFirebase(updatedBar)
+            }
+        }
+    }
 }
 
 // MARK: - Error Types
-enum BarError: Error, LocalizedError {
+
+enum BarViewModelError: Error, LocalizedError {
     case unauthorized
     case notFound
     case invalidData
+    case biometricNotAvailable
+    case authenticationFailed
     
     var errorDescription: String? {
         switch self {
@@ -244,19 +367,6 @@ enum BarError: Error, LocalizedError {
             return "Bar not found"
         case .invalidData:
             return "Invalid bar data"
-        }
-    }
-}
-
-enum AuthError: Error, LocalizedError {
-    case barNotFound
-    case biometricNotAvailable
-    case authenticationFailed
-    
-    var errorDescription: String? {
-        switch self {
-        case .barNotFound:
-            return "Saved bar no longer exists"
         case .biometricNotAvailable:
             return "Biometric authentication not available"
         case .authenticationFailed:

@@ -1,7 +1,7 @@
 import AppIntents
 import Foundation
 
-// MARK: - Updated Bar Status App Intents for 7-Day Schedule System
+// MARK: - Fixed Bar Status App Intents
 
 @available(iOS 16.0, *)
 struct SetBarStatusIntent: AppIntent {
@@ -288,6 +288,59 @@ struct CheckBarHoursIntent: AppIntent {
     }
 }
 
+// MARK: - Create Bar Intent (Fixed)
+@available(iOS 16.0, *)
+struct CreateNewBarIntent: AppIntent {
+    static var title: LocalizedStringResource = "Create New Bar"
+    static var description = IntentDescription("Create a new bar profile in the app")
+    
+    @Parameter(title: "Bar Name")
+    var barName: String
+    
+    @Parameter(title: "Address")
+    var address: String
+    
+    @Parameter(title: "4-Digit Password")
+    var password: String
+    
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let barViewModel = BarViewModel()
+        
+        // Validate password
+        guard password.count == 4 else {
+            throw AppIntentError.invalidPassword
+        }
+        
+        // Check if bar name already exists
+        if barViewModel.getAllBars().contains(where: { $0.name.lowercased() == barName.lowercased() }) {
+            throw AppIntentError.barAlreadyExists
+        }
+        
+        // Create new bar with default 7-day schedule
+        let newBar = Bar(
+            name: barName,
+            address: address,
+            description: "Created via Siri",
+            username: barName,
+            password: password
+        )
+        
+        // Create bar using the fixed method
+        return await withCheckedContinuation { continuation in
+            barViewModel.createNewBar(newBar, enableFaceID: false) { success, message in
+                DispatchQueue.main.async {
+                    if success {
+                        continuation.resume(returning: .result(dialog: IntentDialog("Successfully created \(barName)! You can now log in and set your 7-day schedule in the app.")))
+                    } else {
+                        continuation.resume(returning: .result(dialog: IntentDialog("Failed to create bar: \(message)")))
+                    }
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Supporting Types (unchanged)
 
 @available(iOS 16.0, *)
@@ -461,58 +514,5 @@ struct BarStatusAppShortcutsProvider: AppShortcutsProvider {
                 systemImageName: "plus.circle"
             )
         ]
-    }
-}
-
-// MARK: - Legacy Create Bar Intent (keep for compatibility)
-@available(iOS 16.0, *)
-struct CreateNewBarIntent: AppIntent {
-    static var title: LocalizedStringResource = "Create New Bar"
-    static var description = IntentDescription("Create a new bar profile in the app")
-    
-    @Parameter(title: "Bar Name")
-    var barName: String
-    
-    @Parameter(title: "Address")
-    var address: String
-    
-    @Parameter(title: "4-Digit Password")
-    var password: String
-    
-    @MainActor
-    func perform() async throws -> some IntentResult {
-        let barViewModel = BarViewModel()
-        
-        // Validate password
-        guard password.count == 4 else {
-            throw AppIntentError.invalidPassword
-        }
-        
-        // Check if bar name already exists
-        if barViewModel.getAllBars().contains(where: { $0.name.lowercased() == barName.lowercased() }) {
-            throw AppIntentError.barAlreadyExists
-        }
-        
-        // Create new bar with default 7-day schedule
-        let newBar = Bar(
-            name: barName,
-            address: address,
-            description: "Created via Siri",
-            username: barName,
-            password: password
-        )
-        
-        // Create bar using Firebase
-        return await withCheckedContinuation { continuation in
-            barViewModel.createNewBar(newBar, enableFaceID: false) { success, message in
-                DispatchQueue.main.async {
-                    if success {
-                        continuation.resume(returning: .result(dialog: IntentDialog("Successfully created \(barName)! You can now log in and set your 7-day schedule in the app.")))
-                    } else {
-                        continuation.resume(returning: .result(dialog: IntentDialog("Failed to create bar: \(message)")))
-                    }
-                }
-            }
-        }
     }
 }

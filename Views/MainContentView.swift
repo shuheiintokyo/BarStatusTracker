@@ -1,6 +1,7 @@
 import SwiftUI
 
-// MARK: - Improved MainContentView (Same class name - no breaking changes)
+// MARK: - Fixed MainContentView
+
 struct MainContentView: View {
     @StateObject private var barViewModel = BarViewModel()
     @State private var selectedTab = 0
@@ -18,21 +19,21 @@ struct MainContentView: View {
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
-                // Home - All bars with smart filtering (renamed from "Bars")
+                // Home - All bars view
                 HomeView(barViewModel: barViewModel)
                     .tabItem {
                         Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
                     }
                     .tag(0)
                 
-                // Find Bars - Discovery focused (renamed from "Discover")
-                DiscoverView(barViewModel: barViewModel)
+                // Discover - Search and location-based discovery
+                DiscoverTabView(barViewModel: barViewModel)
                     .tabItem {
-                        Label("Find Bars", systemImage: selectedTab == 1 ? "location.fill" : "location")
+                        Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
                     }
                     .tag(1)
                 
-                // My Account - Owner and profile (renamed from "Profile")
+                // My Account - Owner and profile
                 MyAccountView(
                     barViewModel: barViewModel,
                     showingOwnerLogin: $showingOwnerLogin,
@@ -41,7 +42,7 @@ struct MainContentView: View {
                     biometricError: $biometricError
                 )
                 .tabItem {
-                    Label("My Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
+                    Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
                 }
                 .tag(2)
             }
@@ -82,118 +83,8 @@ struct MainContentView: View {
     }
 }
 
-// MARK: - Welcome Flow for First-Time Users
-struct WelcomeOverlay: View {
-    @Binding var isPresented: Bool
-    @State private var currentPage = 0
-    
-    private let pages = [
-        WelcomePage(
-            icon: "building.2.fill",
-            title: "Welcome to Bar Status",
-            subtitle: "Keep your customers informed about when you're open",
-            color: .blue
-        ),
-        WelcomePage(
-            icon: "calendar.badge.clock",
-            title: "Smart Scheduling",
-            subtitle: "Set your hours once and let the app handle status updates automatically",
-            color: .green
-        ),
-        WelcomePage(
-            icon: "location.fill",
-            title: "Get Discovered",
-            subtitle: "Help customers find you with location-based discovery",
-            color: .purple
-        )
-    ]
-    
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.3)
-                .ignoresSafeArea()
-            
-            VStack {
-                TabView(selection: $currentPage) {
-                    ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
-                        WelcomePageView(page: page)
-                            .tag(index)
-                    }
-                }
-                .tabViewStyle(PageTabViewStyle())
-                .frame(height: 400)
-                
-                HStack {
-                    Button("Skip") {
-                        isPresented = false
-                    }
-                    .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    if currentPage < pages.count - 1 {
-                        Button("Next") {
-                            withAnimation {
-                                currentPage += 1
-                            }
-                        }
-                        .foregroundColor(.blue)
-                        .fontWeight(.semibold)
-                    } else {
-                        Button("Get Started") {
-                            isPresented = false
-                        }
-                        .foregroundColor(.white)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(Color.blue)
-                        .cornerRadius(8)
-                    }
-                }
-                .padding()
-            }
-            .background(Color.white)
-            .cornerRadius(20)
-            .padding()
-        }
-    }
-}
+// MARK: - Home View (Main bar listing)
 
-struct WelcomePage {
-    let icon: String
-    let title: String
-    let subtitle: String
-    let color: Color
-}
-
-struct WelcomePageView: View {
-    let page: WelcomePage
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: page.icon)
-                .font(.system(size: 80))
-                .foregroundColor(page.color)
-            
-            VStack(spacing: 12) {
-                Text(page.title)
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .multilineTextAlignment(.center)
-                
-                Text(page.subtitle)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-        }
-        .padding()
-    }
-}
-
-// MARK: - Improved Home View (replaces BarsMainView)
 struct HomeView: View {
     @ObservedObject var barViewModel: BarViewModel
     @State private var showingCreateBar = false
@@ -333,11 +224,9 @@ struct HomeView: View {
                     .cornerRadius(12)
                 }
                 
-                Button("Discover Bars Near You") {
-                    // Switch to discover tab - you can implement this
-                }
-                .font(.subheadline)
-                .foregroundColor(.blue)
+                Text("Or browse the Discover tab to find bars near you")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .padding(.horizontal, 40)
             
@@ -362,7 +251,209 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Quick Actions Sheet
+// MARK: - Discover Tab View (Search and Location-based discovery)
+
+struct DiscoverTabView: View {
+    @ObservedObject var barViewModel: BarViewModel
+    @State private var showingSearch = false
+    @State private var showingLocationBrowser = false
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    VStack(spacing: 16) {
+                        Image(systemName: "location.magnifyingglass")
+                            .font(.system(size: 50))
+                            .foregroundColor(.blue)
+                        
+                        Text("Discover Bars")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        
+                        Text("Find bars in your area or search by name and location")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.top, 40)
+                    
+                    // Discovery options
+                    VStack(spacing: 16) {
+                        DiscoveryOptionCard(
+                            icon: "magnifyingglass",
+                            title: "Search Bars",
+                            subtitle: "Search by name, location, or schedule",
+                            color: .blue
+                        ) {
+                            showingSearch = true
+                        }
+                        
+                        DiscoveryOptionCard(
+                            icon: "location.fill",
+                            title: "Browse by Location",
+                            subtitle: "Explore bars by country and city",
+                            color: .green
+                        ) {
+                            showingLocationBrowser = true
+                        }
+                        
+                        DiscoveryOptionCard(
+                            icon: "clock.fill",
+                            title: "Open Now",
+                            subtitle: "Find bars that are currently open",
+                            color: .orange
+                        ) {
+                            // Filter to open bars in search
+                            showingSearch = true
+                        }
+                    }
+                    
+                    // Quick stats
+                    if !barViewModel.getAllBars().isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Quick Stats")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
+                            HStack(spacing: 12) {
+                                QuickStatCard(
+                                    title: "Total Bars",
+                                    value: "\(barViewModel.getAllBars().count)",
+                                    icon: "building.2",
+                                    color: .purple
+                                )
+                                
+                                QuickStatCard(
+                                    title: "Open Now",
+                                    value: "\(barViewModel.getBarsOpenNow().count)",
+                                    icon: "checkmark.circle",
+                                    color: .green
+                                )
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(12)
+                    }
+                    
+                    Spacer(minLength: 50)
+                }
+                .padding()
+            }
+            .navigationTitle("Discover")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .sheet(isPresented: $showingSearch) {
+            SearchBarsView(barViewModel: barViewModel)
+        }
+        .sheet(isPresented: $showingLocationBrowser) {
+            BrowseByLocationView(barViewModel: barViewModel)
+        }
+    }
+}
+
+// MARK: - Supporting Components
+
+struct StatBadge: View {
+    let title: String
+    let value: String
+    let color: Color
+    let icon: String
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption)
+                Text(value)
+                    .font(.headline)
+                    .fontWeight(.bold)
+            }
+            .foregroundColor(color)
+            
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
+struct DiscoveryOptionCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
+                    .frame(width: 40)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(color.opacity(0.1))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(color.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct QuickStatCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.title)
+                .fontWeight(.bold)
+                .foregroundColor(color)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(color.opacity(0.1))
+        .cornerRadius(8)
+    }
+}
+
 struct QuickActionsSheet: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
@@ -392,23 +483,16 @@ struct QuickActionsSheet: View {
                     }
                 }
                 
-                Section("Timing") {
-                    QuickActionRow(
-                        title: "Set Lunch Break (1 hour)",
-                        icon: "fork.knife",
-                        color: .orange
-                    ) {
-                        // Implementation for preset timing
-                        dismiss()
-                    }
-                    
-                    QuickActionRow(
-                        title: "Happy Hour Mode",
-                        icon: "party.popper",
-                        color: .purple
-                    ) {
-                        // Implementation for happy hour
-                        dismiss()
+                if bar.isAutoTransitionActive {
+                    Section("Auto-Transition") {
+                        QuickActionRow(
+                            title: "Cancel Auto-Change",
+                            icon: "timer.square",
+                            color: .orange
+                        ) {
+                            barViewModel.cancelAutoTransition(for: bar)
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -446,37 +530,120 @@ struct QuickActionRow: View {
     }
 }
 
-// MARK: - Supporting Components
+// MARK: - Welcome Flow (simplified)
 
-struct StatBadge: View {
-    let title: String
-    let value: String
-    let color: Color
-    let icon: String
+struct WelcomeOverlay: View {
+    @Binding var isPresented: Bool
+    @State private var currentPage = 0
+    
+    private let pages = [
+        WelcomePage(
+            icon: "building.2.fill",
+            title: "Welcome to Bar Status",
+            subtitle: "Keep your customers informed about when you're open",
+            color: .blue
+        ),
+        WelcomePage(
+            icon: "calendar.badge.clock",
+            title: "Smart Scheduling",
+            subtitle: "Set your hours once and let the app handle status updates automatically",
+            color: .green
+        ),
+        WelcomePage(
+            icon: "location.fill",
+            title: "Get Discovered",
+            subtitle: "Help customers find you with location-based discovery",
+            color: .purple
+        )
+    ]
     
     var body: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.caption)
-                Text(value)
-                    .font(.headline)
-                    .fontWeight(.bold)
-            }
-            .foregroundColor(color)
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
             
-            Text(title)
-                .font(.caption2)
-                .foregroundColor(.secondary)
+            VStack {
+                TabView(selection: $currentPage) {
+                    ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
+                        WelcomePageView(page: page)
+                            .tag(index)
+                    }
+                }
+                .tabViewStyle(PageTabViewStyle())
+                .frame(height: 400)
+                
+                HStack {
+                    Button("Skip") {
+                        isPresented = false
+                    }
+                    .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    if currentPage < pages.count - 1 {
+                        Button("Next") {
+                            withAnimation {
+                                currentPage += 1
+                            }
+                        }
+                        .foregroundColor(.blue)
+                        .fontWeight(.semibold)
+                    } else {
+                        Button("Get Started") {
+                            isPresented = false
+                        }
+                        .foregroundColor(.white)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding()
+            }
+            .background(Color.white)
+            .cornerRadius(20)
+            .padding()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .background(color.opacity(0.1))
-        .cornerRadius(8)
     }
 }
 
-// MARK: - Clean Account View (renamed from ProfileView)
+struct WelcomePage {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let color: Color
+}
+
+struct WelcomePageView: View {
+    let page: WelcomePage
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            Image(systemName: page.icon)
+                .font(.system(size: 80))
+                .foregroundColor(page.color)
+            
+            VStack(spacing: 12) {
+                Text(page.title)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                
+                Text(page.subtitle)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+        }
+        .padding()
+    }
+}
+
+// MARK: - Account View (Fixed)
+
 struct MyAccountView: View {
     @ObservedObject var barViewModel: BarViewModel
     @Binding var showingOwnerLogin: Bool
@@ -493,7 +660,6 @@ struct MyAccountView: View {
                     guestSection
                 }
                 
-                // Only essential app info (removed debug sections)
                 Section("App") {
                     HStack {
                         Text("Version")

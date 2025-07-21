@@ -1,7 +1,8 @@
 import Foundation
 import FirebaseFirestore
 
-// MARK: - Simplified Bar Model
+// MARK: - Complete Bar Model with Firebase Integration
+
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
     let name: String
@@ -16,14 +17,19 @@ struct Bar: Identifiable, Codable {
     var username: String
     var password: String
     
-    // Schedule Management - Simplified
+    // Schedule Management
     var weeklySchedule: WeeklySchedule = WeeklySchedule()
     
-    // Status Management - Simplified
+    // Status Management
     private var _manualStatus: BarStatus?
     private var _isFollowingSchedule: Bool = true
     
-    // MARK: - Clean Status Logic
+    // Auto-transition properties
+    var pendingStatus: BarStatus?
+    var transitionTime: Date?
+    
+    // MARK: - Status Logic
+    
     var status: BarStatus {
         if !_isFollowingSchedule, let manualStatus = _manualStatus {
             return manualStatus
@@ -36,33 +42,24 @@ struct Bar: Identifiable, Codable {
         set { _isFollowingSchedule = newValue }
     }
     
-    var manualStatus: BarStatus? {
+    var currentManualStatus: BarStatus? {
         get { _manualStatus }
     }
     
-    // MARK: - Public Methods
-    mutating func setManualStatus(_ status: BarStatus) {
-        _manualStatus = status
-        _isFollowingSchedule = false
-        updateTimestamp()
+    var scheduleBasedStatus: BarStatus {
+        return ScheduleCalculator.calculateStatus(for: weeklySchedule)
     }
     
-    mutating func followSchedule() {
-        _isFollowingSchedule = true
-        _manualStatus = nil
-        updateTimestamp()
+    var isStatusConflictingWithSchedule: Bool {
+        return !isFollowingSchedule && status != scheduleBasedStatus
     }
     
-    mutating func updateSchedule(_ schedule: WeeklySchedule) {
-        weeklySchedule = schedule
-        updateTimestamp()
-    }
-    
-    private mutating func updateTimestamp() {
-        lastUpdated = Date()
+    var isAutoTransitionActive: Bool {
+        return pendingStatus != nil && transitionTime != nil
     }
     
     // MARK: - Computed Properties
+    
     var todaysSchedule: DailySchedule? {
         return weeklySchedule.todaysSchedule
     }
@@ -71,15 +68,44 @@ struct Bar: Identifiable, Codable {
         return todaysSchedule?.isOpen ?? false
     }
     
-    var scheduleBasedStatus: BarStatus {
-        return ScheduleCalculator.calculateStatus(for: weeklySchedule)
+    // MARK: - Public Methods
+    
+    mutating func setManualStatus(_ status: BarStatus) {
+        _manualStatus = status
+        _isFollowingSchedule = false
+        clearAutoTransition()
+        updateTimestamp()
     }
     
-    var hasStatusConflict: Bool {
-        return !isFollowingSchedule && status != scheduleBasedStatus
+    mutating func followSchedule() {
+        _isFollowingSchedule = true
+        _manualStatus = nil
+        clearAutoTransition()
+        updateTimestamp()
+    }
+    
+    mutating func updateSchedule(_ schedule: WeeklySchedule) {
+        weeklySchedule = schedule
+        updateTimestamp()
+    }
+    
+    mutating func setAutoTransition(to status: BarStatus, at time: Date) {
+        pendingStatus = status
+        transitionTime = time
+        updateTimestamp()
+    }
+    
+    mutating func clearAutoTransition() {
+        pendingStatus = nil
+        transitionTime = nil
+    }
+    
+    private mutating func updateTimestamp() {
+        lastUpdated = Date()
     }
     
     // MARK: - Initializers
+    
     init(name: String, address: String, description: String = "", username: String, password: String, location: BarLocation? = nil) {
         self.name = name
         self.address = address
@@ -92,9 +118,170 @@ struct Bar: Identifiable, Codable {
         self._isFollowingSchedule = true
         self._manualStatus = nil
     }
+    
+    init(name: String, address: String, description: String = "", username: String, password: String, weeklySchedule: WeeklySchedule, location: BarLocation? = nil) {
+        self.name = name
+        self.address = address
+        self.description = description
+        self.socialLinks = SocialLinks()
+        self.lastUpdated = Date()
+        self.username = username
+        self.password = password
+        self.weeklySchedule = weeklySchedule
+        self.location = location
+        self._isFollowingSchedule = true
+        self._manualStatus = nil
+    }
+    
+    // MARK: - Firebase Serialization
+    
+    func toDictionary() -> [String: Any] {
+        var dict: [String: Any] = [
+            "id": id,
+            "name": name,
+            "address": address,
+            "description": description,
+            "socialLinks": socialLinks.toDictionary(),
+            "lastUpdated": Timestamp(date: lastUpdated),
+            "username": username,
+            "password": password,
+            "weeklySchedule": weeklySchedule.toDictionary(),
+            "isFollowingSchedule": _isFollowingSchedule
+        ]
+        
+        if let ownerID = ownerID {
+            dict["ownerID"] = ownerID
+        }
+        
+        if let location = location {
+            dict["location"] = [
+                "country": location.country,
+                "countryCode": location.countryCode,
+                "city": location.city,
+                "displayName": location.displayName
+            ]
+        }
+        
+        if let manualStatus = _manualStatus {
+            dict["manualStatus"] = manualStatus.rawValue
+        }
+        
+        if let pendingStatus = pendingStatus {
+            dict["pendingStatus"] = pendingStatus.rawValue
+        }
+        
+        if let transitionTime = transitionTime {
+            dict["transitionTime"] = Timestamp(date: transitionTime)
+        }
+        
+        return dict
+    }
+    
+    static func fromDictionary(_ dict: [String: Any], documentId: String? = nil) -> Bar? {
+        guard let name = dict["name"] as? String,
+              let address = dict["address"] as? String,
+              let username = dict["username"] as? String,
+              let password = dict["password"] as? String else {
+            return nil
+        }
+        
+        let description = dict["description"] as? String ?? ""
+        let id = documentId ?? (dict["id"] as? String) ?? UUID().uuidString
+        
+        // Parse social links
+        let socialLinks: SocialLinks
+        if let socialLinksDict = dict["socialLinks"] as? [String: Any] {
+            socialLinks = SocialLinks.fromDictionary(socialLinksDict)
+        } else {
+            socialLinks = SocialLinks()
+        }
+        
+        // Parse last updated
+        let lastUpdated: Date
+        if let timestamp = dict["lastUpdated"] as? Timestamp {
+            lastUpdated = timestamp.dateValue()
+        } else {
+            lastUpdated = Date()
+        }
+        
+        // Parse weekly schedule
+        let weeklySchedule: WeeklySchedule
+        if let scheduleDict = dict["weeklySchedule"] as? [String: Any],
+           let parsedSchedule = WeeklySchedule.fromDictionary(scheduleDict) {
+            weeklySchedule = parsedSchedule
+        } else {
+            weeklySchedule = WeeklySchedule()
+        }
+        
+        // Parse location
+        let location: BarLocation?
+        if let locationDict = dict["location"] as? [String: Any],
+           let country = locationDict["country"] as? String,
+           let countryCode = locationDict["countryCode"] as? String,
+           let city = locationDict["city"] as? String {
+            location = BarLocation(country: country, countryCode: countryCode, city: city)
+        } else {
+            location = nil
+        }
+        
+        // Create bar
+        var bar = Bar(
+            name: name,
+            address: address,
+            description: description,
+            username: username,
+            password: password,
+            weeklySchedule: weeklySchedule,
+            location: location
+        )
+        
+        bar.id = id
+        bar.socialLinks = socialLinks
+        bar.lastUpdated = lastUpdated
+        bar.ownerID = dict["ownerID"] as? String
+        
+        // Parse status management
+        bar._isFollowingSchedule = dict["isFollowingSchedule"] as? Bool ?? true
+        
+        if let manualStatusString = dict["manualStatus"] as? String,
+           let manualStatus = BarStatus(rawValue: manualStatusString) {
+            bar._manualStatus = manualStatus
+        }
+        
+        if let pendingStatusString = dict["pendingStatus"] as? String,
+           let pendingStatus = BarStatus(rawValue: pendingStatusString) {
+            bar.pendingStatus = pendingStatus
+        }
+        
+        if let transitionTimestamp = dict["transitionTime"] as? Timestamp {
+            bar.transitionTime = transitionTimestamp.dateValue()
+        }
+        
+        return bar
+    }
+    
+    // MARK: - Debug Helper
+    
+    func debugScheduleStatus() -> String {
+        let today = todaysSchedule?.dayName ?? "Unknown"
+        let scheduleStatus = scheduleBasedStatus.displayName
+        let actualStatus = status.displayName
+        let following = isFollowingSchedule ? "YES" : "NO"
+        
+        return """
+        Debug Info for \(name):
+        Today: \(today)
+        Schedule Status: \(scheduleStatus)
+        Actual Status: \(actualStatus)
+        Following Schedule: \(following)
+        Manual Status: \(_manualStatus?.displayName ?? "None")
+        Auto-transition: \(isAutoTransitionActive ? "Active" : "Inactive")
+        """
+    }
 }
 
-// MARK: - Schedule Calculator (Separated Logic)
+// MARK: - Schedule Calculator (Enhanced)
+
 struct ScheduleCalculator {
     static func calculateStatus(for schedule: WeeklySchedule) -> BarStatus {
         guard let todaysSchedule = schedule.todaysSchedule, todaysSchedule.isOpen else {
