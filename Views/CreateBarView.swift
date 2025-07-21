@@ -28,6 +28,7 @@ struct CreateBarView: View {
     @State private var showingCountryPicker = false
     @State private var showingCityPicker = false
     @StateObject private var locationManager = LocationManager.shared
+    @StateObject private var backgroundManager = BackgroundImageManager.shared
     
     var canProceedStep1: Bool {
         !barName.isEmpty && password.count == 4 && selectedCountry != nil && selectedCity != nil
