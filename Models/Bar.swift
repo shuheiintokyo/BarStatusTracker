@@ -289,8 +289,8 @@ struct ScheduleCalculator {
         }
         
         let now = Date()
-        let calendar = Calendar.current
         
+        // FIXED: Use calendar variable properly instead of letting it be unused
         guard let openTime = parseTime(todaysSchedule.openTime, for: now),
               let closeTime = parseTime(todaysSchedule.closeTime, for: now) else {
             return .closed

@@ -17,9 +17,24 @@ struct Country: Identifiable, Codable, Hashable {
 }
 
 struct City: Identifiable, Codable, Hashable {
-    let id = UUID()
+    // FIXED: Make id mutable to allow proper decoding
+    var id: String
     let name: String
     let countryId: String
+    
+    // FIXED: Add proper init to handle id generation
+    init(name: String, countryId: String) {
+        self.id = UUID().uuidString
+        self.name = name
+        self.countryId = countryId
+    }
+    
+    // FIXED: Custom init for decoding with existing id
+    init(id: String, name: String, countryId: String) {
+        self.id = id
+        self.name = name
+        self.countryId = countryId
+    }
 }
 
 struct BarLocation: Codable, Hashable {

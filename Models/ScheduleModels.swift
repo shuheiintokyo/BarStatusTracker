@@ -43,11 +43,27 @@ struct WeeklySchedule: Codable {
 }
 
 struct DailySchedule: Identifiable, Codable {
-    let id = UUID()
+    // FIXED: Make id mutable and handle it properly
+    var id: String
     let date: Date
     var isOpen: Bool = false
     var openTime: String = "18:00"
     var closeTime: String = "02:00"
+    
+    // FIXED: Add proper init to handle id generation
+    init(date: Date) {
+        self.id = UUID().uuidString
+        self.date = date
+    }
+    
+    // FIXED: Custom init for decoding
+    init(id: String, date: Date, isOpen: Bool = false, openTime: String = "18:00", closeTime: String = "02:00") {
+        self.id = id
+        self.date = date
+        self.isOpen = isOpen
+        self.openTime = openTime
+        self.closeTime = closeTime
+    }
     
     var dayName: String {
         let formatter = DateFormatter()
@@ -98,6 +114,7 @@ struct DailySchedule: Identifiable, Codable {
         formatter.dateFormat = "yyyy-MM-dd"
         
         return [
+            "id": id,
             "date": formatter.string(from: date),
             "isOpen": isOpen,
             "openTime": openTime,
@@ -120,12 +137,16 @@ struct DailySchedule: Identifiable, Codable {
             return nil
         }
         
-        var schedule = DailySchedule(date: date)
-        schedule.isOpen = isOpen
-        schedule.openTime = openTime
-        schedule.closeTime = closeTime
+        // Handle id - use existing or generate new
+        let id = dict["id"] as? String ?? UUID().uuidString
         
-        return schedule
+        return DailySchedule(
+            id: id,
+            date: date,
+            isOpen: isOpen,
+            openTime: openTime,
+            closeTime: closeTime
+        )
     }
 }
 

@@ -22,27 +22,12 @@ struct OwnerLoginView: View {
 
     var body: some View {
         NavigationView {
-            ZStack {
-                // GRADIENT BACKGROUND - Different from other views
-                LinearGradient(
-                    colors: [
-                        Color.purple.opacity(0.3),
-                        Color.blue.opacity(0.2),
-                        Color.indigo.opacity(0.4)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                // ALTERNATIVE: Use background image (uncomment to use instead)
-                // Image("backgroundimg03")
-                //     .resizable()
-                //     .aspectRatio(contentMode: .fill)
-                //     .opacity(0.3)
-                //     .blur(radius: 3.0)
-                //     .ignoresSafeArea()
-                
+            // Using backgroundimg04 for login
+            StylishBackgroundView(
+                imageName: "backgroundimg04",
+                opacity: 0.4,
+                blurRadius: 2.5
+            ) {
                 GeometryReader { geometry in
                     ScrollView {
                         VStack(spacing: 0) {
@@ -50,40 +35,49 @@ struct OwnerLoginView: View {
                             VStack(spacing: 24) {
                                 Spacer(minLength: 40)
                                 
-                                // Animated logo
-                                Image(systemName: "building.2.fill")
-                                    .font(.system(size: 64))
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: [.blue, .purple],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
+                                // Animated logo with glass effect
+                                VStack(spacing: 16) {
+                                    Image(systemName: "building.2.fill")
+                                        .font(.system(size: 64))
+                                        .foregroundStyle(
+                                            LinearGradient(
+                                                colors: [.white, .blue.opacity(0.8)],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
                                         )
-                                    )
-                                    .scaleEffect(logoScale)
-                                    .onAppear {
-                                        withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
-                                            logoScale = 1.0
+                                        .scaleEffect(logoScale)
+                                        .onAppear {
+                                            withAnimation(.spring(response: 0.8, dampingFraction: 0.6)) {
+                                                logoScale = 1.0
+                                            }
+                                            withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
+                                                contentOpacity = 1.0
+                                            }
                                         }
-                                        withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
-                                            contentOpacity = 1.0
-                                        }
-                                    }
-                                
-                                VStack(spacing: 8) {
-                                    Text("Welcome Back!")
-                                        .font(.title)
-                                        .fontWeight(.bold)
                                     
-                                    Text("Sign in to manage your bar")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                    VStack(spacing: 8) {
+                                        Text("Welcome Back!")
+                                            .font(.title)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.white)
+                                        
+                                        Text("Sign in to manage your bar")
+                                            .font(.subheadline)
+                                            .foregroundColor(.white.opacity(0.8))
+                                    }
                                 }
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(.ultraThinMaterial)
+                                        .shadow(color: .black.opacity(0.1), radius: 10)
+                                )
                                 .opacity(contentOpacity)
                             }
                             .frame(minHeight: geometry.size.height * 0.3)
                             
-                            // Login form
+                            // Login form with glass effect
                             VStack(spacing: 24) {
                                 loginFormSection
                                 
@@ -106,6 +100,7 @@ struct OwnerLoginView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Cancel") { dismiss() }
+                        .foregroundColor(.white)
                 }
             }
         }
@@ -116,7 +111,7 @@ struct OwnerLoginView: View {
         }
     }
 
-    // MARK: - Login Form Section
+    // MARK: - Login Form Section with Glass Effect
     var loginFormSection: some View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 16) {
@@ -124,10 +119,10 @@ struct OwnerLoginView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Bar Name")
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                     
                     TextField("Enter your bar name", text: $username)
-                        .textFieldStyle(ModernLoginTextFieldStyle())
+                        .textFieldStyle(GlassLoginTextFieldStyle())
                         .autocapitalization(.words)
                         .autocorrectionDisabled()
                         .submitLabel(.next)
@@ -138,19 +133,19 @@ struct OwnerLoginView: View {
                     HStack {
                         Text("Password")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         
                         Spacer()
                         
                         Button(action: { showPasswordRequirements.toggle() }) {
                             Image(systemName: "questionmark.circle")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.white.opacity(0.8))
                                 .font(.caption)
                         }
                     }
                     
                     SecureField("4-digit password", text: $password)
-                        .textFieldStyle(ModernLoginTextFieldStyle())
+                        .textFieldStyle(GlassLoginTextFieldStyle())
                         .keyboardType(.numberPad)
                         .submitLabel(.go)
                         .onChange(of: password) { _, newValue in
@@ -167,12 +162,12 @@ struct OwnerLoginView: View {
                     // Password validation feedback
                     HStack {
                         Image(systemName: password.count == 4 ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(password.count == 4 ? .green : .gray)
+                            .foregroundColor(password.count == 4 ? .green : .white.opacity(0.6))
                             .font(.caption)
                         
                         Text("Must be exactly 4 digits")
                             .font(.caption)
-                            .foregroundColor(password.count == 4 ? .green : .secondary)
+                            .foregroundColor(password.count == 4 ? .green : .white.opacity(0.8))
                     }
                     .animation(.easeInOut(duration: 0.2), value: password.count)
                     
@@ -182,21 +177,21 @@ struct OwnerLoginView: View {
                             Text("Password Requirements:")
                                 .font(.caption)
                                 .fontWeight(.medium)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.white)
                             
                             Text("• Must be exactly 4 digits (0-9)")
                             Text("• Set when you created your bar")
                             Text("• Contact support if forgotten")
                         }
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.white.opacity(0.8))
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
             }
             
-            // Login Button
+            // Login Button with glass effect
             Button(action: attemptLogin) {
                 HStack {
                     if isLoading {
@@ -219,8 +214,13 @@ struct OwnerLoginView: View {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(
                             canLogin && !isLoading ?
-                            LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
-                            LinearGradient(colors: [.gray, .gray], startPoint: .leading, endPoint: .trailing)
+                            LinearGradient(colors: [.blue.opacity(0.8), .purple.opacity(0.8)], startPoint: .leading, endPoint: .trailing) :
+                            LinearGradient(colors: [.gray.opacity(0.6), .gray.opacity(0.6)], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial)
+                                .opacity(0.3)
                         )
                 )
                 .scaleEffect(isLoading ? 0.98 : 1.0)
@@ -228,24 +228,29 @@ struct OwnerLoginView: View {
             }
             .disabled(!canLogin || isLoading)
         }
-        .padding(.horizontal, 4)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.regularMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 8)
+        )
     }
 
-    // MARK: - Quick Access Section
+    // MARK: - Quick Access Section with Glass Effect
     var quickAccessSection: some View {
         VStack(spacing: 16) {
             HStack {
                 Rectangle()
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.white.opacity(0.3))
                     .frame(height: 1)
                 
                 Text("OR")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.8))
                     .padding(.horizontal, 16)
                 
                 Rectangle()
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(Color.white.opacity(0.3))
                     .frame(height: 1)
             }
             
@@ -253,31 +258,31 @@ struct OwnerLoginView: View {
                 HStack(spacing: 12) {
                     Image(systemName: barViewModel.biometricAuthInfo.iconName)
                         .font(.title2)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.white)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Quick Access")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white)
                         
                         Text("Use \(barViewModel.biometricAuthInfo.displayName) to sign in")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.8))
                     }
                     
                     Spacer()
                     
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.white)
                 }
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.blue.opacity(0.05))
+                        .fill(.thinMaterial)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.blue.opacity(0.2), lineWidth: 1)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
                         )
                 )
             }
@@ -286,12 +291,12 @@ struct OwnerLoginView: View {
         }
     }
 
-    // MARK: - Help Section
+    // MARK: - Help Section with Glass Effect
     var helpSection: some View {
         VStack(spacing: 12) {
             Text("Need Help?")
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.8))
             
             VStack(spacing: 8) {
                 helpButton(
@@ -316,17 +321,19 @@ struct OwnerLoginView: View {
                 Text(title)
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.white)
                 
                 Text(subtitle)
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.7))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.thinMaterial)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -338,10 +345,8 @@ struct OwnerLoginView: View {
         
         isLoading = true
         
-        // Add slight delay for better UX
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             if barViewModel.authenticateBar(username: username, password: password) {
-                // Success animation
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     logoScale = 1.1
                 }
@@ -351,7 +356,6 @@ struct OwnerLoginView: View {
                     dismiss()
                 }
             } else {
-                // Shake animation for error
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.3)) {
                     logoScale = 0.95
                 }
@@ -387,26 +391,20 @@ struct OwnerLoginView: View {
     }
 }
 
-// MARK: - Supporting Components
+// MARK: - Glass Effect Text Field Style
 
-struct ModernLoginTextFieldStyle: TextFieldStyle {
+struct GlassLoginTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.gray.opacity(0.1))
+                    .fill(.thinMaterial)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
             )
+            .foregroundColor(.white)
     }
-}
-
-#Preview {
-    OwnerLoginView(
-        barViewModel: BarViewModel(),
-        showingOwnerLogin: .constant(true)
-    )
 }

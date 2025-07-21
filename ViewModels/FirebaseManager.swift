@@ -7,9 +7,33 @@ class FirebaseManager: ObservableObject {
     @Published var bars: [Bar] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var isOffline = false
     
     init() {
+        // Enable offline persistence with updated API
+        setupFirestore()
         fetchBars()
+    }
+    
+    private func setupFirestore() {
+        // FIXED: Use the new cacheSettings API instead of deprecated properties
+        let settings = FirestoreSettings()
+        
+        // Create cache settings with the new API
+        let cacheSettings = MemoryCacheSettings()
+        settings.cacheSettings = cacheSettings
+        
+        db.settings = settings
+        
+        // Listen for network connectivity changes
+        db.addSnapshotsInSyncListener {
+            DispatchQueue.main.async {
+                self.isOffline = false
+                print("🌐 Firestore: Back online")
+            }
+        }
+        
+        print("✅ Firestore configured with updated cache settings")
     }
     
     // MARK: - Bar Creation and Deletion
@@ -17,13 +41,22 @@ class FirebaseManager: ObservableObject {
     func createBar(_ bar: Bar, completion: @escaping (Bool, String) -> Void) {
         let barData = bar.toDictionary()
         
-        db.collection("bars").document(bar.id).setData(barData) { error in
-            if let error = error {
-                print("❌ Error creating bar: \(error.localizedDescription)")
-                completion(false, "Failed to create bar: \(error.localizedDescription)")
-            } else {
-                print("✅ Successfully created bar: \(bar.name)")
-                completion(true, "Bar created successfully!")
+        db.collection("bars").document(bar.id).setData(barData) { [weak self] error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Error creating bar: \(error.localizedDescription)")
+                    
+                    // Check if it's a network error
+                    if error.localizedDescription.contains("offline") || error.localizedDescription.contains("network") {
+                        self?.isOffline = true
+                        completion(false, "You're offline. The bar will be created when you reconnect.")
+                    } else {
+                        completion(false, "Failed to create bar: \(error.localizedDescription)")
+                    }
+                } else {
+                    print("✅ Successfully created bar: \(bar.name)")
+                    completion(true, "Bar created successfully!")
+                }
             }
         }
     }
@@ -31,39 +64,65 @@ class FirebaseManager: ObservableObject {
     func deleteBar(barId: String, completion: @escaping (Bool, String) -> Void) {
         let barRef = db.collection("bars").document(barId)
         
-        barRef.delete { error in
-            if let error = error {
-                print("❌ Error deleting bar: \(error.localizedDescription)")
-                completion(false, "Failed to delete bar: \(error.localizedDescription)")
-            } else {
-                print("✅ Successfully deleted bar")
-                completion(true, "Bar deleted successfully")
+        barRef.delete { [weak self] error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Error deleting bar: \(error.localizedDescription)")
+                    
+                    if error.localizedDescription.contains("offline") || error.localizedDescription.contains("network") {
+                        self?.isOffline = true
+                        completion(false, "You're offline. The bar will be deleted when you reconnect.")
+                    } else {
+                        completion(false, "Failed to delete bar: \(error.localizedDescription)")
+                    }
+                } else {
+                    print("✅ Successfully deleted bar")
+                    completion(true, "Bar deleted successfully")
+                }
             }
         }
     }
     
-    // MARK: - Bar Data Operations
+    // MARK: - Bar Data Operations with Enhanced Error Handling
     
     func fetchBars() {
         isLoading = true
+        errorMessage = nil
         
         db.collection("bars").addSnapshotListener { [weak self] querySnapshot, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
                 
                 if let error = error {
-                    self?.errorMessage = "Error fetching bars: \(error.localizedDescription)"
+                    print("❌ Firestore fetch error: \(error.localizedDescription)")
+                    
+                    // Handle specific error types
+                    if error.localizedDescription.contains("offline") ||
+                       error.localizedDescription.contains("network") ||
+                       error.localizedDescription.contains("Backend didn't respond") {
+                        self?.isOffline = true
+                        self?.errorMessage = "You're offline. Using cached data."
+                        print("📱 Using offline/cached data")
+                    } else {
+                        self?.errorMessage = "Error fetching bars: \(error.localizedDescription)"
+                    }
                     return
                 }
                 
                 guard let documents = querySnapshot?.documents else {
-                    self?.bars = [] // Empty array if no bars found
+                    self?.bars = []
                     return
                 }
+                
+                // Successfully connected
+                self?.isOffline = false
+                self?.errorMessage = nil
                 
                 self?.bars = documents.compactMap { document in
                     Bar.fromDictionary(document.data(), documentId: document.documentID)
                 }
+                
+                print("✅ Successfully fetched \(self?.bars.count ?? 0) bars")
             }
         }
     }
@@ -73,21 +132,46 @@ class FirebaseManager: ObservableObject {
         let barData = bar.toDictionary()
         
         barRef.updateData(barData) { [weak self] error in
-            if let error = error {
-                DispatchQueue.main.async {
-                    self?.errorMessage = "Error updating bar: \(error.localizedDescription)"
-                }
-                print("❌ Firebase update error: \(error.localizedDescription)")
-            } else {
-                print("✅ Successfully updated \(bar.name) in Firebase")
-                if bar.isAutoTransitionActive {
-                    print("   ⏰ Auto-transition active: \(bar.status.displayName) → \(bar.pendingStatus?.displayName ?? "unknown")")
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ Firebase update error: \(error.localizedDescription)")
+                    
+                    if error.localizedDescription.contains("offline") || error.localizedDescription.contains("network") {
+                        self?.isOffline = true
+                        self?.errorMessage = "You're offline. Changes will sync when you reconnect."
+                    } else {
+                        self?.errorMessage = "Error updating bar: \(error.localizedDescription)"
+                    }
+                } else {
+                    self?.isOffline = false
+                    self?.errorMessage = nil
+                    print("✅ Successfully updated \(bar.name) in Firebase")
+                    if bar.isAutoTransitionActive {
+                        print("   ⏰ Auto-transition active: \(bar.status.displayName) → \(bar.pendingStatus?.displayName ?? "unknown")")
+                    }
                 }
             }
         }
     }
     
-    // MARK: - NEW: 7-Day Schedule Management
+    // MARK: - Connection Status
+    
+    func checkConnection() {
+        // Simple connectivity check
+        db.collection("bars").limit(to: 1).getDocuments { [weak self] _, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    if error.localizedDescription.contains("offline") || error.localizedDescription.contains("network") {
+                        self?.isOffline = true
+                    }
+                } else {
+                    self?.isOffline = false
+                }
+            }
+        }
+    }
+    
+    // MARK: - 7-Day Schedule Management
     
     func updateBarSchedule(barId: String, weeklySchedule: WeeklySchedule) {
         let barRef = db.collection("bars").document(barId)

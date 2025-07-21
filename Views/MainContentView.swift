@@ -17,43 +17,73 @@ struct MainContentView: View {
     
     var body: some View {
         ZStack {
-            // STEP 1: SET BACKGROUND AT TOP LEVEL
+            // BACKGROUND IMAGE - Main App Background
             Image(backgroundManager.getBackgroundImage(for: "main_app"))
                 .resizable()
                 .aspectRatio(contentMode: .fill)
-                .opacity(0.3)
+                .opacity(0.4)
                 .blur(radius: 2.0)
-                .ignoresSafeArea(.all) // Cover EVERYTHING
+                .ignoresSafeArea(.all)
+            
+            // Dark overlay for better readability
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.1),
+                    Color.black.opacity(0.05),
+                    Color.black.opacity(0.1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
             TabView(selection: $selectedTab) {
-                // Home - All bars view
-                HomeView(barViewModel: barViewModel)
-                    .tabItem {
-                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
-                    }
-                    .tag(0)
+                // Home - backgroundimg01
+                StylishBackgroundView(
+                    imageName: "backgroundimg01",
+                    opacity: 0.3,
+                    blurRadius: 1.5
+                ) {
+                    HomeView(barViewModel: barViewModel)
+                }
+                .tabItem {
+                    Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+                }
+                .tag(0)
                 
-                // Discover - Search and location-based discovery
-                DiscoverTabView(barViewModel: barViewModel)
-                    .tabItem {
-                        Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
-                    }
-                    .tag(1)
+                // Discover - backgroundimg02
+                StylishBackgroundView(
+                    imageName: "backgroundimg02",
+                    opacity: 0.3,
+                    blurRadius: 1.5
+                ) {
+                    DiscoverTabView(barViewModel: barViewModel)
+                }
+                .tabItem {
+                    Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
+                }
+                .tag(1)
                 
-                // My Account - Owner and profile
-                MyAccountView(
-                    barViewModel: barViewModel,
-                    showingOwnerLogin: $showingOwnerLogin,
-                    showingBiometricAlert: $showingBiometricAlert,
-                    showingBiometricNotRegistered: $showingBiometricNotRegistered,
-                    biometricError: $biometricError
-                )
+                // My Account - backgroundimg03
+                StylishBackgroundView(
+                    imageName: "backgroundimg03",
+                    opacity: 0.3,
+                    blurRadius: 1.5
+                ) {
+                    MyAccountView(
+                        barViewModel: barViewModel,
+                        showingOwnerLogin: $showingOwnerLogin,
+                        showingBiometricAlert: $showingBiometricAlert,
+                        showingBiometricNotRegistered: $showingBiometricNotRegistered,
+                        biometricError: $biometricError
+                    )
+                }
                 .tabItem {
                     Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
                 }
                 .tag(2)
             }
-            .background(Color.clear) // Make TabView transparent
+            .background(Color.clear)
             .accentColor(.blue)
             
             // Welcome overlay for first-time users
@@ -62,16 +92,7 @@ struct MainContentView: View {
             }
         }
         .onAppear {
-            // STEP 3: Make tab bar background transparent
-            let appearance = UITabBarAppearance()
-            appearance.configureWithTransparentBackground()
-            appearance.backgroundColor = UIColor.clear
-            UITabBar.appearance().standardAppearance = appearance
-            UITabBar.appearance().scrollEdgeAppearance = appearance
-            
-            // DEBUG: You can remove this later
-            let imageName = backgroundManager.getBackgroundImage(for: "main_app")
-            print("🖼️ Using background: \(imageName)")
+            setupTransparentAppearances()
             
             if !hasLaunchedBefore {
                 showingWelcome = true
@@ -97,12 +118,33 @@ struct MainContentView: View {
             }
             Button("Cancel", role: .cancel) { }
         } message: {
-            Text("Quick access is not set up for any bar. Please log in manually first to enable this feature.")
+            Text("Quick Access is not set up for any bar. Please log in manually first to enable this feature.")
         }
+    }
+    
+    private func setupTransparentAppearances() {
+        // Tab Bar Appearance
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithTransparentBackground()
+        tabBarAppearance.backgroundColor = UIColor.clear
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+        
+        // Navigation Bar Appearance
+        let navBarAppearance = UINavigationBarAppearance()
+        navBarAppearance.configureWithTransparentBackground()
+        navBarAppearance.backgroundColor = UIColor.clear
+        navBarAppearance.shadowColor = UIColor.clear
+        
+        UINavigationBar.appearance().standardAppearance = navBarAppearance
+        UINavigationBar.appearance().compactAppearance = navBarAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
+        UINavigationBar.appearance().isTranslucent = true
+        UINavigationBar.appearance().backgroundColor = UIColor.clear
     }
 }
 
-// MARK: - STEP 2: Home View (Background Removed, Made Transparent)
+// MARK: - Updated HomeView with Background
 
 struct HomeView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -114,7 +156,6 @@ struct HomeView: View {
     var displayBars: [Bar] {
         let allBars = barViewModel.getAllBars()
 
-        // Smart filtering: show owner's bar first if logged in
         if let loggedInBar = barViewModel.loggedInBar {
             var bars = allBars.filter { $0.id != loggedInBar.id }
             bars.insert(loggedInBar, at: 0)
@@ -127,7 +168,7 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Quick stats header (only if bars exist)
+                // Quick stats header with glass effect
                 if !displayBars.isEmpty {
                     quickStatsView
                 }
@@ -153,12 +194,10 @@ struct HomeView: View {
                     }
                 }
 
-                // Floating Action Button for quick actions
                 if barViewModel.loggedInBar != nil {
                     quickActionsFAB
                 }
             }
-            .background(Color.clear) // STEP 2: Make transparent
             .navigationTitle("Bar Status Tracker")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -174,7 +213,7 @@ struct HomeView: View {
                 barViewModel.forceRefreshAllData()
             }
         }
-        .background(Color.clear) // Make NavigationView transparent too
+        .navigationViewStyle(StackNavigationViewStyle())
         .sheet(isPresented: $showingCreateBar) {
             CreateBarView(barViewModel: barViewModel)
         }
@@ -209,7 +248,12 @@ struct HomeView: View {
             )
         }
         .padding()
-        .background(Color.gray.opacity(0.05))
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        )
+        .padding(.horizontal)
     }
 
     private var emptyHomeState: some View {
@@ -218,16 +262,17 @@ struct HomeView: View {
 
             Image(systemName: "building.2")
                 .font(.system(size: 64))
-                .foregroundColor(.gray.opacity(0.6))
+                .foregroundColor(.white.opacity(0.8))
 
             VStack(spacing: 12) {
                 Text("Welcome to Bar Status!")
                     .font(.title2)
                     .fontWeight(.bold)
+                    .foregroundColor(.white)
 
                 Text("Create your first bar or discover bars in your area")
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.8))
                     .multilineTextAlignment(.center)
             }
 
@@ -247,12 +292,19 @@ struct HomeView: View {
 
                 Text("Or browse the Discover tab to find bars near you")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.white.opacity(0.7))
             }
             .padding(.horizontal, 40)
 
             Spacer()
         }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.regularMaterial)
+                .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+        )
+        .padding()
     }
 
     private var quickActionsFAB: some View {
@@ -272,7 +324,7 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Discover Tab View (Made Transparent)
+// MARK: - Updated DiscoverTabView with Background
 
 struct DiscoverTabView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -283,24 +335,30 @@ struct DiscoverTabView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header
+                    // Header with glass effect
                     VStack(spacing: 16) {
                         Image(systemName: "location.magnifyingglass")
                             .font(.system(size: 50))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.white)
 
                         Text("Discover Bars")
                             .font(.title)
                             .fontWeight(.bold)
+                            .foregroundColor(.white)
 
                         Text("Find bars in your area or search by name and location")
                             .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.white.opacity(0.8))
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 40)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(.ultraThinMaterial)
+                    )
 
-                    // Discovery options
+                    // Discovery options with glass effect
                     VStack(spacing: 16) {
                         DiscoveryOptionCard(
                             icon: "magnifyingglass",
@@ -326,16 +384,16 @@ struct DiscoverTabView: View {
                             subtitle: "Find bars that are currently open",
                             color: .orange
                         ) {
-                            // Filter to open bars in search
                             showingSearch = true
                         }
                     }
 
-                    // Quick stats
+                    // Quick stats with glass effect
                     if !barViewModel.getAllBars().isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Quick Stats")
                                 .font(.headline)
+                                .foregroundColor(.white)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             HStack(spacing: 12) {
@@ -355,19 +413,20 @@ struct DiscoverTabView: View {
                             }
                         }
                         .padding()
-                        .background(Color.gray.opacity(0.05))
-                        .cornerRadius(12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.regularMaterial)
+                        )
                     }
 
                     Spacer(minLength: 50)
                 }
                 .padding()
             }
-            .background(Color.clear) // Make transparent
             .navigationTitle("Discover")
             .navigationBarTitleDisplayMode(.inline)
         }
-        .background(Color.clear) // Make NavigationView transparent
+        .navigationViewStyle(StackNavigationViewStyle())
         .sheet(isPresented: $showingSearch) {
             SearchBarsView(barViewModel: barViewModel)
         }
@@ -377,7 +436,7 @@ struct DiscoverTabView: View {
     }
 }
 
-// MARK: - Account View (Made Transparent)
+// MARK: - Updated MyAccountView with Background
 
 struct MyAccountView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -406,12 +465,12 @@ struct MyAccountView: View {
                     }
                 }
             }
-            .background(Color.clear) // Make List transparent
-            .scrollContentBackground(.hidden) // Hide List background
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
             .navigationTitle("My Account")
             .navigationBarTitleDisplayMode(.large)
         }
-        .background(Color.clear) // Make NavigationView transparent
+        .navigationViewStyle(StackNavigationViewStyle())
         .actionSheet(isPresented: $showingSignOutOptions) {
             ActionSheet(
                 title: Text("Sign Out"),
@@ -474,13 +533,9 @@ struct MyAccountView: View {
                 }
 
                 Button(action: {
-                    print("🔄 Switching to Guest View...")
                     withAnimation {
                         barViewModel.switchToGuestView()
                     }
-
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                    impactFeedback.impactOccurred()
                 }) {
                     HStack {
                         Image(systemName: "person.2")
@@ -563,9 +618,7 @@ struct MyAccountView: View {
         }
 
         barViewModel.authenticateWithBiometrics { success, error in
-            if success {
-                // Success handled by view model
-            } else {
+            if !success {
                 biometricError = error ?? "Authentication failed"
                 showingBiometricAlert = true
             }
