@@ -1,84 +1,94 @@
 import SwiftUI
 
+// MARK: - Improved BarDetailView (Same class name - no breaking changes)
 struct BarDetailView: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
     let isOwnerMode: Bool
     @Environment(\.dismiss) private var dismiss
     
-    // Get the current bar state from the view model to ensure real-time updates
+    // Get current bar state for real-time updates
     private var currentBar: Bar {
         return barViewModel.bars.first { $0.id == bar.id } ?? bar
     }
     
-    // Editing states - UPDATED for 7-day schedule
+    // Editing states
     @State private var editingDescription = ""
     @State private var showingEditDescription = false
     @State private var showingEditWeeklySchedule = false
     @State private var editingWeeklySchedule = WeeklySchedule()
     @State private var editingPassword = ""
     @State private var showingEditPassword = false
-    
-    // Social Links editing states
     @State private var editingSocialLinks = SocialLinks()
     @State private var showingEditSocialLinks = false
     
-    // Debug state
+    // Debug toggle - only show in debug builds
+    #if DEBUG
     @State private var showingDebugInfo = false
+    #endif
     
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header
+                VStack(alignment: .leading, spacing: 24) {
+                    // Header with current status
                     headerSection
                     
                     Divider()
                     
-                    // UPDATED: 7-Day Schedule Section (replaces Operating Hours)
+                    // Owner quick controls (if applicable)
+                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                        ownerControlsSection
+                        Divider()
+                    }
+                    
+                    // Schedule information
                     scheduleSection
                     
                     Divider()
                     
-                    // Description
-                    descriptionSection
+                    // About section
+                    aboutSection
                     
                     Divider()
                     
-                    // Social Links with editing capability
+                    // Social links
                     socialLinksSection
                     
-                    // Owner Settings
+                    // Owner settings (if applicable)
                     if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                         Divider()
                         ownerSettingsSection
                     }
                     
-                    // DEBUG INFO (in debug builds or for testing)
+                    // DEBUG: Only show in debug builds
+                    #if DEBUG
                     if showingDebugInfo {
                         Divider()
                         debugSection
                     }
+                    #endif
                     
-                    Spacer(minLength: 100)
+                    Spacer(minLength: 50)
                 }
                 .padding()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    // Debug toggle button (only show if needed)
+                    #if DEBUG
                     Button("Debug") {
                         showingDebugInfo.toggle()
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
+                    #else
+                    EmptyView()
+                    #endif
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
                 }
             }
         }
@@ -113,154 +123,211 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - ENHANCED Header Section with Debug Info
+    // MARK: - Header Section
     var headerSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(currentBar.name)
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     
-                    // Show location prominently if available
                     if let location = currentBar.location {
                         HStack(spacing: 6) {
                             Image(systemName: "location.fill")
                                 .foregroundColor(.blue)
+                                .font(.subheadline)
                             Text(location.displayName)
                                 .font(.headline)
                                 .foregroundColor(.blue)
                                 .fontWeight(.medium)
                         }
-                        .padding(.vertical, 2)
-                        
-                        if !currentBar.address.isEmpty && currentBar.address != location.city {
+                    } else if !currentBar.address.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: "mappin")
+                                .foregroundColor(.gray)
+                                .font(.subheadline)
                             Text(currentBar.address)
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
-                    } else {
-                        Text(currentBar.address)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
                     }
                 }
                 
                 Spacer()
                 
-                // Current status display
-                VStack {
-                    Image(systemName: currentBar.status.icon)
-                        .font(.system(size: 40))
-                        .foregroundColor(currentBar.status.color)
+                // Large status indicator
+                VStack(spacing: 8) {
+                    ZStack {
+                        Circle()
+                            .fill(currentBar.status.color.opacity(0.2))
+                            .frame(width: 80, height: 80)
+                        
+                        Image(systemName: currentBar.status.icon)
+                            .font(.system(size: 32))
+                            .foregroundColor(currentBar.status.color)
+                    }
                     
                     Text(currentBar.status.displayName)
                         .font(.caption)
-                        .fontWeight(.medium)
+                        .fontWeight(.bold)
                         .foregroundColor(currentBar.status.color)
                 }
             }
             
-            // ENHANCED: Detailed status information with debugging
-            let statusInfo = currentBar.statusDisplayInfo
-            
-            VStack(alignment: .leading, spacing: 8) {
-                // Status source
-                HStack(spacing: 8) {
-                    Image(systemName: currentBar.isFollowingSchedule ? "calendar" : "hand.raised.fill")
+            // Status information card
+            statusInfoCard
+        }
+    }
+    
+    var statusInfoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: currentBar.isFollowingSchedule ? "calendar" : "hand.raised.fill")
+                    .foregroundColor(currentBar.isFollowingSchedule ? .green : .orange)
+                    .font(.headline)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(currentBar.isFollowingSchedule ? "Following Schedule" : "Manual Override")
+                        .font(.headline)
                         .foregroundColor(currentBar.isFollowingSchedule ? .green : .orange)
+                    
+                    Text(currentBar.isFollowingSchedule ?
+                         "Status updates automatically based on schedule" :
+                         "Owner has manually set the current status")
                         .font(.caption)
-                    
-                    Text(statusInfo.source)
-                        .font(.caption)
-                        .foregroundColor(currentBar.isFollowingSchedule ? .green : .orange)
-                        .fontWeight(.medium)
-                    
-                    Spacer()
-                    
-                    Text("Updated \(timeAgo(currentBar.lastUpdated))")
-                        .font(.caption2)
                         .foregroundColor(.secondary)
                 }
                 
-                // Detailed description
-                Text(statusInfo.description)
+                Spacer()
+                
+                Text("Updated \(timeAgo(currentBar.lastUpdated))")
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                
-                // CONFLICT WARNING: Show if manual override conflicts with schedule
-                if statusInfo.isConflicting {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text("Status Override Active")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.orange)
-                        }
-                        
-                        if let todaysSchedule = currentBar.todaysSchedule {
-                            Text("Manual status (\(currentBar.status.displayName)) differs from schedule (\(currentBar.scheduleBasedStatus.displayName))")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            
-                            if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                                Button("Return to Schedule") {
-                                    barViewModel.setBarToFollowSchedule(currentBar)
-                                }
-                                .font(.caption2)
-                                .foregroundColor(.blue)
-                                .padding(.top, 4)
-                            }
-                        }
-                    }
-                    .padding(8)
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(6)
-                }
             }
-            .padding(.vertical, 4)
             
-            // Real-time auto-transition info (if active)
-            if currentBar.isAutoTransitionActive, let pendingStatus = currentBar.pendingStatus {
+            // Show conflict warning if manual override differs from schedule
+            if !currentBar.isFollowingSchedule && currentBar.status != currentBar.scheduleBasedStatus {
                 HStack {
-                    Image(systemName: "clock.fill")
+                    Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.orange)
                     
-                    VStack(alignment: .leading) {
-                        Text("Will automatically change to \(pendingStatus.displayName)")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Status Override Active")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .fontWeight(.medium)
+                            .foregroundColor(.orange)
                         
-                        if let timeRemaining = barViewModel.getTimeRemainingText(for: currentBar) {
-                            Text("Time remaining: \(timeRemaining)")
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .foregroundColor(.orange)
-                        }
+                        Text("Manual: \(currentBar.status.displayName) • Schedule: \(currentBar.scheduleBasedStatus.displayName)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
+                    
+                    Spacer()
                 }
-                .padding(.vertical, 4)
+                .padding()
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
             }
             
-            // Owner Controls
-            if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                StatusControlView(bar: currentBar, barViewModel: barViewModel)
+            // Auto-transition info (if active)
+            if currentBar.isAutoTransitionActive, let pendingStatus = currentBar.pendingStatus {
+                HStack {
+                    Image(systemName: "timer")
+                        .foregroundColor(.blue)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Automatic Change Scheduled")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                        
+                        if let timeRemaining = barViewModel.getTimeRemainingText(for: currentBar) {
+                            Text("Will change to \(pendingStatus.displayName) in \(timeRemaining)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.05))
+        .cornerRadius(12)
+    }
+    
+    // MARK: - Owner Controls Section
+    var ownerControlsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Quick Actions")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
+                if currentBar.status == .open {
+                    QuickActionButton(
+                        title: "Close Now",
+                        icon: "xmark.circle.fill",
+                        color: .red
+                    ) {
+                        barViewModel.setManualBarStatus(currentBar, newStatus: .closed)
+                    }
+                } else {
+                    QuickActionButton(
+                        title: "Open Now",
+                        icon: "checkmark.circle.fill",
+                        color: .green
+                    ) {
+                        barViewModel.setManualBarStatus(currentBar, newStatus: .open)
+                    }
+                }
+                
+                QuickActionButton(
+                    title: "Follow Schedule",
+                    icon: "calendar",
+                    color: .blue
+                ) {
+                    barViewModel.setBarToFollowSchedule(currentBar)
+                }
+                
+                QuickActionButton(
+                    title: "Edit Schedule",
+                    icon: "clock.badge.checkmark",
+                    color: .purple
+                ) {
+                    editingWeeklySchedule = currentBar.weeklySchedule
+                    showingEditWeeklySchedule = true
+                }
+                
+                if currentBar.isAutoTransitionActive {
+                    QuickActionButton(
+                        title: "Cancel Timer",
+                        icon: "timer.square",
+                        color: .orange
+                    ) {
+                        barViewModel.cancelAutoTransition(for: currentBar)
+                    }
+                }
             }
         }
     }
     
-    // MARK: - UPDATED: 7-Day Schedule Section
+    // MARK: - Schedule Section
     var scheduleSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("7-Day Schedule")
+                Text("Operating Hours")
                     .font(.headline)
+                    .fontWeight(.semibold)
                 
                 if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                     Spacer()
-                    Button("Edit Schedule") {
+                    Button("Edit") {
                         editingWeeklySchedule = currentBar.weeklySchedule
                         showingEditWeeklySchedule = true
                     }
@@ -271,51 +338,17 @@ struct BarDetailView: View {
             
             // Today's schedule (highlighted)
             if let todaysSchedule = currentBar.todaysSchedule {
-                VStack(spacing: 8) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            HStack(spacing: 4) {
-                                Text("Today")
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.blue)
-                                
-                                Text("(\(todaysSchedule.dayName))")
-                                    .font(.subheadline)
-                                    .fontWeight(.medium)
-                            }
-                            Text(todaysSchedule.displayDate)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Text(todaysSchedule.displayText)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(todaysSchedule.isOpen ? .green : .red)
-                    }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(todaysSchedule.isOpen ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.blue.opacity(0.3), lineWidth: 2)
-                        )
-                )
+                TodaysScheduleCard(schedule: todaysSchedule)
             }
             
-            // Next 6 days overview
-            VStack(alignment: .leading, spacing: 8) {
+            // This week overview
+            VStack(alignment: .leading, spacing: 12) {
                 Text("This Week")
                     .font(.subheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
                 
-                VStack(spacing: 6) {
+                VStack(spacing: 8) {
                     ForEach(currentBar.weeklySchedule.schedules) { schedule in
                         ScheduleRowCompact(schedule: schedule, isToday: schedule.isToday)
                     }
@@ -324,7 +357,127 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - DEBUG Section
+    // MARK: - About Section
+    var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("About")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                    Spacer()
+                    Button("Edit") {
+                        editingDescription = currentBar.description
+                        showingEditDescription = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+            }
+            
+            if currentBar.description.isEmpty {
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                    VStack(spacing: 8) {
+                        Text("No description yet")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("Add a description to tell customers about your bar")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(8)
+                } else {
+                    Text("No description available.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Text(currentBar.description)
+                    .font(.body)
+            }
+        }
+    }
+    
+    // MARK: - Social Links Section
+    var socialLinksSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Connect")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                    Spacer()
+                    Button("Edit") {
+                        editingSocialLinks = currentBar.socialLinks
+                        showingEditSocialLinks = true
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                }
+            }
+            
+            let hasAnyLinks = !currentBar.socialLinks.instagram.isEmpty ||
+                             !currentBar.socialLinks.twitter.isEmpty ||
+                             !currentBar.socialLinks.facebook.isEmpty ||
+                             !currentBar.socialLinks.website.isEmpty
+            
+            if hasAnyLinks {
+                SocialLinksView(socialLinks: currentBar.socialLinks)
+            } else {
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                    VStack(spacing: 8) {
+                        Text("No social links set up")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("Add your social media links to help customers connect with you")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue.opacity(0.05))
+                    .cornerRadius(8)
+                } else {
+                    Text("No social links available")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Owner Settings Section
+    var ownerSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Account Settings")
+                .font(.headline)
+                .fontWeight(.semibold)
+            
+            VStack(spacing: 12) {
+                SettingsRow(
+                    title: "Change Password",
+                    subtitle: "Update your 4-digit login password",
+                    icon: "key.fill",
+                    color: .blue
+                ) {
+                    editingPassword = currentBar.password
+                    showingEditPassword = true
+                }
+            }
+        }
+    }
+    
+    // MARK: - DEBUG Section (Only in Debug Builds)
+    #if DEBUG
     var debugSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("🔍 Debug Information")
@@ -345,20 +498,6 @@ struct BarDetailView: View {
                         
                         if let manualStatus = currentBar.currentManualStatus {
                             debugInfoRow("Manual Override", manualStatus.displayName, color: .orange)
-                        }
-                        
-                        if let openTime = parseTimeForDebug(todaysSchedule.openTime),
-                           let closeTime = parseTimeForDebug(todaysSchedule.closeTime) {
-                            let isOvernightSchedule = closeTime <= openTime
-                            debugInfoRow("Overnight Schedule", isOvernightSchedule ? "YES" : "NO")
-                            
-                            if isOvernightSchedule {
-                                let isCurrentlyOpen = currentTime >= openTime || currentTime < closeTime
-                                debugInfoRow("Should Be Open (Overnight)", isCurrentlyOpen ? "YES" : "NO", color: isCurrentlyOpen ? .green : .red)
-                            } else {
-                                let isCurrentlyOpen = currentTime >= openTime && currentTime < closeTime
-                                debugInfoRow("Should Be Open (Same Day)", isCurrentlyOpen ? "YES" : "NO", color: isCurrentlyOpen ? .green : .red)
-                            }
                         }
                     }
                 }
@@ -384,114 +523,6 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Description Section
-    var descriptionSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("About")
-                    .font(.headline)
-                
-                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                    Spacer()
-                    Button("Edit") {
-                        editingDescription = currentBar.description
-                        showingEditDescription = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-            }
-            
-            Text(currentBar.description.isEmpty ? "No description available." : currentBar.description)
-                .font(.body)
-                .foregroundColor(currentBar.description.isEmpty ? .secondary : .primary)
-        }
-    }
-    
-    // MARK: - Social Links Section
-    var socialLinksSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Social Links")
-                    .font(.headline)
-                
-                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                    Spacer()
-                    Button("Edit") {
-                        editingSocialLinks = currentBar.socialLinks
-                        showingEditSocialLinks = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-            }
-            
-            if !currentBar.socialLinks.instagram.isEmpty ||
-               !currentBar.socialLinks.twitter.isEmpty ||
-               !currentBar.socialLinks.website.isEmpty ||
-               !currentBar.socialLinks.facebook.isEmpty {
-                
-                SocialLinksView(socialLinks: currentBar.socialLinks)
-            } else if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                VStack(spacing: 8) {
-                    Text("No social links set up yet")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Text("Add your social media profiles to help customers find you online")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(8)
-            } else {
-                Text("No social links available")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding()
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(8)
-            }
-        }
-    }
-    
-    // MARK: - Owner Settings Section
-    var ownerSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("Owner Settings")
-                .font(.headline)
-            
-            VStack(spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Login Password")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Text("Current: ••••")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Button("Change") {
-                        editingPassword = currentBar.password
-                        showingEditPassword = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                }
-                .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(8)
-            }
-        }
-    }
-    
-    // MARK: - Helper Views and Functions
-    
     private func debugInfoRow(_ label: String, _ value: String, color: Color? = nil) -> some View {
         HStack {
             Text("\(label):")
@@ -507,26 +538,15 @@ struct BarDetailView: View {
             Spacer()
         }
     }
+    #endif
     
-    private func parseTimeForDebug(_ timeString: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        
-        guard let time = formatter.date(from: timeString) else { return nil }
-        
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
-        return calendar.date(byAdding: timeComponents, to: today)
-    }
+    // MARK: - Helper Functions
     
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         
         if interval < 60 {
-            return "just now"
+            return "now"
         } else if interval < 3600 {
             let minutes = Int(interval / 60)
             return "\(minutes)m ago"
@@ -540,62 +560,126 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - UPDATED: Compact Schedule Row Component
-struct ScheduleRowCompact: View {
-    let schedule: DailySchedule
-    let isToday: Bool
+// MARK: - Supporting Components (keeping existing ones, just organizing)
+
+struct QuickActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
     
     var body: some View {
-        HStack {
-            // Day info
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    Text(schedule.shortDayName)
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(isToday ? .blue : .primary)
-                    
-                    Text(schedule.displayDate)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    
-                    if isToday {
-                        Text("TODAY")
-                            .font(.caption2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(4)
-                    }
-                }
-            }
-            
-            Spacer()
-            
-            // Schedule display
-            HStack(spacing: 6) {
-                Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(schedule.isOpen ? .green : .red)
-                    .font(.caption)
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(color)
                 
-                Text(schedule.displayText)
+                Text(title)
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(schedule.isOpen ? .green : .red)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(color.opacity(0.1))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(color.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct TodaysScheduleCard: View {
+    let schedule: DailySchedule
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("Today")
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                        
+                        Text("(\(schedule.dayName))")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    
+                    Text(schedule.displayDate)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(schedule.isOpen ? .green : .red)
+                    
+                    Text(schedule.displayText)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(schedule.isOpen ? .green : .red)
+                }
             }
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
+        .padding()
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isToday ? Color.blue.opacity(0.05) : Color.clear)
+            RoundedRectangle(cornerRadius: 12)
+                .fill(schedule.isOpen ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isToday ? Color.blue.opacity(0.2) : Color.clear, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.blue.opacity(0.3), lineWidth: 2)
                 )
         )
+    }
+}
+
+struct SettingsRow: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(color)
+                    .frame(width: 24)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
+                    
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color.gray.opacity(0.05))
+            .cornerRadius(8)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -608,6 +692,6 @@ struct ScheduleRowCompact: View {
             password: "1234"
         ),
         barViewModel: BarViewModel(),
-        isOwnerMode: false
+        isOwnerMode: true
     )
 }
