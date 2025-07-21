@@ -1,9 +1,8 @@
 import SwiftUI
 
-// MARK: - Fixed MainContentView
-
 struct MainContentView: View {
     @StateObject private var barViewModel = BarViewModel()
+    @StateObject private var backgroundManager = BackgroundImageManager.shared
     @State private var selectedTab = 0
     @State private var showingOwnerLogin = false
     @State private var showingWelcome = false
@@ -18,35 +17,42 @@ struct MainContentView: View {
     
     var body: some View {
         ZStack {
-            TabView(selection: $selectedTab) {
-                // Home - All bars view
-                HomeView(barViewModel: barViewModel)
+            // FIXED: Increased opacity for visibility
+            StylishBackgroundView(
+                imageName: backgroundManager.getBackgroundImage(for: "main_app"),
+                opacity: 0.5,      // ← INCREASED from 0.15 to 0.5 for visibility
+                blurRadius: 2.0    // ← REDUCED blur for more definition
+            ) {
+                TabView(selection: $selectedTab) {
+                    // Home - All bars view
+                    HomeView(barViewModel: barViewModel)
+                        .tabItem {
+                            Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+                        }
+                        .tag(0)
+                    
+                    // Discover - Search and location-based discovery
+                    DiscoverTabView(barViewModel: barViewModel)
+                        .tabItem {
+                            Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
+                        }
+                        .tag(1)
+                    
+                    // My Account - Owner and profile
+                    MyAccountView(
+                        barViewModel: barViewModel,
+                        showingOwnerLogin: $showingOwnerLogin,
+                        showingBiometricAlert: $showingBiometricAlert,
+                        showingBiometricNotRegistered: $showingBiometricNotRegistered,
+                        biometricError: $biometricError
+                    )
                     .tabItem {
-                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+                        Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
                     }
-                    .tag(0)
-                
-                // Discover - Search and location-based discovery
-                DiscoverTabView(barViewModel: barViewModel)
-                    .tabItem {
-                        Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
-                    }
-                    .tag(1)
-                
-                // My Account - Owner and profile
-                MyAccountView(
-                    barViewModel: barViewModel,
-                    showingOwnerLogin: $showingOwnerLogin,
-                    showingBiometricAlert: $showingBiometricAlert,
-                    showingBiometricNotRegistered: $showingBiometricNotRegistered,
-                    biometricError: $biometricError
-                )
-                .tabItem {
-                    Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
+                    .tag(2)
                 }
-                .tag(2)
+                .accentColor(.blue)
             }
-            .accentColor(.blue)
             
             // Welcome overlay for first-time users
             if showingWelcome {
@@ -54,6 +60,10 @@ struct MainContentView: View {
             }
         }
         .onAppear {
+            // DEBUG: You can remove this later
+            let imageName = backgroundManager.getBackgroundImage(for: "main_app")
+            print("🖼️ Using background: \(imageName)")
+            
             if !hasLaunchedBefore {
                 showingWelcome = true
                 hasLaunchedBefore = true
@@ -89,22 +99,22 @@ struct HomeView: View {
     @ObservedObject var barViewModel: BarViewModel
     @State private var showingCreateBar = false
     @State private var showingQuickActions = false
-    
+
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
-    
+
     var displayBars: [Bar] {
         let allBars = barViewModel.getAllBars()
-        
+
         // Smart filtering: show owner's bar first if logged in
         if let loggedInBar = barViewModel.loggedInBar {
             var bars = allBars.filter { $0.id != loggedInBar.id }
             bars.insert(loggedInBar, at: 0)
             return bars
         }
-        
+
         return allBars
     }
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -112,7 +122,7 @@ struct HomeView: View {
                 if !displayBars.isEmpty {
                     quickStatsView
                 }
-                
+
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(displayBars) { bar in
@@ -128,12 +138,12 @@ struct HomeView: View {
                         }
                     }
                     .padding()
-                    
+
                     if displayBars.isEmpty {
                         emptyHomeState
                     }
                 }
-                
+
                 // Floating Action Button for quick actions
                 if barViewModel.loggedInBar != nil {
                     quickActionsFAB
@@ -163,7 +173,7 @@ struct HomeView: View {
             }
         }
     }
-    
+
     private var quickStatsView: some View {
         HStack(spacing: 16) {
             StatBadge(
@@ -172,14 +182,14 @@ struct HomeView: View {
                 color: .blue,
                 icon: "building.2"
             )
-            
+
             StatBadge(
                 title: "Open Now",
                 value: "\(displayBars.filter { $0.status == .open || $0.status == .openingSoon }.count)",
                 color: .green,
                 icon: "checkmark.circle"
             )
-            
+
             StatBadge(
                 title: "Open Today",
                 value: "\(displayBars.filter { $0.isOpenToday }.count)",
@@ -190,26 +200,26 @@ struct HomeView: View {
         .padding()
         .background(Color.gray.opacity(0.05))
     }
-    
+
     private var emptyHomeState: some View {
         VStack(spacing: 24) {
             Spacer(minLength: 80)
-            
+
             Image(systemName: "building.2")
                 .font(.system(size: 64))
                 .foregroundColor(.gray.opacity(0.6))
-            
+
             VStack(spacing: 12) {
                 Text("Welcome to Bar Status!")
                     .font(.title2)
                     .fontWeight(.bold)
-                
+
                 Text("Create your first bar or discover bars in your area")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
-            
+
             VStack(spacing: 12) {
                 Button(action: { showingCreateBar = true }) {
                     HStack {
@@ -223,17 +233,17 @@ struct HomeView: View {
                     .background(Color.blue)
                     .cornerRadius(12)
                 }
-                
+
                 Text("Or browse the Discover tab to find bars near you")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
             .padding(.horizontal, 40)
-            
+
             Spacer()
         }
     }
-    
+
     private var quickActionsFAB: some View {
         HStack {
             Spacer()
@@ -257,7 +267,7 @@ struct DiscoverTabView: View {
     @ObservedObject var barViewModel: BarViewModel
     @State private var showingSearch = false
     @State private var showingLocationBrowser = false
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -267,18 +277,18 @@ struct DiscoverTabView: View {
                         Image(systemName: "location.magnifyingglass")
                             .font(.system(size: 50))
                             .foregroundColor(.blue)
-                        
+
                         Text("Discover Bars")
                             .font(.title)
                             .fontWeight(.bold)
-                        
+
                         Text("Find bars in your area or search by name and location")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 40)
-                    
+
                     // Discovery options
                     VStack(spacing: 16) {
                         DiscoveryOptionCard(
@@ -289,7 +299,7 @@ struct DiscoverTabView: View {
                         ) {
                             showingSearch = true
                         }
-                        
+
                         DiscoveryOptionCard(
                             icon: "location.fill",
                             title: "Browse by Location",
@@ -298,7 +308,7 @@ struct DiscoverTabView: View {
                         ) {
                             showingLocationBrowser = true
                         }
-                        
+
                         DiscoveryOptionCard(
                             icon: "clock.fill",
                             title: "Open Now",
@@ -309,14 +319,14 @@ struct DiscoverTabView: View {
                             showingSearch = true
                         }
                     }
-                    
+
                     // Quick stats
                     if !barViewModel.getAllBars().isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Quick Stats")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                            
+
                             HStack(spacing: 12) {
                                 QuickStatCard(
                                     title: "Total Bars",
@@ -324,7 +334,7 @@ struct DiscoverTabView: View {
                                     icon: "building.2",
                                     color: .purple
                                 )
-                                
+
                                 QuickStatCard(
                                     title: "Open Now",
                                     value: "\(barViewModel.getBarsOpenNow().count)",
@@ -337,7 +347,7 @@ struct DiscoverTabView: View {
                         .background(Color.gray.opacity(0.05))
                         .cornerRadius(12)
                     }
-                    
+
                     Spacer(minLength: 50)
                 }
                 .padding()
@@ -361,7 +371,7 @@ struct StatBadge: View {
     let value: String
     let color: Color
     let icon: String
-    
+
     var body: some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
@@ -372,7 +382,7 @@ struct StatBadge: View {
                     .fontWeight(.bold)
             }
             .foregroundColor(color)
-            
+
             Text(title)
                 .font(.caption2)
                 .foregroundColor(.secondary)
@@ -390,7 +400,7 @@ struct DiscoveryOptionCard: View {
     let subtitle: String
     let color: Color
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 16) {
@@ -398,19 +408,19 @@ struct DiscoveryOptionCard: View {
                     .font(.title2)
                     .foregroundColor(color)
                     .frame(width: 40)
-                
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     Text(subtitle)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 Image(systemName: "chevron.right")
                     .foregroundColor(.secondary)
             }
@@ -431,18 +441,18 @@ struct QuickStatCard: View {
     let value: String
     let icon: String
     let color: Color
-    
+
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.title2)
                 .foregroundColor(color)
-            
+
             Text(value)
                 .font(.title)
                 .fontWeight(.bold)
                 .foregroundColor(color)
-            
+
             Text(title)
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -458,7 +468,7 @@ struct QuickActionsSheet: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         NavigationView {
             List {
@@ -472,7 +482,7 @@ struct QuickActionsSheet: View {
                         barViewModel.setManualBarStatus(bar, newStatus: newStatus)
                         dismiss()
                     }
-                    
+
                     QuickActionRow(
                         title: "Follow Schedule",
                         icon: "calendar",
@@ -482,7 +492,7 @@ struct QuickActionsSheet: View {
                         dismiss()
                     }
                 }
-                
+
                 if bar.isAutoTransitionActive {
                     Section("Auto-Transition") {
                         QuickActionRow(
@@ -513,17 +523,17 @@ struct QuickActionRow: View {
     let icon: String
     let color: Color
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
                     .foregroundColor(color)
                     .frame(width: 24)
-                
+
                 Text(title)
                     .foregroundColor(.primary)
-                
+
                 Spacer()
             }
         }
@@ -535,7 +545,7 @@ struct QuickActionRow: View {
 struct WelcomeOverlay: View {
     @Binding var isPresented: Bool
     @State private var currentPage = 0
-    
+
     private let pages = [
         WelcomePage(
             icon: "building.2.fill",
@@ -556,12 +566,12 @@ struct WelcomeOverlay: View {
             color: .purple
         )
     ]
-    
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.3)
                 .ignoresSafeArea()
-            
+
             VStack {
                 TabView(selection: $currentPage) {
                     ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
@@ -571,15 +581,15 @@ struct WelcomeOverlay: View {
                 }
                 .tabViewStyle(PageTabViewStyle())
                 .frame(height: 400)
-                
+
                 HStack {
                     Button("Skip") {
                         isPresented = false
                     }
                     .foregroundColor(.secondary)
-                    
+
                     Spacer()
-                    
+
                     if currentPage < pages.count - 1 {
                         Button("Next") {
                             withAnimation {
@@ -618,19 +628,19 @@ struct WelcomePage {
 
 struct WelcomePageView: View {
     let page: WelcomePage
-    
+
     var body: some View {
         VStack(spacing: 24) {
             Image(systemName: page.icon)
                 .font(.system(size: 80))
                 .foregroundColor(page.color)
-            
+
             VStack(spacing: 12) {
                 Text(page.title)
                     .font(.title)
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                
+
                 Text(page.subtitle)
                     .font(.body)
                     .foregroundColor(.secondary)
@@ -650,10 +660,10 @@ struct MyAccountView: View {
     @Binding var showingBiometricAlert: Bool
     @Binding var showingBiometricNotRegistered: Bool
     @Binding var biometricError: String
-    
+
     // FIXED: Added state for alert handling
     @State private var showingSignOutOptions = false
-    
+
     var body: some View {
         NavigationView {
             List {
@@ -662,7 +672,7 @@ struct MyAccountView: View {
                 } else {
                     guestSection
                 }
-                
+
                 Section("App") {
                     HStack {
                         Text("Version")
@@ -692,12 +702,12 @@ struct MyAccountView: View {
             )
         }
     }
-    
+
     private func ownerSection(for bar: Bar) -> some View {
         Group {
             Section {
                 OwnerBarCard(bar: bar, barViewModel: barViewModel)
-                
+
                 // FIXED: Proper button in List context
                 Button(action: {
                     barViewModel.selectedBar = bar
@@ -713,11 +723,11 @@ struct MyAccountView: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
-                
+
             } header: {
                 Text("Your Bar")
             }
-            
+
             Section("Account") {
                 // FIXED: Quick Access Settings button
                 if barViewModel.canUseBiometricAuth {
@@ -738,14 +748,14 @@ struct MyAccountView: View {
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
-                
+
                 // FIXED: Switch to Guest View button with proper action and feedback
                 Button(action: {
                     print("🔄 Switching to Guest View...")  // Debug log
                     withAnimation {
                         barViewModel.switchToGuestView()
                     }
-                    
+
                     // Provide haptic feedback
                     let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                     impactFeedback.impactOccurred()
@@ -763,7 +773,7 @@ struct MyAccountView: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
-                
+
                 // FIXED: Sign Out button with proper alert handling
                 Button(action: {
                     showingSignOutOptions = true
@@ -784,7 +794,7 @@ struct MyAccountView: View {
             }
         }
     }
-    
+
     private var guestSection: some View {
         Section("Bar Owner Access") {
             // FIXED: Sign In button
@@ -804,7 +814,7 @@ struct MyAccountView: View {
                 }
             }
             .buttonStyle(PlainButtonStyle())
-            
+
             // FIXED: Quick Access button
             if barViewModel.canUseBiometricAuth {
                 Button(action: {
@@ -826,13 +836,13 @@ struct MyAccountView: View {
             }
         }
     }
-    
+
     private func handleBiometricLogin() {
         guard barViewModel.isValidBiometricBar() else {
             showingBiometricNotRegistered = true
             return
         }
-        
+
         barViewModel.authenticateWithBiometrics { success, error in
             if success {
                 // Success handled by view model
@@ -847,7 +857,7 @@ struct MyAccountView: View {
 struct OwnerBarCard: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -855,34 +865,34 @@ struct OwnerBarCard: View {
                     Text(bar.name)
                         .font(.headline)
                         .fontWeight(.semibold)
-                    
+
                     if let location = bar.location {
                         Text(location.displayName)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 VStack(alignment: .trailing, spacing: 4) {
                     Image(systemName: bar.status.icon)
                         .font(.title2)
                         .foregroundColor(bar.status.color)
-                    
+
                     Text(bar.status.displayName)
                         .font(.caption)
                         .foregroundColor(bar.status.color)
                         .fontWeight(.medium)
                 }
             }
-            
+
             if let todaysSchedule = bar.todaysSchedule {
                 HStack {
                     Image(systemName: "calendar")
                         .foregroundColor(.blue)
                         .font(.caption)
-                    
+
                     Text("Today: \(todaysSchedule.displayText)")
                         .font(.caption)
                         .foregroundColor(.secondary)

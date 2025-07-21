@@ -38,6 +38,7 @@
 		05FDBDBD2E23F731003F6DB1 /* LocationPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */; };
 		05FDBDC52E2CD2BE003F6DB1 /* DailyScheduleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDC42E2CD2B9003F6DB1 /* DailyScheduleEditor.swift */; };
 		05FDBDCD2E2DCF7E003F6DB1 /* ScheduleModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDCC2E2DCF77003F6DB1 /* ScheduleModels.swift */; };
+		05FDBDCF2E2E0774003F6DB1 /* BackgroundImageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FDBDCE2E2E076F003F6DB1 /* BackgroundImageManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -107,6 +108,7 @@
 		05FDBDBC2E23F72C003F6DB1 /* LocationPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPicker.swift; sourceTree = "<group>"; };
 		05FDBDC42E2CD2B9003F6DB1 /* DailyScheduleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyScheduleEditor.swift; sourceTree = "<group>"; };
 		05FDBDCC2E2DCF77003F6DB1 /* ScheduleModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleModels.swift; sourceTree = "<group>"; };
+		05FDBDCE2E2E076F003F6DB1 /* BackgroundImageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundImageManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -210,6 +212,7 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				05FDBDCE2E2E076F003F6DB1 /* BackgroundImageManager.swift */,
 				0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */,
 				05A13C642E1953B400A69687 /* UserPreferencesManager.swift */,
 				05A13C5F2E18F1CE00A69687 /* FirebaseManager.swift */,
@@ -422,6 +425,7 @@
 				05A13C502E18C61F00A69687 /* BarViewModel.swift in Sources */,
 				05A13C522E18C62C00A69687 /* BarStatus.swift in Sources */,
 				0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */,
+				05FDBDCF2E2E0774003F6DB1 /* BackgroundImageManager.swift in Sources */,
 				05FDBDBD2E23F731003F6DB1 /* LocationPicker.swift in Sources */,
 				05FDBDC52E2CD2BE003F6DB1 /* DailyScheduleEditor.swift in Sources */,
 				05FDBDCD2E2DCF7E003F6DB1 /* ScheduleModels.swift in Sources */,
