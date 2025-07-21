@@ -363,3 +363,28 @@ struct OwnerLoginView: View {
             }
         }
     }
+}
+
+// MARK: - Supporting Components
+
+struct ModernLoginTextFieldStyle: TextFieldStyle {
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+            )
+    }
+}
+
+#Preview {
+    OwnerLoginView(
+        barViewModel: BarViewModel(),
+        showingOwnerLogin: .constant(true)
+    )
+}

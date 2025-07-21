@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Improved BarDetailView (Same class name - no breaking changes)
+// MARK: - Fixed BarDetailView
 struct BarDetailView: View {
     let bar: Bar
     @ObservedObject var barViewModel: BarViewModel
@@ -270,7 +270,7 @@ struct BarDetailView: View {
             
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
                 if currentBar.status == .open {
-                    QuickActionButton(
+                    DetailQuickActionButton(
                         title: "Close Now",
                         icon: "xmark.circle.fill",
                         color: .red
@@ -278,7 +278,7 @@ struct BarDetailView: View {
                         barViewModel.setManualBarStatus(currentBar, newStatus: .closed)
                     }
                 } else {
-                    QuickActionButton(
+                    DetailQuickActionButton(
                         title: "Open Now",
                         icon: "checkmark.circle.fill",
                         color: .green
@@ -287,7 +287,7 @@ struct BarDetailView: View {
                     }
                 }
                 
-                QuickActionButton(
+                DetailQuickActionButton(
                     title: "Follow Schedule",
                     icon: "calendar",
                     color: .blue
@@ -295,7 +295,7 @@ struct BarDetailView: View {
                     barViewModel.setBarToFollowSchedule(currentBar)
                 }
                 
-                QuickActionButton(
+                DetailQuickActionButton(
                     title: "Edit Schedule",
                     icon: "clock.badge.checkmark",
                     color: .purple
@@ -305,7 +305,7 @@ struct BarDetailView: View {
                 }
                 
                 if currentBar.isAutoTransitionActive {
-                    QuickActionButton(
+                    DetailQuickActionButton(
                         title: "Cancel Timer",
                         icon: "timer.square",
                         color: .orange
@@ -560,9 +560,9 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - Supporting Components (keeping existing ones, just organizing)
+// MARK: - Supporting Components (renamed to avoid conflicts)
 
-struct QuickActionButton: View {
+struct DetailQuickActionButton: View {
     let title: String
     let icon: String
     let color: Color
@@ -638,6 +638,65 @@ struct TodaysScheduleCard: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(Color.blue.opacity(0.3), lineWidth: 2)
+                )
+        )
+    }
+}
+
+struct ScheduleRowCompact: View {
+    let schedule: DailySchedule
+    let isToday: Bool
+    
+    var body: some View {
+        HStack {
+            // Day info
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(schedule.shortDayName)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(isToday ? .blue : .primary)
+                    
+                    if isToday {
+                        Text("TODAY")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+                
+                Text(schedule.displayDate)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 60, alignment: .leading)
+            
+            Spacer()
+            
+            // Status
+            HStack(spacing: 8) {
+                Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundColor(schedule.isOpen ? .green : .red)
+                    .font(.caption)
+                
+                Text(schedule.displayText)
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(schedule.isOpen ? .green : .red)
+            }
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isToday ? Color.blue.opacity(0.05) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isToday ? Color.blue.opacity(0.2) : Color.clear, lineWidth: 1)
                 )
         )
     }

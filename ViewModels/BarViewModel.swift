@@ -295,7 +295,7 @@ class BarViewModel: ObservableObject {
         }
         
         let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval % 3600) / 60
+        let minutes = Int(timeInterval.truncatingRemainder(dividingBy: 3600)) / 60
         
         if hours > 0 {
             return "\(hours)h \(minutes)m"
