@@ -125,7 +125,7 @@ struct MainContentView: View {
     }
 }
 
-// MARK: - Updated HomeView with Gradient Background
+// MARK: - Updated HomeView with Fixed Schedule Display
 
 struct HomeView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -134,12 +134,17 @@ struct HomeView: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
 
+    // FIXED: Always get fresh data with schedule refresh
     var displayBars: [Bar] {
-        let allBars = barViewModel.getAllBars()
+        let allBars = barViewModel.getAllBars()  // This now returns refreshed schedules
 
         if let loggedInBar = barViewModel.loggedInBar {
-            var bars = allBars.filter { $0.id != loggedInBar.id }
-            bars.insert(loggedInBar, at: 0)
+            // Ensure logged in bar also has refreshed schedule
+            var refreshedLoggedInBar = loggedInBar
+            let _ = refreshedLoggedInBar.refreshScheduleIfNeeded()
+            
+            var bars = allBars.filter { $0.id != refreshedLoggedInBar.id }
+            bars.insert(refreshedLoggedInBar, at: 0)
             return bars
         }
 
@@ -149,7 +154,7 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Quick stats header with glass effect
+                // Quick stats header with glass effect - FIXED: Real-time stats
                 if !displayBars.isEmpty {
                     quickStatsView
                 }
@@ -191,6 +196,11 @@ struct HomeView: View {
                 }
             }
             .refreshable {
+                // FIXED: Force refresh both data and schedules
+                barViewModel.forceRefreshAllData()
+            }
+            .onAppear {
+                // FIXED: Refresh schedules when view appears
                 barViewModel.forceRefreshAllData()
             }
         }
@@ -205,8 +215,21 @@ struct HomeView: View {
         }
     }
 
+    // FIXED: Real-time stats calculation
     private var quickStatsView: some View {
-        HStack(spacing: 16) {
+        let openNowCount = displayBars.filter {
+            let status = $0.status
+            return status == .open || status == .openingSoon
+        }.count
+        
+        let openTodayCount = displayBars.filter { bar in
+            // Force refresh to get accurate today's schedule
+            var refreshedBar = bar
+            let _ = refreshedBar.refreshScheduleIfNeeded()
+            return refreshedBar.isOpenToday
+        }.count
+        
+        return HStack(spacing: 16) {
             StatBadge(
                 title: "Total",
                 value: "\(displayBars.count)",
@@ -216,14 +239,14 @@ struct HomeView: View {
 
             StatBadge(
                 title: "Open Now",
-                value: "\(displayBars.filter { $0.status == .open || $0.status == .openingSoon }.count)",
+                value: "\(openNowCount)",
                 color: .green,
                 icon: "checkmark.circle"
             )
 
             StatBadge(
                 title: "Open Today",
-                value: "\(displayBars.filter { $0.isOpenToday }.count)",
+                value: "\(openTodayCount)",
                 color: .orange,
                 icon: "calendar"
             )
@@ -607,7 +630,7 @@ struct MyAccountView: View {
     }
 }
 
-// MARK: - Supporting Components (No changes needed)
+// MARK: - Supporting Components
 
 struct StatBadge: View {
     let title: String

@@ -1,7 +1,7 @@
 import Foundation
 import FirebaseFirestore
 
-// MARK: - Complete Bar Model with Firebase Integration
+// MARK: - Complete Bar Model with Fixed Schedule Refresh
 
 struct Bar: Identifiable, Codable {
     var id: String = UUID().uuidString
@@ -17,8 +17,23 @@ struct Bar: Identifiable, Codable {
     var username: String
     var password: String
     
-    // Schedule Management
-    var weeklySchedule: WeeklySchedule = WeeklySchedule()
+    // Schedule Management - FIXED: Added computed property with refresh logic
+    private var _weeklySchedule: WeeklySchedule = WeeklySchedule()
+    
+    var weeklySchedule: WeeklySchedule {
+        get {
+            var schedule = _weeklySchedule
+            if schedule.needsDateRefresh() {
+                print("🔄 Schedule needs refresh for bar: \(name)")
+                schedule.refreshDatesKeepingSettings()
+                // Note: We can't mutate self in a getter, so caller needs to handle persistence
+            }
+            return schedule
+        }
+        set {
+            _weeklySchedule = newValue
+        }
+    }
     
     // Status Management
     private var _manualStatus: BarStatus?
@@ -27,6 +42,18 @@ struct Bar: Identifiable, Codable {
     // Auto-transition properties
     var pendingStatus: BarStatus?
     var transitionTime: Date?
+    
+    // MARK: - Schedule Refresh Methods - FIXED
+    
+    mutating func refreshScheduleIfNeeded() -> Bool {
+        if _weeklySchedule.needsDateRefresh() {
+            print("📅 Refreshing schedule for bar: \(name)")
+            _weeklySchedule.refreshDatesKeepingSettings()
+            updateTimestamp()
+            return true
+        }
+        return false
+    }
     
     // MARK: - Status Logic
     
@@ -85,7 +112,7 @@ struct Bar: Identifiable, Codable {
     }
     
     mutating func updateSchedule(_ schedule: WeeklySchedule) {
-        weeklySchedule = schedule
+        _weeklySchedule = schedule
         updateTimestamp()
     }
     
@@ -117,6 +144,7 @@ struct Bar: Identifiable, Codable {
         self.location = location
         self._isFollowingSchedule = true
         self._manualStatus = nil
+        self._weeklySchedule = WeeklySchedule()
     }
     
     init(name: String, address: String, description: String = "", username: String, password: String, weeklySchedule: WeeklySchedule, location: BarLocation? = nil) {
@@ -127,7 +155,7 @@ struct Bar: Identifiable, Codable {
         self.lastUpdated = Date()
         self.username = username
         self.password = password
-        self.weeklySchedule = weeklySchedule
+        self._weeklySchedule = weeklySchedule
         self.location = location
         self._isFollowingSchedule = true
         self._manualStatus = nil
@@ -145,7 +173,7 @@ struct Bar: Identifiable, Codable {
             "lastUpdated": Timestamp(date: lastUpdated),
             "username": username,
             "password": password,
-            "weeklySchedule": weeklySchedule.toDictionary(),
+            "weeklySchedule": _weeklySchedule.toDictionary(),
             "isFollowingSchedule": _isFollowingSchedule
         ]
         
@@ -231,7 +259,6 @@ struct Bar: Identifiable, Codable {
             description: description,
             username: username,
             password: password,
-            weeklySchedule: weeklySchedule,
             location: location
         )
         
@@ -239,6 +266,10 @@ struct Bar: Identifiable, Codable {
         bar.socialLinks = socialLinks
         bar.lastUpdated = lastUpdated
         bar.ownerID = dict["ownerID"] as? String
+        bar._weeklySchedule = weeklySchedule
+        
+        // FIXED: Refresh schedule immediately if needed
+        let _ = bar.refreshScheduleIfNeeded()
         
         // Parse status management
         bar._isFollowingSchedule = dict["isFollowingSchedule"] as? Bool ?? true
@@ -290,7 +321,6 @@ struct ScheduleCalculator {
         
         let now = Date()
         
-        // FIXED: Use calendar variable properly instead of letting it be unused
         guard let openTime = parseTime(todaysSchedule.openTime, for: now),
               let closeTime = parseTime(todaysSchedule.closeTime, for: now) else {
             return .closed

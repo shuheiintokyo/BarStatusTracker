@@ -1,19 +1,56 @@
 import Foundation
 
-// MARK: - Weekly Schedule System
+// MARK: - Weekly Schedule System with Fixed Date Refresh
 
 struct WeeklySchedule: Codable {
     var schedules: [DailySchedule]
     
     init() {
         // Create 7 days starting from today
+        self.schedules = WeeklySchedule.createWeekStartingToday()
+    }
+    
+    // FIXED: Add method to create a fresh week
+    private static func createWeekStartingToday() -> [DailySchedule] {
         let calendar = Calendar.current
         let today = Date()
         
-        self.schedules = (0..<7).map { dayOffset in
+        return (0..<7).map { dayOffset in
             let date = calendar.date(byAdding: .day, value: dayOffset, to: today) ?? today
             return DailySchedule(date: date)
         }
+    }
+    
+    // FIXED: Add method to refresh dates while preserving settings
+    mutating func refreshDatesKeepingSettings() {
+        let oldSchedules = schedules
+        let newSchedules = WeeklySchedule.createWeekStartingToday()
+        
+        // Preserve the settings from old schedules by matching day of week
+        for i in 0..<min(oldSchedules.count, newSchedules.count) {
+            var newSchedule = newSchedules[i]
+            
+            // Find the corresponding day from old schedule by weekday
+            let newWeekday = Calendar.current.component(.weekday, from: newSchedule.date)
+            
+            if let correspondingOldSchedule = oldSchedules.first(where: {
+                Calendar.current.component(.weekday, from: $0.date) == newWeekday
+            }) {
+                newSchedule.isOpen = correspondingOldSchedule.isOpen
+                newSchedule.openTime = correspondingOldSchedule.openTime
+                newSchedule.closeTime = correspondingOldSchedule.closeTime
+            }
+            
+            schedules[i] = newSchedule
+        }
+        
+        print("📅 Refreshed schedule dates while preserving settings")
+    }
+    
+    // FIXED: Check if schedule needs date refresh
+    func needsDateRefresh() -> Bool {
+        guard let firstSchedule = schedules.first else { return true }
+        return !Calendar.current.isDateInToday(firstSchedule.date)
     }
     
     var todaysSchedule: DailySchedule? {
@@ -36,6 +73,12 @@ struct WeeklySchedule: Codable {
         
         if decodedSchedules.count == 7 {
             schedule.schedules = decodedSchedules
+            
+            // Check if loaded schedule needs date refresh
+            if schedule.needsDateRefresh() {
+                print("🔄 Loaded schedule needs date refresh")
+                schedule.refreshDatesKeepingSettings()
+            }
         }
         
         return schedule
@@ -43,20 +86,17 @@ struct WeeklySchedule: Codable {
 }
 
 struct DailySchedule: Identifiable, Codable {
-    // FIXED: Make id mutable and handle it properly
     var id: String
     let date: Date
     var isOpen: Bool = false
     var openTime: String = "18:00"
     var closeTime: String = "02:00"
     
-    // FIXED: Add proper init to handle id generation
     init(date: Date) {
         self.id = UUID().uuidString
         self.date = date
     }
     
-    // FIXED: Custom init for decoding
     init(id: String, date: Date, isOpen: Bool = false, openTime: String = "18:00", closeTime: String = "02:00") {
         self.id = id
         self.date = date
@@ -137,7 +177,6 @@ struct DailySchedule: Identifiable, Codable {
             return nil
         }
         
-        // Handle id - use existing or generate new
         let id = dict["id"] as? String ?? UUID().uuidString
         
         return DailySchedule(

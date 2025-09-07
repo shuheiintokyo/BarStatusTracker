@@ -8,9 +8,12 @@ struct BarGridItem: View {
     
     @State private var isPressed = false
     
-    // Get current bar state from view model to ensure real-time updates
+    // FIXED: Get current bar state with automatic schedule refresh
     private var currentBar: Bar {
-        return barViewModel.bars.first { $0.id == bar.id } ?? bar
+        var foundBar = barViewModel.bars.first { $0.id == bar.id } ?? bar
+        // Always refresh schedule when displaying to ensure current info
+        let _ = foundBar.refreshScheduleIfNeeded()
+        return foundBar
     }
     
     var body: some View {
@@ -31,7 +34,7 @@ struct BarGridItem: View {
             impactFeedback.impactOccurred()
         }) {
             ZStack {
-                // Card background - matches screenshot
+                // Card background
                 RoundedRectangle(cornerRadius: 16)
                     .fill(currentBar.status.color)
                     .frame(height: 140)
@@ -47,30 +50,48 @@ struct BarGridItem: View {
                             .multilineTextAlignment(.center)
                             .lineLimit(1)
                         
-                        // UPDATED: Schedule indicator instead of generic number
+                        // FIXED: Always show current, refreshed schedule info
                         if let todaysSchedule = currentBar.todaysSchedule {
-                            Text(todaysSchedule.isOpen ? "Open today" : "Closed today")
-                                .font(.caption2)
-                                .foregroundColor(.white.opacity(0.8))
-                                .padding(.top, 2)
+                            HStack(spacing: 4) {
+                                Image(systemName: todaysSchedule.isOpen ? "calendar" : "moon")
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.8))
+                                
+                                Text(todaysSchedule.isOpen ? "Open today" : "Closed today")
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.8))
+                            }
+                            .padding(.top, 2)
                         } else {
-                            Text("No schedule")
-                                .font(.caption2)
-                                .foregroundColor(.white.opacity(0.8))
-                                .padding(.top, 2)
+                            HStack(spacing: 4) {
+                                Image(systemName: "calendar.badge.exclamationmark")
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.6))
+                                
+                                Text("No schedule")
+                                    .font(.caption2)
+                                    .foregroundColor(.white.opacity(0.6))
+                            }
+                            .padding(.top, 2)
                         }
                         
-                        // UPDATED: Additional schedule context for owner mode
+                        // FIXED: Enhanced schedule context for owner mode
                         if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                             if !currentBar.isFollowingSchedule {
-                                Text("Manual override")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 1)
-                                    .background(Color.orange.opacity(0.3))
-                                    .cornerRadius(4)
+                                HStack(spacing: 2) {
+                                    Image(systemName: "hand.raised.fill")
+                                        .font(.caption2)
+                                        .foregroundColor(.white.opacity(0.9))
+                                    
+                                    Text("Manual override")
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white.opacity(0.9))
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(Color.orange.opacity(0.3))
+                                .cornerRadius(4)
                             } else if let todaysSchedule = currentBar.todaysSchedule, todaysSchedule.isOpen {
                                 Text(todaysSchedule.displayText)
                                     .font(.caption2)
@@ -78,6 +99,13 @@ struct BarGridItem: View {
                                     .lineLimit(1)
                             }
                         }
+                        
+                        // FIXED: Show last updated time for debugging
+                        #if DEBUG
+                        Text("Updated: \(timeAgo(currentBar.lastUpdated))")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.6))
+                        #endif
                     }
                     .padding(.bottom, 16)
                 }
@@ -88,7 +116,7 @@ struct BarGridItem: View {
             }())
             .animation(.easeInOut(duration: 0.1), value: isPressed)
             
-            // UPDATED: Add subtle overlay for status conflicts (owner mode only)
+            // FIXED: Add subtle overlay for status conflicts (owner mode only)
             .overlay(
                 Group {
                     if isOwnerMode && barViewModel.canEdit(bar: currentBar) && currentBar.isStatusConflictingWithSchedule {
@@ -101,9 +129,25 @@ struct BarGridItem: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
+    
+    // FIXED: Helper function for time display
+    private func timeAgo(_ date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+        
+        if interval < 60 {
+            return "now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days)d"
+        }
+    }
 }
-
-// MARK: - Note: Supporting components moved to BarGridView.swift to avoid redeclaration
 
 #Preview {
     BarGridItem(

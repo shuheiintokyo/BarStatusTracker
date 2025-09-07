@@ -1,7 +1,7 @@
 import SwiftUI
 import Combine
 
-// MARK: - Simplified and Fixed BarViewModel
+// MARK: - Fixed BarViewModel with Proper Schedule Refresh
 
 class BarViewModel: ObservableObject {
     // MARK: - Published Properties
@@ -33,15 +33,17 @@ class BarViewModel: ObservableObject {
     
     // MARK: - Setup
     private func setupBindings() {
-        // Bind Firebase manager to local state
+        // Bind Firebase manager to local state with immediate schedule refresh
         firebaseManager.$bars
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newBars in
-                // FIXED: Refresh schedule dates for all bars when they come from Firebase
-                self?.bars = newBars.map { bar in
+                // FIXED: Properly refresh schedules when bars are loaded
+                self?.bars = newBars.compactMap { bar in
                     var refreshedBar = bar
-                    // Force a schedule refresh when bars are loaded
-                    let _ = refreshedBar.weeklySchedule // This triggers the refresh
+                    if refreshedBar.refreshScheduleIfNeeded() {
+                        // Schedule was refreshed, update in Firebase
+                        self?.updateBarInFirebaseAsync(refreshedBar)
+                    }
                     return refreshedBar
                 }
             }
@@ -74,7 +76,7 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // FIXED: Add schedule refresh timer to keep dates current
+    // FIXED: Improved schedule refresh timer
     private func startScheduleRefresh() {
         // Check for stale schedules every hour
         scheduleRefreshTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
@@ -98,37 +100,41 @@ class BarViewModel: ObservableObject {
         }
     }
     
-    // FIXED: Method to refresh all schedule dates
+    // FIXED: Proper schedule date refresh
     private func refreshAllScheduleDates() {
         print("🔄 Refreshing all schedule dates...")
+        var hasChanges = false
         
         for i in 0..<bars.count {
-            let oldBar = bars[i]
-            var updatedBar = oldBar
-            
-            // Access the weeklySchedule property to trigger refresh
-            let _ = updatedBar.weeklySchedule
-            
-            // Check if the schedule actually changed
-            if !Calendar.current.isDate(oldBar.weeklySchedule.schedules.first?.date ?? Date(),
-                                       equalTo: updatedBar.weeklySchedule.schedules.first?.date ?? Date(),
-                                       toGranularity: .day) {
-                print("📅 Updated schedule dates for bar: \(updatedBar.name)")
-                bars[i] = updatedBar
+            var bar = bars[i]
+            if bar.refreshScheduleIfNeeded() {
+                print("📅 Updated schedule dates for bar: \(bar.name)")
+                bars[i] = bar
+                hasChanges = true
                 
-                // Update in Firebase if this bar has stale dates
-                updateBarInFirebase(updatedBar)
+                // Update in Firebase asynchronously
+                updateBarInFirebaseAsync(bar)
             }
         }
         
         // Update logged in bar if needed
         if let loggedInBarId = loggedInBar?.id,
            let updatedBar = bars.first(where: { $0.id == loggedInBarId }) {
-            loggedInBar = updatedBar
+            var refreshedLoggedInBar = updatedBar
+            if refreshedLoggedInBar.refreshScheduleIfNeeded() {
+                loggedInBar = refreshedLoggedInBar
+                updateBarInFirebaseAsync(refreshedLoggedInBar)
+                hasChanges = true
+            } else {
+                loggedInBar = updatedBar
+            }
         }
         
-        // Refresh the UI
-        objectWillChange.send()
+        // Only trigger UI update if there were actual changes
+        if hasChanges {
+            print("✅ Schedule refresh complete with changes")
+            objectWillChange.send()
+        }
     }
     
     deinit {
@@ -326,12 +332,12 @@ class BarViewModel: ObservableObject {
         return biometricManager.isAvailable
     }
     
-    // MARK: - Data Access - FIXED: Return bars with refreshed schedules
+    // MARK: - Data Access - FIXED: Return bars with automatically refreshed schedules
     
     func getAllBars() -> [Bar] {
         return bars.map { bar in
             var refreshedBar = bar
-            let _ = refreshedBar.weeklySchedule // Trigger refresh
+            let _ = refreshedBar.refreshScheduleIfNeeded()
             return refreshedBar
         }
     }
@@ -395,14 +401,43 @@ class BarViewModel: ObservableObject {
         firebaseManager.updateBarWithAutoTransition(bar: bar)
     }
     
+    // FIXED: Add async Firebase update method for schedule refreshes
+    private func updateBarInFirebaseAsync(_ bar: Bar) {
+        // Update local state immediately
+        if let index = bars.firstIndex(where: { $0.id == bar.id }) {
+            bars[index] = bar
+        }
+        
+        if loggedInBar?.id == bar.id {
+            loggedInBar = bar
+        }
+        
+        // Persist to Firebase asynchronously (don't block UI)
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            self?.firebaseManager.updateBarWithAutoTransition(bar: bar)
+        }
+    }
+    
     private func updateLoggedInBarReference(from bars: [Bar]) {
         guard let loggedInBarId = loggedInBar?.id else { return }
-        loggedInBar = bars.first { $0.id == loggedInBarId }
+        if let updatedBar = bars.first(where: { $0.id == loggedInBarId }) {
+            var refreshedBar = updatedBar
+            let _ = refreshedBar.refreshScheduleIfNeeded()
+            loggedInBar = refreshedBar
+        }
     }
     
     private func refreshScheduleBasedStatuses() {
-        // FIXED: Also refresh schedule dates during status updates
+        // FIXED: Only refresh if needed to avoid unnecessary updates
+        let startTime = Date()
         refreshAllScheduleDates()
+        let endTime = Date()
+        
+        let refreshTime = endTime.timeIntervalSince(startTime)
+        if refreshTime > 0.1 { // Only log if refresh took significant time
+            print("⏱️ Schedule refresh took \(String(format: "%.2f", refreshTime))s")
+        }
+        
         objectWillChange.send()
     }
     
