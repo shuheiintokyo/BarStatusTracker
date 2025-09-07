@@ -66,15 +66,3 @@ struct BarStatusTrackerApp: App {
         }
     }
 }
-
-// MARK: - Updated ContentView for Liquid Glass
-struct ContentView: View {
-    var body: some View {
-        MainContentView()
-            .background(.regularMaterial) // Apply base liquid glass material
-            .onAppear {
-                // Additional setup if needed
-                print("📱 Main content view loaded with liquid glass background")
-            }
-    }
-}

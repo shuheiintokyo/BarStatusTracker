@@ -59,21 +59,21 @@ struct BarGridView: View {
             LiquidGlassSectionHeader("Quick Overview")
             
             HStack(spacing: 12) {
-                QuickStatCard(
+                GridQuickStatCard(
                     title: "Total",
                     value: "\(barsToDisplay.count)",
                     icon: "building.2",
                     color: .blue
                 )
                 
-                QuickStatCard(
+                GridQuickStatCard(
                     title: "Open Now",
                     value: "\(barsToDisplay.filter { $0.status == .open || $0.status == .openingSoon }.count)",
                     icon: "checkmark.circle",
                     color: .green
                 )
                 
-                QuickStatCard(
+                GridQuickStatCard(
                     title: "Open Today",
                     value: "\(barsToDisplay.filter { $0.isOpenToday }.count)",
                     icon: "calendar",
@@ -126,8 +126,8 @@ struct BarGridView: View {
     }
 }
 
-// MARK: - Quick Stat Card Component with Liquid Glass
-struct QuickStatCard: View {
+// MARK: - Grid Quick Stat Card Component with Liquid Glass (Renamed to avoid conflicts)
+struct GridQuickStatCard: View {
     let title: String
     let value: String
     let icon: String

@@ -34,7 +34,7 @@ struct SearchBarsView: View {
                 
                 Spacer()
             }
-            .background(.regularMaterial)
+            .background(Material.regularMaterial)
             .navigationTitle("Search Bars")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -65,7 +65,7 @@ struct SearchBarsView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(SearchFilter.allCases, id: \.self) { filter in
-                    FilterChip(
+                    SearchFilterChip(
                         title: filter.rawValue,
                         isSelected: selectedFilter == filter,
                         count: getFilterCount(filter)
@@ -205,8 +205,8 @@ struct SearchBarsView: View {
     }
 }
 
-// MARK: - Filter Chip Component with Liquid Glass
-struct FilterChip: View {
+// MARK: - Search Filter Chip Component with Liquid Glass (Fixed Material Usage)
+struct SearchFilterChip: View {
     let title: String
     let isSelected: Bool
     let count: Int
@@ -225,23 +225,24 @@ struct FilterChip: View {
                         .fontWeight(.bold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(
-                            isSelected ? Color.white.opacity(0.3) : .thinMaterial,
-                            in: Capsule()
-                        )
+//                        .background(
+//                            RoundedRectangle(cornerRadius: 10)
+//                                .fill(isSelected ? Color.white.opacity(0.3) : Material.thinMaterial)
+//                        )
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
-                isSelected ?
-                LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
-                .thinMaterial,
-                in: Capsule()
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isSelected ?
+                          AnyShapeStyle(LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)) :
+                          AnyShapeStyle(Material.thinMaterial)
+                    )
             )
             .foregroundColor(isSelected ? .white : .primary)
             .overlay(
-                Capsule()
+                RoundedRectangle(cornerRadius: 16)
                     .stroke(.primary.opacity(0.1), lineWidth: 0.5)
             )
         }

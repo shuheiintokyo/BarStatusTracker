@@ -236,7 +236,7 @@ struct StatusControlView: View {
             // Compact 7-day overview with liquid glass
             VStack(spacing: 8) {
                 ForEach(currentBar?.weeklySchedule.schedules ?? bar.weeklySchedule.schedules) { schedule in
-                    ScheduleRow(schedule: schedule)
+                    StatusScheduleRow(schedule: schedule)
                 }
             }
             .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
@@ -249,7 +249,7 @@ struct StatusControlView: View {
                     .textCase(.uppercase)
                 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
-                    QuickActionButton(
+                    StatusQuickActionButton(
                         title: "Override: Open Now",
                         icon: "checkmark.circle.fill",
                         color: .green
@@ -257,7 +257,7 @@ struct StatusControlView: View {
                         barViewModel.setManualBarStatus(currentBar ?? bar, newStatus: .open)
                     }
                     
-                    QuickActionButton(
+                    StatusQuickActionButton(
                         title: "Override: Closed Now",
                         icon: "xmark.circle.fill",
                         color: .red
@@ -295,8 +295,8 @@ struct StatusControlView: View {
     }
 }
 
-// MARK: - Schedule Row Component with Enhanced Liquid Glass
-struct ScheduleRow: View {
+// MARK: - Status Schedule Row Component with Enhanced Liquid Glass (Renamed to avoid conflicts)
+struct StatusScheduleRow: View {
     let schedule: DailySchedule
     
     var body: some View {
@@ -353,8 +353,8 @@ struct ScheduleRow: View {
     }
 }
 
-// MARK: - Quick Action Button Component with Enhanced Liquid Glass
-struct QuickActionButton: View {
+// MARK: - Status Quick Action Button Component with Enhanced Liquid Glass (Renamed to avoid conflicts)
+struct StatusQuickActionButton: View {
     let title: String
     let icon: String
     let color: Color
@@ -448,10 +448,10 @@ struct ScheduleEditorView: View {
                         LiquidGlassSectionHeader("💡 Tips")
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            TipRow(text: "Changes take effect immediately")
-                            TipRow(text: "Today's schedule determines your current bar status")
-                            TipRow(text: "Drag the time sliders to adjust opening and closing times")
-                            TipRow(text: "Toggle off days when you're closed")
+                            StatusTipRow(text: "Changes take effect immediately")
+                            StatusTipRow(text: "Today's schedule determines your current bar status")
+                            StatusTipRow(text: "Drag the time sliders to adjust opening and closing times")
+                            StatusTipRow(text: "Toggle off days when you're closed")
                         }
                     }
                     .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
@@ -482,8 +482,8 @@ struct ScheduleEditorView: View {
     }
 }
 
-// MARK: - Tip Row Component
-struct TipRow: View {
+// MARK: - Status Tip Row Component (Renamed to avoid conflicts)
+struct StatusTipRow: View {
     let text: String
     
     var body: some View {
