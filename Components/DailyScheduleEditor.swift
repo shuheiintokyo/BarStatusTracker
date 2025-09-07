@@ -22,8 +22,7 @@ struct DailyScheduleEditor: View {
                             .foregroundColor(.blue)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(4)
+                            .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
                 .frame(width: 100, alignment: .leading)
@@ -47,17 +46,18 @@ struct DailyScheduleEditor: View {
                 )
             }
         }
-        .padding()
-        .background(
+        .liquidGlass(
+            level: .regular,
+            cornerRadius: .large,
+            shadow: .medium,
+            borderOpacity: schedule.isToday ? 0.3 : 0.1
+        )
+        .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .fill(schedule.isOpen ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(
-                            schedule.isToday ? Color.blue.opacity(0.3) :
-                            schedule.isOpen ? Color.green.opacity(0.2) : Color.clear,
-                            lineWidth: schedule.isToday ? 2 : 1
-                        )
+                .stroke(
+                    schedule.isToday ? Color.blue.opacity(0.3) :
+                    schedule.isOpen ? Color.green.opacity(0.2) : Color.clear,
+                    lineWidth: schedule.isToday ? 2 : 1
                 )
         )
     }

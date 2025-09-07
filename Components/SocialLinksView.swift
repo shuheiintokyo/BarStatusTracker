@@ -30,6 +30,8 @@ struct BarSocialLinkButton: View {
     let url: String
     let isAssetImage: Bool
     
+    @State private var isPressed = false
+    
     var body: some View {
         Button(action: openURL) {
             VStack(spacing: 4) {
@@ -50,15 +52,19 @@ struct BarSocialLinkButton: View {
                     .font(.caption)
                     .foregroundColor(.primary)
             }
-            .padding()
-            .background(Color.blue.opacity(0.1))
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-            )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(.blue.opacity(0.3), lineWidth: 1)
+        )
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
+        .onLongPressGesture(minimumDuration: 0) { pressing in
+            isPressed = pressing
+        } perform: {
+            openURL()
+        }
     }
     
     private func openURL() {
@@ -73,6 +79,10 @@ struct BarSocialLinkButton: View {
             print("Invalid URL: \(urlString)")
             return
         }
+        
+        // Haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
         
         // Check if we can open the URL
         if UIApplication.shared.canOpenURL(url) {

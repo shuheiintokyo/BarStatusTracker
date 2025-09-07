@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Clean and Simple Dual Time Slider for Operating Hours
+// MARK: - Clean and Simple Dual Time Slider for Operating Hours with Liquid Glass
 struct DualTimeSlider: View {
     @Binding var openTime: String
     @Binding var closeTime: String
@@ -28,7 +28,7 @@ struct DualTimeSlider: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Clean time display
+            // Clean time display with liquid glass
             HStack {
                 timeDisplayCard(time: openTime, label: "Opens", color: .green, isShowing: $showingOpenTime)
                 
@@ -43,39 +43,50 @@ struct DualTimeSlider: View {
                 timeDisplayCard(time: closeTime, label: "Closes", color: .red, isShowing: $showingCloseTime)
             }
             
-            // Simplified slider track
+            // Simplified slider track with liquid glass background
             GeometryReader { geometry in
                 let rawWidth = geometry.size.width
-                let width = rawWidth > 0 && rawWidth.isFinite ? max(100.0, rawWidth) : 300.0 // Provide fallback width
+                let width = rawWidth > 0 && rawWidth.isFinite ? max(100.0, rawWidth) : 300.0
                 let height: CGFloat = 44
                 
                 ZStack(alignment: .leading) {
-                    // Background track
+                    // Background track with liquid glass
                     RoundedRectangle(cornerRadius: height / 2)
-                        .fill(Color.gray.opacity(0.15))
+                        .fill(.ultraThinMaterial)
                         .frame(height: height)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: height / 2)
+                                .stroke(.primary.opacity(0.1), lineWidth: 0.5)
+                        )
                     
-                    // Active range
+                    // Active range with liquid glass gradient
                     let minPos = min(openPosition, closePosition)
                     let maxPos = max(openPosition, closePosition)
                     let startX = width * minPos
                     let endX = width * maxPos
                     let activeWidth = max(0, endX - startX)
                     
-                    // Ensure all values are finite
                     let safeStartX = startX.isFinite ? max(0, min(width, startX)) : 0
                     let safeActiveWidth = activeWidth.isFinite ? max(0, min(width, activeWidth)) : 0
                     
                     RoundedRectangle(cornerRadius: height / 2)
-                        .fill(LinearGradient(
-                            gradient: Gradient(colors: [.green.opacity(0.3), .blue.opacity(0.3)]),
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.green.opacity(0.3), .blue.opacity(0.3)]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
                         .frame(width: safeActiveWidth, height: height)
                         .offset(x: safeStartX)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: height / 2)
+                                .fill(.thinMaterial)
+                                .opacity(0.3)
+                                .frame(width: safeActiveWidth, height: height)
+                        )
                     
-                    // Simplified time markers
+                    // Simplified time markers with liquid glass styling
                     ForEach(majorTimeMarkers, id: \.self) { time in
                         let position = timeToPosition(time)
                         let safePosition = position.isFinite ? max(0.0, min(1.0, position)) : 0.0
@@ -84,8 +95,12 @@ struct DualTimeSlider: View {
                         
                         VStack {
                             Circle()
-                                .fill(Color.gray.opacity(0.4))
-                                .frame(width: 3, height: 3)
+                                .fill(.regularMaterial)
+                                .frame(width: 4, height: 4)
+                                .overlay(
+                                    Circle()
+                                        .stroke(.primary.opacity(0.3), lineWidth: 0.5)
+                                )
                             
                             Text(formatDisplayTime(time))
                                 .font(.caption2)
@@ -94,7 +109,7 @@ struct DualTimeSlider: View {
                         .position(x: safeXPos, y: height / 2 + 20)
                     }
                     
-                    // Open handle
+                    // Open handle with liquid glass
                     sliderHandle(
                         position: openPosition,
                         color: .green,
@@ -105,8 +120,7 @@ struct DualTimeSlider: View {
                             .onChanged { value in
                                 showingOpenTime = true
                                 
-                                // Comprehensive safety checks to prevent NaN
-                                guard width > 50,  // Minimum reasonable width
+                                guard width > 50,
                                       width.isFinite,
                                       value.location.x.isFinite,
                                       value.location.x >= 0 else {
@@ -116,7 +130,6 @@ struct DualTimeSlider: View {
                                 let rawPosition = value.location.x / width
                                 let newPosition = max(0, min(1, rawPosition))
                                 
-                                // Final validation before using
                                 if newPosition.isFinite && newPosition >= 0 && newPosition <= 1 {
                                     openTime = positionToTime(newPosition)
                                 }
@@ -128,7 +141,7 @@ struct DualTimeSlider: View {
                             }
                     )
                     
-                    // Close handle
+                    // Close handle with liquid glass
                     sliderHandle(
                         position: closePosition,
                         color: .red,
@@ -139,8 +152,7 @@ struct DualTimeSlider: View {
                             .onChanged { value in
                                 showingCloseTime = true
                                 
-                                // Comprehensive safety checks to prevent NaN
-                                guard width > 50,  // Minimum reasonable width
+                                guard width > 50,
                                       width.isFinite,
                                       value.location.x.isFinite,
                                       value.location.x >= 0 else {
@@ -150,7 +162,6 @@ struct DualTimeSlider: View {
                                 let rawPosition = value.location.x / width
                                 let newPosition = max(0, min(1, rawPosition))
                                 
-                                // Final validation before using
                                 if newPosition.isFinite && newPosition >= 0 && newPosition <= 1 {
                                     closeTime = positionToTime(newPosition)
                                 }
@@ -165,13 +176,12 @@ struct DualTimeSlider: View {
             }
             .frame(height: 80)
         }
-        .padding()
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
-    // MARK: - Helper Views
+    // MARK: - Helper Views with Liquid Glass
     
     private func timeDisplayCard(time: String, label: String, color: Color, isShowing: Binding<Bool>) -> some View {
-        // Ensure scale is bounded
         let scale = isShowing.wrappedValue ? 1.05 : 1.0
         let safeScale = scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
         
@@ -189,7 +199,7 @@ struct DualTimeSlider: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(color.opacity(0.1))
+                .fill(.thinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(color.opacity(0.3), lineWidth: 1)
@@ -200,25 +210,24 @@ struct DualTimeSlider: View {
     }
     
     private func sliderHandle(position: Double, color: Color, width: CGFloat, height: CGFloat, isActive: Bool, dragGesture: some Gesture) -> some View {
-        // Ensure position is valid
         let safePosition = position.isFinite ? max(0.0, min(1.0, position)) : 0.0
         let xPosition = width * safePosition
-        
-        // Ensure xPosition is valid
         let safeXPosition = xPosition.isFinite ? max(0, min(width, xPosition)) : 0
-        
-        // Ensure scale is bounded
         let scale = isActive ? 1.1 : 1.0
         let safeScale = scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
         
         return Circle()
-            .fill(color)
+            .fill(.regularMaterial)
             .frame(width: isActive ? 36 : 32, height: isActive ? 36 : 32)
-            .shadow(color: color.opacity(0.3), radius: isActive ? 8 : 4)
             .overlay(
                 Circle()
-                    .stroke(Color.white, lineWidth: 3)
+                    .stroke(color, lineWidth: 3)
             )
+            .overlay(
+                Circle()
+                    .fill(color.opacity(0.2))
+            )
+            .shadow(color: color.opacity(0.3), radius: isActive ? 8 : 4)
             .position(x: safeXPosition, y: height / 2)
             .scaleEffect(safeScale)
             .animation(.easeInOut(duration: 0.15), value: isActive)
@@ -238,7 +247,6 @@ struct DualTimeSlider: View {
         let numerator = Double(index)
         let denominator = Double(timeSlots.count - 1)
         
-        // Ensure both values are valid before division
         guard numerator.isFinite,
               denominator.isFinite,
               denominator > 0 else {
@@ -247,7 +255,6 @@ struct DualTimeSlider: View {
         
         let position = numerator / denominator
         
-        // Final validation of result
         guard position.isFinite,
               position >= 0.0,
               position <= 1.0 else {
@@ -258,7 +265,6 @@ struct DualTimeSlider: View {
     }
     
     private func positionToTime(_ position: Double) -> String {
-        // Comprehensive input validation
         guard position.isFinite,
               position >= 0.0,
               position <= 1.0,
@@ -291,7 +297,7 @@ struct DualTimeSlider: View {
         guard components.count >= 2,
               let hour = Int(components.first ?? "0"),
               hour >= 0, hour <= 23 else {
-            return "6:00 PM" // Safe fallback
+            return "6:00 PM"
         }
         
         if hour == 0 {
@@ -306,7 +312,7 @@ struct DualTimeSlider: View {
     }
 }
 
-// MARK: - Simplified Day Hours Editor
+// MARK: - Simplified Day Hours Editor with Liquid Glass
 struct ImprovedDayHoursEditor: View {
     let day: WeekDay
     @Binding var dayHours: DayHours
@@ -337,10 +343,11 @@ struct ImprovedDayHoursEditor: View {
                 )
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(dayHours.isOpen ? Color.green.opacity(0.05) : Color.gray.opacity(0.05))
+        .liquidGlass(
+            level: .regular,
+            cornerRadius: .large,
+            shadow: .medium,
+            borderOpacity: dayHours.isOpen ? 0.2 : 0.1
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Location Picker Component
+// MARK: - Location Picker Component with Liquid Glass
 
 struct LocationPicker: View {
     @Binding var selectedCountry: Country?
@@ -16,19 +16,22 @@ struct LocationPicker: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack {
-                Text("Bar Location")
-                    .font(.headline)
-                Text("*")
-                    .foregroundColor(.red)
+            // Header with liquid glass
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Bar Location")
+                        .font(.headline)
+                    Text("*")
+                        .foregroundColor(.red)
+                }
+                
+                Text("Select the country and city where your bar is located")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
+            .liquidGlass(level: .ultra, cornerRadius: .medium, shadow: .subtle)
             
-            Text("Select the country and city where your bar is located")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            // Country Selection
+            // Country Selection with liquid glass
             VStack(alignment: .leading, spacing: 8) {
                 Text("Country")
                     .font(.subheadline)
@@ -54,20 +57,16 @@ struct LocationPicker: View {
                         Image(systemName: "chevron.down")
                             .foregroundColor(.gray)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.gray.opacity(0.1))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(selectedCountry != nil ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
-                            )
-                    )
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(selectedCountry != nil ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), lineWidth: 1)
+                )
             }
+            .liquidGlass(level: .regular, cornerRadius: .medium, shadow: .medium)
             
-            // City Selection
+            // City Selection with liquid glass
             VStack(alignment: .leading, spacing: 8) {
                 Text("City")
                     .font(.subheadline)
@@ -95,25 +94,21 @@ struct LocationPicker: View {
                         Image(systemName: "chevron.down")
                             .foregroundColor(.gray)
                     }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(selectedCountry != nil ? Color.gray.opacity(0.1) : Color.gray.opacity(0.05))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        selectedCity != nil ? Color.blue.opacity(0.3) :
-                                        selectedCountry != nil ? Color.gray.opacity(0.3) : Color.gray.opacity(0.1),
-                                        lineWidth: 1
-                                    )
-                            )
-                    )
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
                 .disabled(selectedCountry == nil)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(
+                            selectedCity != nil ? Color.blue.opacity(0.3) :
+                            selectedCountry != nil ? Color.gray.opacity(0.3) : Color.gray.opacity(0.1),
+                            lineWidth: 1
+                        )
+                )
             }
+            .liquidGlass(level: .regular, cornerRadius: .medium, shadow: .medium)
             
-            // Selected Location Display
+            // Selected Location Display with liquid glass
             if let country = selectedCountry, let city = selectedCity {
                 HStack {
                     Image(systemName: "mappin.circle.fill")
@@ -124,8 +119,15 @@ struct LocationPicker: View {
                         .foregroundColor(.green)
                 }
                 .padding()
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(.green.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(.green.opacity(0.3), lineWidth: 1)
+                        )
+                )
+                .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
             }
         }
         .sheet(isPresented: $showingCountryPicker) {
@@ -147,7 +149,7 @@ struct LocationPicker: View {
     }
 }
 
-// MARK: - Country Picker Sheet
+// MARK: - Country Picker Sheet with Liquid Glass
 
 struct CountryPickerSheet: View {
     @Binding var selectedCountry: Country?
@@ -164,13 +166,26 @@ struct CountryPickerSheet: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Search bar
+                // Header with liquid glass
+                VStack(spacing: 16) {
+                    Text("Select Country")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    
+                    Text("Choose where your bar is located")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .liquidGlass(level: .ultra, cornerRadius: .medium, shadow: .subtle)
+                
+                // Search bar with liquid glass
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
                     
                     TextField("Search countries", text: $searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
+                        .textFieldStyle(LiquidGlassTextFieldStyle())
                     
                     if !searchText.isEmpty {
                         Button(action: { searchText = "" }) {
@@ -179,9 +194,7 @@ struct CountryPickerSheet: View {
                         }
                     }
                 }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
+                .liquidGlass(level: .regular, cornerRadius: .medium, shadow: .medium)
                 .padding()
                 
                 // Country list
@@ -194,10 +207,12 @@ struct CountryPickerSheet: View {
                         selectedCity = nil // Reset city when country changes
                         dismiss()
                     }
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(PlainListStyle())
+                .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Select Country")
+            .background(.regularMaterial)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -210,7 +225,7 @@ struct CountryPickerSheet: View {
     }
 }
 
-// MARK: - City Picker Sheet
+// MARK: - City Picker Sheet with Liquid Glass
 
 struct CityPickerSheet: View {
     let country: Country
@@ -231,29 +246,32 @@ struct CityPickerSheet: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Header with country info
-                HStack {
-                    Text(country.flag)
-                        .font(.title)
-                    VStack(alignment: .leading) {
-                        Text("Select City")
-                            .font(.headline)
-                        Text("in \(country.name)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                // Header with country info and liquid glass
+                VStack(spacing: 16) {
+                    HStack {
+                        Text(country.flag)
+                            .font(.title)
+                        VStack(alignment: .leading) {
+                            Text("Select City")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            Text("in \(country.name)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
                     }
-                    Spacer()
                 }
                 .padding()
-                .background(Color.blue.opacity(0.05))
+                .liquidGlass(level: .ultra, cornerRadius: .medium, shadow: .subtle)
                 
-                // Search bar
+                // Search bar with liquid glass
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.gray)
                     
                     TextField("Search cities", text: $searchText)
-                        .textFieldStyle(PlainTextFieldStyle())
+                        .textFieldStyle(LiquidGlassTextFieldStyle())
                     
                     if !searchText.isEmpty {
                         Button(action: { searchText = "" }) {
@@ -262,9 +280,7 @@ struct CityPickerSheet: View {
                         }
                     }
                 }
-                .padding()
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(10)
+                .liquidGlass(level: .regular, cornerRadius: .medium, shadow: .medium)
                 .padding()
                 
                 // City list
@@ -276,9 +292,12 @@ struct CityPickerSheet: View {
                         selectedCity = city
                         dismiss()
                     }
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(PlainListStyle())
+                .scrollContentBackground(.hidden)
             }
+            .background(.regularMaterial)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -291,7 +310,7 @@ struct CityPickerSheet: View {
     }
 }
 
-// MARK: - Row Components
+// MARK: - Row Components with Liquid Glass
 
 struct CountryRow: View {
     let country: Country
@@ -324,6 +343,7 @@ struct CountryRow: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(PlainButtonStyle())
+        .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
     }
 }
 
@@ -353,10 +373,11 @@ struct CityRow: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(PlainButtonStyle())
+        .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
     }
 }
 
-// MARK: - Browse by Location Component (Updated)
+// MARK: - Browse by Location Component with Liquid Glass
 
 struct BrowseByLocationView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -387,11 +408,17 @@ struct BrowseByLocationView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Location selector
+                // Location selector with liquid glass
                 VStack(spacing: 16) {
-                    Text("Browse bars by location")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
+                    VStack(spacing: 8) {
+                        Text("Browse bars by location")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Filter bars by country and city")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     
                     HStack(spacing: 12) {
                         // Country button
@@ -411,11 +438,12 @@ struct BrowseByLocationView: View {
                                     .foregroundColor(.gray)
                                     .font(.caption)
                             }
-                            .padding()
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(8)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .small))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(.blue.opacity(0.3), lineWidth: 1)
+                        )
                         
                         // City button
                         Button(action: {
@@ -439,12 +467,13 @@ struct BrowseByLocationView: View {
                                     .foregroundColor(.gray)
                                     .font(.caption)
                             }
-                            .padding()
-                            .background(Color.orange.opacity(0.1))
-                            .cornerRadius(8)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .small))
                         .disabled(selectedCountry == nil)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(.orange.opacity(0.3), lineWidth: 1)
+                        )
                     }
                     
                     // Clear filters button
@@ -455,44 +484,30 @@ struct BrowseByLocationView: View {
                         }
                         .font(.caption)
                         .foregroundColor(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                     }
                 }
+                .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
                 .padding()
-                .background(Color.gray.opacity(0.05))
                 
                 Divider()
+                    .background(.primary.opacity(0.1))
                 
                 // Results
                 if filteredBars.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "building.2")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        
-                        Text("No bars found")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        if selectedCountry != nil || selectedCity != nil {
-                            Text("Try adjusting your location filters")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("No bars have been registered yet")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding(.top, 50)
+                    emptyResultsView
                 } else {
                     List(filteredBars) { bar in
                         LocationBarRow(bar: bar, barViewModel: barViewModel)
+                            .listRowBackground(Color.clear)
                     }
                     .listStyle(PlainListStyle())
+                    .scrollContentBackground(.hidden)
                 }
             }
+            .background(.regularMaterial)
             .navigationTitle("Browse by Location")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -520,9 +535,36 @@ struct BrowseByLocationView: View {
             }
         }
     }
+    
+    private var emptyResultsView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "building.2")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            
+            Text("No bars found")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            if selectedCountry != nil || selectedCity != nil {
+                Text("Try adjusting your location filters")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else {
+                Text("No bars have been registered yet")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+        }
+        .padding(.top, 50)
+        .liquidGlass(level: .regular, cornerRadius: .extraLarge, shadow: .medium)
+        .padding()
+    }
 }
 
-// MARK: - UPDATED Location Bar Row (with 7-day schedule info)
+// MARK: - Location Bar Row with Enhanced 7-day Schedule Info and Liquid Glass
 
 struct LocationBarRow: View {
     let bar: Bar
@@ -534,17 +576,8 @@ struct LocationBarRow: View {
             barViewModel.showingDetail = true
         }) {
             HStack(spacing: 12) {
-                // Status indicator
-                VStack {
-                    Image(systemName: bar.status.icon)
-                        .font(.title2)
-                        .foregroundColor(bar.status.color)
-                    
-                    Text(bar.status.displayName)
-                        .font(.caption2)
-                        .foregroundColor(bar.status.color)
-                }
-                .frame(width: 70)
+                // Status indicator with liquid glass
+                LiquidGlassStatusIndicator(status: bar.status, size: 50)
                 
                 // Bar details
                 VStack(alignment: .leading, spacing: 4) {
@@ -563,7 +596,7 @@ struct LocationBarRow: View {
                         }
                     }
                     
-                    // UPDATED: Enhanced status info with 7-day schedule
+                    // Enhanced status info with 7-day schedule
                     HStack(spacing: 8) {
                         // Show if manual override
                         if !bar.isFollowingSchedule {
@@ -575,6 +608,9 @@ struct LocationBarRow: View {
                                     .font(.caption2)
                                     .foregroundColor(.orange)
                             }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
                         } else {
                             HStack(spacing: 2) {
                                 Image(systemName: "calendar")
@@ -584,6 +620,9 @@ struct LocationBarRow: View {
                                     .font(.caption2)
                                     .foregroundColor(.green)
                             }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
                         }
                         
                         // Today's schedule info
@@ -596,6 +635,12 @@ struct LocationBarRow: View {
                                     .font(.caption2)
                                     .foregroundColor(todaysSchedule.isOpen ? .blue : .gray)
                             }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(
+                                todaysSchedule.isOpen ? .blue.opacity(0.1) : .gray.opacity(0.1),
+                                in: RoundedRectangle(cornerRadius: 4)
+                            )
                         }
                         
                         // Auto-transition indicator
@@ -608,6 +653,9 @@ struct LocationBarRow: View {
                                     .font(.caption2)
                                     .foregroundColor(.orange)
                             }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
                         }
                     }
                 }
@@ -625,7 +673,7 @@ struct LocationBarRow: View {
                         .foregroundColor(.secondary)
                         .fontWeight(.medium)
                     
-                    // UPDATED: Show today's hours if open
+                    // Show today's hours if open
                     if let todaysSchedule = bar.todaysSchedule, todaysSchedule.isOpen {
                         Text(todaysSchedule.displayText)
                             .font(.caption2)
@@ -640,6 +688,7 @@ struct LocationBarRow: View {
             .contentShape(Rectangle()) // Makes entire row tappable
         }
         .buttonStyle(PlainButtonStyle())
+        .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
     }
     
     private func timeAgo(_ date: Date) -> String {

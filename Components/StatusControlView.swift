@@ -14,29 +14,21 @@ struct StatusControlView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            // Current Status Display
+            // Current Status Display with enhanced liquid glass
             currentStatusHeader
             
-            // Today's Schedule Info
+            // Today's Schedule Info with liquid glass
             todaysScheduleInfo
             
-            // Auto-transition display (if active)
+            // Auto-transition display (if active) with liquid glass
             if let current = currentBar, current.isAutoTransitionActive {
                 autoTransitionCard
             }
             
-            // 7-Day Schedule Management
+            // 7-Day Schedule Management with liquid glass
             scheduleManagementSection
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.blue.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.blue.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .liquidGlass(level: .regular, cornerRadius: .extraLarge, shadow: .prominent)
         .sheet(isPresented: $showingScheduleEditor) {
             if let editingSchedule = editingSchedule {
                 ScheduleEditorView(
@@ -49,100 +41,103 @@ struct StatusControlView: View {
         }
     }
     
-    // MARK: - Current Status Header
+    // MARK: - Current Status Header with Enhanced Liquid Glass
     var currentStatusHeader: some View {
-        VStack(spacing: 8) {
-            Text("Current Status")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textCase(.uppercase)
+        VStack(spacing: 12) {
+            LiquidGlassSectionHeader("Current Status")
             
-            HStack(spacing: 12) {
-                // Animated status icon with current status color
-                ZStack {
-                    Circle()
-                        .fill((currentBar?.status.color ?? Color.gray).opacity(0.2))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: currentBar?.status.icon ?? "questionmark")
-                        .font(.title)
-                        .foregroundColor(currentBar?.status.color ?? .gray)
-                        .scaleEffect(1.0)
-                        .animation(.easeInOut(duration: 0.2), value: currentBar?.status)
-                }
+            HStack(spacing: 16) {
+                // Animated status indicator with liquid glass
+                LiquidGlassStatusIndicator(
+                    status: currentBar?.status ?? bar.status,
+                    size: 70
+                )
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(currentBar?.status.displayName ?? "Unknown")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(currentBar?.status.displayName ?? bar.status.displayName)
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(currentBar?.status.color ?? .gray)
+                        .foregroundColor(currentBar?.status.color ?? bar.status.color)
                     
-                    Text("Last updated \(timeAgo(currentBar?.lastUpdated ?? Date()))")
+                    Text("Last updated \(timeAgo(currentBar?.lastUpdated ?? bar.lastUpdated))")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    
+                    // Status source indicator
+                    HStack(spacing: 4) {
+                        Image(systemName: (currentBar?.isFollowingSchedule ?? bar.isFollowingSchedule) ? "calendar" : "hand.raised.fill")
+                            .font(.caption)
+                        Text((currentBar?.isFollowingSchedule ?? bar.isFollowingSchedule) ? "Following Schedule" : "Manual Override")
+                            .font(.caption)
+                    }
+                    .foregroundColor((currentBar?.isFollowingSchedule ?? bar.isFollowingSchedule) ? .green : .orange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        ((currentBar?.isFollowingSchedule ?? bar.isFollowingSchedule) ? Color.green : Color.orange).opacity(0.1),
+                        in: RoundedRectangle(cornerRadius: 6)
+                    )
                 }
                 
                 Spacer()
             }
         }
+        .liquidGlass(level: .thin, cornerRadius: .large, shadow: .medium)
     }
     
-    // MARK: - Today's Schedule Info
+    // MARK: - Today's Schedule Info with Enhanced Liquid Glass
     var todaysScheduleInfo: some View {
         Group {
             if let current = currentBar, let todaysSchedule = current.todaysSchedule {
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Today's Schedule")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        // Status source indicator
-                        HStack(spacing: 4) {
-                            Image(systemName: current.isFollowingSchedule ? "calendar" : "hand.raised.fill")
-                                .foregroundColor(current.isFollowingSchedule ? .green : .orange)
-                                .font(.caption)
-                            
-                            Text(current.isFollowingSchedule ? "Following Schedule" : "Manual Override")
-                                .font(.caption)
-                                .foregroundColor(current.isFollowingSchedule ? .green : .orange)
-                        }
-                    }
+                VStack(spacing: 16) {
+                    LiquidGlassSectionHeader("Today's Schedule")
                     
-                    // Today's hours display
+                    // Today's hours display with liquid glass
                     HStack {
-                        Text("Today (\(todaysSchedule.dayName)):")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Today (\(todaysSchedule.dayName))")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.primary)
+                            
+                            Text(todaysSchedule.displayDate)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         
                         Spacer()
                         
-                        if todaysSchedule.isOpen {
-                            Text(todaysSchedule.displayText)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.green)
-                        } else {
-                            Text("Closed")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.red)
+                        VStack(alignment: .trailing, spacing: 4) {
+                            if todaysSchedule.isOpen {
+                                Text(todaysSchedule.displayText)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.green)
+                            } else {
+                                Text("Closed")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.red)
+                            }
+                            
+                            Image(systemName: todaysSchedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                .foregroundColor(todaysSchedule.isOpen ? .green : .red)
+                                .font(.title3)
                         }
                     }
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(todaysSchedule.isOpen ? Color.green.opacity(0.1) : Color.red.opacity(0.1))
+                            .fill(.thinMaterial)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(todaysSchedule.isOpen ? Color.green.opacity(0.3) : Color.red.opacity(0.3), lineWidth: 1)
                             )
                     )
                     
-                    // Manual override notification
+                    // Manual override notification with liquid glass
                     if !current.isFollowingSchedule {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.orange)
@@ -156,7 +151,7 @@ struct StatusControlView: View {
                                 Button("Return to Schedule") {
                                     barViewModel.setBarToFollowSchedule(current)
                                 }
-                                .font(.caption2)
+                                .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .small))
                                 .foregroundColor(.blue)
                             }
                             
@@ -164,109 +159,96 @@ struct StatusControlView: View {
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
-                        .padding()
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(12)
+                        .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle, borderOpacity: 0.3)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(.orange.opacity(0.3), lineWidth: 1)
+                        )
                     }
                 }
+                .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
             }
         }
     }
     
-    // MARK: - Auto-transition Card (keep existing)
+    // MARK: - Auto-transition Card with Enhanced Liquid Glass
     var autoTransitionCard: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(Color.orange.opacity(0.2))
-                    .frame(width: 40, height: 40)
+        VStack(spacing: 12) {
+            HStack {
+                LiquidGlassStatusIndicator(status: .closingSoon, size: 40) // Timer icon equivalent
                 
-                Image(systemName: "timer")
-                    .font(.title3)
-                    .foregroundColor(.orange)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Auto-change active")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                
-                if let pendingStatus = currentBar?.pendingStatus {
-                    HStack(spacing: 4) {
-                        Text("→")
-                            .foregroundColor(.orange)
-                        Text(pendingStatus.displayName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Auto-change active")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                    
+                    if let pendingStatus = currentBar?.pendingStatus {
+                        HStack(spacing: 4) {
+                            Text("→")
+                                .foregroundColor(.orange)
+                                .font(.title3)
+                            Text(pendingStatus.displayName)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 4) {
-                if let timeRemaining = barViewModel.getTimeRemainingText(for: currentBar ?? bar) {
-                    Text(timeRemaining)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.orange)
-                        .monospacedDigit()
-                }
-                
-                Button("Cancel") {
-                    barViewModel.cancelAutoTransition(for: currentBar ?? bar)
-                }
-                .font(.caption2)
-                .foregroundColor(.red)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.orange.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-    
-    // MARK: - 7-Day Schedule Management Section
-    var scheduleManagementSection: some View {
-        VStack(spacing: 16) {
-            HStack {
-                Text("7-Day Schedule")
-                    .font(.headline)
                 
                 Spacer()
                 
-                Button("Edit Schedule") {
+                VStack(alignment: .trailing, spacing: 4) {
+                    if let timeRemaining = barViewModel.getTimeRemainingText(for: currentBar ?? bar) {
+                        Text(timeRemaining)
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.orange)
+                            .monospacedDigit()
+                    }
+                    
+                    Button("Cancel") {
+                        barViewModel.cancelAutoTransition(for: currentBar ?? bar)
+                    }
+                    .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .small))
+                    .foregroundColor(.red)
+                }
+            }
+        }
+        .liquidGlass(level: .thin, cornerRadius: .large, shadow: .medium, borderOpacity: 0.3)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(.orange.opacity(0.3), lineWidth: 1)
+        )
+    }
+    
+    // MARK: - 7-Day Schedule Management Section with Enhanced Liquid Glass
+    var scheduleManagementSection: some View {
+        VStack(spacing: 16) {
+            LiquidGlassSectionHeader(
+                "7-Day Schedule",
+                action: {
                     editingSchedule = currentBar?.weeklySchedule ?? bar.weeklySchedule
                     showingScheduleEditor = true
-                }
-                .font(.caption)
-                .foregroundColor(.blue)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(12)
-            }
+                },
+                actionTitle: "Edit Schedule"
+            )
             
-            // Compact 7-day overview
+            // Compact 7-day overview with liquid glass
             VStack(spacing: 8) {
                 ForEach(currentBar?.weeklySchedule.schedules ?? bar.weeklySchedule.schedules) { schedule in
                     ScheduleRow(schedule: schedule)
                 }
             }
+            .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
             
-            // Quick actions
-            VStack(spacing: 8) {
+            // Quick actions with enhanced liquid glass
+            VStack(spacing: 12) {
                 Text("Quick Actions")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .textCase(.uppercase)
                 
-                HStack(spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
                     QuickActionButton(
                         title: "Override: Open Now",
                         icon: "checkmark.circle.fill",
@@ -288,10 +270,9 @@ struct StatusControlView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            .padding()
-            .background(Color.gray.opacity(0.05))
-            .cornerRadius(12)
+            .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
         }
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     // MARK: - Helper Functions
@@ -314,13 +295,13 @@ struct StatusControlView: View {
     }
 }
 
-// MARK: - Schedule Row Component
+// MARK: - Schedule Row Component with Enhanced Liquid Glass
 struct ScheduleRow: View {
     let schedule: DailySchedule
     
     var body: some View {
         HStack {
-            // Day info
+            // Day info with liquid glass styling
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(schedule.shortDayName)
@@ -335,8 +316,7 @@ struct ScheduleRow: View {
                             .foregroundColor(.blue)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(4)
+                            .background(.blue.opacity(0.2), in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
                 
@@ -344,11 +324,11 @@ struct ScheduleRow: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            .frame(width: 60, alignment: .leading)
+            .frame(width: 70, alignment: .leading)
             
             Spacer()
             
-            // Status
+            // Status with liquid glass styling
             HStack(spacing: 8) {
                 Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
                     .foregroundColor(schedule.isOpen ? .green : .red)
@@ -360,45 +340,68 @@ struct ScheduleRow: View {
                     .foregroundColor(schedule.isOpen ? .green : .red)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
         .padding(.horizontal, 8)
         .background(
+            schedule.isToday ? .blue.opacity(0.05) : .clear,
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .fill(schedule.isToday ? Color.blue.opacity(0.05) : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(schedule.isToday ? Color.blue.opacity(0.2) : Color.clear, lineWidth: 1)
-                )
+                .stroke(schedule.isToday ? .blue.opacity(0.2) : .clear, lineWidth: 1)
         )
     }
 }
 
-// MARK: - Quick Action Button Component
+// MARK: - Quick Action Button Component with Enhanced Liquid Glass
 struct QuickActionButton: View {
     let title: String
     let icon: String
     let color: Color
     let action: () -> Void
     
+    @State private var isPressed = false
+    
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
+            VStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.caption)
+                    .font(.title3)
+                    .foregroundColor(.white)
+                
                 Text(title)
                     .font(.caption2)
                     .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(color)
-            .cornerRadius(8)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(
+                LinearGradient(
+                    colors: [color, color.opacity(0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.thinMaterial)
+                    .opacity(0.2)
+            )
+            .scaleEffect(isPressed ? 0.95 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: isPressed)
+        }
+        .onLongPressGesture(minimumDuration: 0) { pressing in
+            isPressed = pressing
+        } perform: {
+            action()
         }
     }
 }
 
-// MARK: - Schedule Editor View
+// MARK: - Schedule Editor View with Enhanced Liquid Glass
 struct ScheduleEditorView: View {
     @State private var schedule: WeeklySchedule
     let barName: String
@@ -415,7 +418,7 @@ struct ScheduleEditorView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Header
+                    // Header with liquid glass
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Edit 7-Day Schedule")
                             .font(.title2)
@@ -426,8 +429,9 @@ struct ScheduleEditorView: View {
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .liquidGlass(level: .ultra, cornerRadius: .large, shadow: .subtle)
                     
-                    // Schedule editors
+                    // Schedule editors with liquid glass
                     VStack(spacing: 16) {
                         ForEach(Array(schedule.schedules.enumerated()), id: \.element.id) { index, dailySchedule in
                             DailyScheduleEditor(
@@ -439,28 +443,24 @@ struct ScheduleEditorView: View {
                         }
                     }
                     
-                    // Tips
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("💡 Tips")
-                            .font(.headline)
+                    // Tips with liquid glass
+                    VStack(alignment: .leading, spacing: 12) {
+                        LiquidGlassSectionHeader("💡 Tips")
                         
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("• Changes take effect immediately")
-                            Text("• Today's schedule determines your current bar status")
-                            Text("• Drag the time sliders to adjust opening and closing times")
-                            Text("• Toggle off days when you're closed")
+                        VStack(alignment: .leading, spacing: 8) {
+                            TipRow(text: "Changes take effect immediately")
+                            TipRow(text: "Today's schedule determines your current bar status")
+                            TipRow(text: "Drag the time sliders to adjust opening and closing times")
+                            TipRow(text: "Toggle off days when you're closed")
                         }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                     }
-                    .padding()
-                    .background(Color.blue.opacity(0.05))
-                    .cornerRadius(12)
+                    .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
                     
                     Spacer(minLength: 50)
                 }
                 .padding()
             }
+            .background(.regularMaterial)
             .navigationTitle("Schedule for \(barName)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -475,8 +475,28 @@ struct ScheduleEditorView: View {
                         onSave(schedule)
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Tip Row Component
+struct TipRow: View {
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(.blue.opacity(0.3))
+                .frame(width: 4, height: 4)
+            
+            Text(text)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
         }
     }
 }

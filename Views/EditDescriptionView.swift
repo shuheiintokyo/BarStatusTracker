@@ -7,37 +7,75 @@ struct EditDescriptionView: View {
     
     var body: some View {
         NavigationView {
-            VStack {
-                TextEditor(text: $description)
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                    .padding()
-                
-                // UPDATED: Tips section for 7-day schedule system
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("💡 Tips")
-                        .font(.headline)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("• Tell customers about your bar's atmosphere and specialties")
-                        Text("• Mention any special events or weekly features")
-                        Text("• Your 7-day schedule shows when you're open")  // UPDATED
-                        Text("• Keep descriptions concise and engaging")
-                        Text("• Highlight what makes your bar unique")
-                        Text("• Consider mentioning signature drinks or food")
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header section with liquid glass
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Edit Bar Description")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("Tell customers what makes your bar special")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .liquidGlass(level: .ultra, cornerRadius: .large, shadow: .subtle)
+                    
+                    // Text editor with liquid glass background
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Description")
+                            .font(.headline)
+                        
+                        TextEditor(text: $description)
+                            .padding()
+                            .frame(minHeight: 120)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.thinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(.primary.opacity(0.15), lineWidth: 0.5)
+                                    )
+                            )
+                            .overlay(
+                                Group {
+                                    if description.isEmpty {
+                                        Text("Describe your bar's atmosphere, specialties, events, or anything that makes it unique...")
+                                            .foregroundColor(.secondary)
+                                            .padding()
+                                            .allowsHitTesting(false)
+                                    }
+                                },
+                                alignment: .topLeading
+                            )
+                        
+                        Text("\(description.count) characters")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
+                    
+                    // Tips section with liquid glass
+                    VStack(alignment: .leading, spacing: 12) {
+                        LiquidGlassSectionHeader("💡 Tips")
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            TipRow(text: "Tell customers about your bar's atmosphere and specialties")
+                            TipRow(text: "Mention any special events or weekly features")
+                            TipRow(text: "Your 7-day schedule shows when you're open")
+                            TipRow(text: "Keep descriptions concise and engaging")
+                            TipRow(text: "Highlight what makes your bar unique")
+                            TipRow(text: "Consider mentioning signature drinks or food")
+                        }
+                    }
+                    .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
+                    
+                    Spacer(minLength: 50)
                 }
                 .padding()
-                .background(Color.blue.opacity(0.05))
-                .cornerRadius(10)
-                .padding(.horizontal)
-                
-                Spacer()
             }
-            .navigationTitle("Edit Description")
+            .background(.regularMaterial)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -51,13 +89,33 @@ struct EditDescriptionView: View {
                         onSave(description)
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                 }
             }
         }
     }
 }
 
-// MARK: - Supporting Views for Password and Social Links Editing
+// MARK: - Tip Row Component
+struct TipRow: View {
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(.blue.opacity(0.3))
+                .frame(width: 4, height: 4)
+            
+            Text(text)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Supporting Views for Password and Social Links Editing with Liquid Glass
 
 struct EditPasswordView: View {
     let currentPassword: String
@@ -76,85 +134,107 @@ struct EditPasswordView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Change Password for \(barName)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("Your password must be exactly 4 digits")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
-                VStack(spacing: 16) {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header with liquid glass
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Current Password")
-                            .font(.headline)
-                        
-                        Text("••••")
+                        Text("Change Password")
                             .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("for \(barName)")
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
+                        
+                        Text("Your password must be exactly 4 digits")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .liquidGlass(level: .ultra, cornerRadius: .large, shadow: .subtle)
+                    
+                    // Password fields with liquid glass
+                    VStack(spacing: 20) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Current Password")
+                                .font(.headline)
+                            
+                            HStack {
+                                Text("••••")
+                                    .font(.title2)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
                             .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.thinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(.green.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("New Password")
+                                .font(.headline)
+                            
+                            SecureField("Enter new 4-digit password", text: $newPassword)
+                                .textFieldStyle(LiquidGlassTextFieldStyle())
+                                .keyboardType(.numberPad)
+                                .onChange(of: newPassword) { _, newValue in
+                                    if newValue.count > 4 {
+                                        newPassword = String(newValue.prefix(4))
+                                    }
+                                }
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Confirm New Password")
+                                .font(.headline)
+                            
+                            SecureField("Confirm new password", text: $confirmPassword)
+                                .textFieldStyle(LiquidGlassTextFieldStyle())
+                                .keyboardType(.numberPad)
+                                .onChange(of: confirmPassword) { _, newValue in
+                                    if newValue.count > 4 {
+                                        confirmPassword = String(newValue.prefix(4))
+                                    }
+                                }
+                        }
                     }
+                    .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
                     
+                    // Validation feedback with liquid glass
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("New Password")
+                        Text("Password Requirements")
                             .font(.headline)
                         
-                        SecureField("Enter new 4-digit password", text: $newPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: newPassword) { _, newValue in
-                                if newValue.count > 4 {
-                                    newPassword = String(newValue.prefix(4))
-                                }
-                            }
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Confirm New Password")
-                            .font(.headline)
+                        ValidationRow(
+                            text: "Password is 4 digits",
+                            isValid: newPassword.count == 4
+                        )
                         
-                        SecureField("Confirm new password", text: $confirmPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.numberPad)
-                            .onChange(of: confirmPassword) { _, newValue in
-                                if newValue.count > 4 {
-                                    confirmPassword = String(newValue.prefix(4))
-                                }
-                            }
+                        ValidationRow(
+                            text: "Passwords match",
+                            isValid: !confirmPassword.isEmpty && newPassword == confirmPassword
+                        )
+                        
+                        ValidationRow(
+                            text: "Different from current password",
+                            isValid: !newPassword.isEmpty && newPassword != currentPassword
+                        )
                     }
-                }
-                
-                // Validation feedback
-                VStack(alignment: .leading, spacing: 8) {
-                    ValidationRow(
-                        text: "Password is 4 digits",
-                        isValid: newPassword.count == 4
-                    )
+                    .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
                     
-                    ValidationRow(
-                        text: "Passwords match",
-                        isValid: !confirmPassword.isEmpty && newPassword == confirmPassword
-                    )
-                    
-                    ValidationRow(
-                        text: "Different from current password",
-                        isValid: !newPassword.isEmpty && newPassword != currentPassword
-                    )
+                    Spacer(minLength: 50)
                 }
                 .padding()
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(10)
-                
-                Spacer()
             }
-            .padding()
+            .background(.regularMaterial)
             .navigationTitle("Change Password")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -175,6 +255,7 @@ struct EditPasswordView: View {
                         }
                     }
                     .disabled(!isValidPassword)
+                    .fontWeight(.semibold)
                 }
             }
         }
@@ -214,17 +295,24 @@ struct EditSocialLinksView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
+                    // Header with liquid glass
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Social Links for \(barName)")
+                        Text("Social Links")
                             .font(.title2)
                             .fontWeight(.bold)
                         
-                        Text("Help customers find you on social media")
+                        Text("for \(barName)")
                             .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Text("Help customers find you on social media")
+                            .font(.caption)
                             .foregroundColor(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .liquidGlass(level: .ultra, cornerRadius: .large, shadow: .subtle)
                     
+                    // Social link fields with liquid glass
                     VStack(spacing: 20) {
                         SocialLinkField(
                             icon: "instagram-icon",
@@ -258,28 +346,26 @@ struct EditSocialLinksView: View {
                             isAssetImage: false
                         )
                     }
+                    .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
                     
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("💡 Tips")
-                            .font(.headline)
+                    // Tips with liquid glass
+                    VStack(alignment: .leading, spacing: 12) {
+                        LiquidGlassSectionHeader("💡 Tips")
                         
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("• Don't include 'https://' - we'll add it automatically")
-                            Text("• For Instagram/X, you can use just your username")
-                            Text("• Social links help customers stay connected with your bar")
-                            Text("• All fields are optional")
+                        VStack(alignment: .leading, spacing: 8) {
+                            TipRow(text: "Don't include 'https://' - we'll add it automatically")
+                            TipRow(text: "For Instagram/X, you can use just your username")
+                            TipRow(text: "Social links help customers stay connected with your bar")
+                            TipRow(text: "All fields are optional")
                         }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
                     }
-                    .padding()
-                    .background(Color.blue.opacity(0.05))
-                    .cornerRadius(10)
+                    .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
                     
                     Spacer(minLength: 50)
                 }
                 .padding()
             }
+            .background(.regularMaterial)
             .navigationTitle("Social Links")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -294,6 +380,7 @@ struct EditSocialLinksView: View {
                         onSave(socialLinks)
                         dismiss()
                     }
+                    .fontWeight(.semibold)
                 }
             }
         }
@@ -335,17 +422,17 @@ struct SocialLinkField: View {
             }
             
             TextField(placeholder, text: $text)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .textFieldStyle(LiquidGlassTextFieldStyle())
                 .autocapitalization(.none)
                 .autocorrectionDisabled()
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(text.isEmpty ? Color.gray.opacity(0.05) : Color.blue.opacity(0.05))
+                .fill(.thinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(text.isEmpty ? Color.gray.opacity(0.2) : Color.blue.opacity(0.3), lineWidth: 1)
+                        .stroke(text.isEmpty ? .clear : .blue.opacity(0.3), lineWidth: 1)
                 )
         )
     }

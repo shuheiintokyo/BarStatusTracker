@@ -17,97 +17,24 @@ struct SearchBarsView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                    
-                    TextField("Search bars by name, location, or schedule", text: $searchText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-                .padding()
+                // Search bar with liquid glass
+                searchBarSection
                 
-                // Filter options
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(SearchFilter.allCases, id: \.self) { filter in
-                            FilterChip(
-                                title: filter.rawValue,
-                                isSelected: selectedFilter == filter,
-                                count: getFilterCount(filter)
-                            ) {
-                                selectedFilter = filter
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-                .padding(.bottom)
+                // Filter options with liquid glass
+                filterSection
                 
                 // Results
                 if filteredBars.isEmpty && !searchText.isEmpty {
-                    // No results for search
-                    VStack(spacing: 20) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray.opacity(0.5))
-                        
-                        Text("No bars found")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text("Try searching with a different name or adjust your filters")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        Button("Clear Search") {
-                            searchText = ""
-                            selectedFilter = .all
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    }
-                    .padding(.top, 50)
+                    noResultsView
                 } else if filteredBars.isEmpty && searchText.isEmpty {
-                    // No bars available at all
-                    VStack(spacing: 20) {
-                        Image(systemName: "building.2")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray.opacity(0.5))
-                        
-                        Text("No bars available")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text("Be the first to create a bar!")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                        
-                        Button("Create New Bar") {
-                            dismiss()
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    }
-                    .padding(.top, 50)
+                    noBarsView
                 } else {
-                    // Show search results
-                    List(filteredBars) { bar in
-                        Button(action: {
-                            barViewModel.selectedBar = bar
-                            barViewModel.showingDetail = true
-                        }) {
-                            SearchBarRow(bar: bar)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    .listStyle(PlainListStyle())
+                    resultsSection
                 }
                 
                 Spacer()
             }
+            .background(.regularMaterial)
             .navigationTitle("Search Bars")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -120,11 +47,118 @@ struct SearchBarsView: View {
         }
     }
     
-    // UPDATED: Enhanced filtering with schedule-based search
+    // MARK: - Search Bar Section with Liquid Glass
+    private var searchBarSection: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.gray)
+            
+            TextField("Search bars by name, location, or schedule", text: $searchText)
+                .textFieldStyle(LiquidGlassTextFieldStyle())
+        }
+        .liquidGlass(level: .regular, cornerRadius: .medium, shadow: .subtle)
+        .padding()
+    }
+    
+    // MARK: - Filter Section with Liquid Glass
+    private var filterSection: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(SearchFilter.allCases, id: \.self) { filter in
+                    FilterChip(
+                        title: filter.rawValue,
+                        isSelected: selectedFilter == filter,
+                        count: getFilterCount(filter)
+                    ) {
+                        selectedFilter = filter
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+        .padding(.bottom)
+    }
+    
+    // MARK: - Results Section
+    private var resultsSection: some View {
+        List(filteredBars) { bar in
+            Button(action: {
+                barViewModel.selectedBar = bar
+                barViewModel.showingDetail = true
+            }) {
+                SearchBarRow(bar: bar)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .listRowBackground(Color.clear)
+        }
+        .listStyle(PlainListStyle())
+        .scrollContentBackground(.hidden)
+    }
+    
+    // MARK: - Empty States with Liquid Glass
+    private var noResultsView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 50))
+                .foregroundColor(.gray.opacity(0.5))
+            
+            Text("No bars found")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            Text("Try searching with a different name or adjust your filters")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Button("Clear Search") {
+                searchText = ""
+                selectedFilter = .all
+            }
+            .font(.caption)
+            .foregroundColor(.blue)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        }
+        .padding(.top, 50)
+        .liquidGlass(level: .regular, cornerRadius: .extraLarge, shadow: .medium)
+        .padding()
+    }
+    
+    private var noBarsView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "building.2")
+                .font(.system(size: 50))
+                .foregroundColor(.gray.opacity(0.5))
+            
+            Text("No bars available")
+                .font(.title2)
+                .fontWeight(.bold)
+            
+            Text("Be the first to create a bar!")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Button("Create New Bar") {
+                dismiss()
+            }
+            .font(.caption)
+            .foregroundColor(.blue)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        }
+        .padding(.top, 50)
+        .liquidGlass(level: .regular, cornerRadius: .extraLarge, shadow: .medium)
+        .padding()
+    }
+    
+    // MARK: - Enhanced filtering with schedule-based search
     private var filteredBars: [Bar] {
         let allBars = barViewModel.getAllBars()
         
-        // Apply filter first
         let filteredByType: [Bar]
         switch selectedFilter {
         case .all:
@@ -139,7 +173,6 @@ struct SearchBarsView: View {
             filteredByType = allBars.filter { $0.isFollowingSchedule }
         }
         
-        // Apply search text
         if searchText.isEmpty {
             return filteredByType
         }
@@ -150,9 +183,7 @@ struct SearchBarsView: View {
             bar.description.localizedCaseInsensitiveContains(searchText) ||
             (bar.location?.city.localizedCaseInsensitiveContains(searchText) ?? false) ||
             (bar.location?.country.localizedCaseInsensitiveContains(searchText) ?? false) ||
-            // NEW: Search in today's schedule
             (bar.todaysSchedule?.displayText.localizedCaseInsensitiveContains(searchText) ?? false) ||
-            // NEW: Search in status
             bar.status.displayName.localizedCaseInsensitiveContains(searchText)
         }
     }
@@ -174,7 +205,7 @@ struct SearchBarsView: View {
     }
 }
 
-// MARK: - Filter Chip Component
+// MARK: - Filter Chip Component with Liquid Glass
 struct FilterChip: View {
     let title: String
     let isSelected: Bool
@@ -194,36 +225,37 @@ struct FilterChip: View {
                         .fontWeight(.bold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(isSelected ? Color.white.opacity(0.3) : Color.gray.opacity(0.3))
-                        .clipShape(Capsule())
+                        .background(
+                            isSelected ? Color.white.opacity(0.3) : .thinMaterial,
+                            in: Capsule()
+                        )
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(isSelected ? Color.blue : Color.gray.opacity(0.1))
+            .background(
+                isSelected ?
+                LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing) :
+                .thinMaterial,
+                in: Capsule()
+            )
             .foregroundColor(isSelected ? .white : .primary)
-            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(.primary.opacity(0.1), lineWidth: 0.5)
+            )
         }
     }
 }
 
-// MARK: - UPDATED Search Bar Row (with enhanced schedule info)
+// MARK: - Enhanced Search Bar Row with Liquid Glass
 struct SearchBarRow: View {
     let bar: Bar
     
     var body: some View {
         HStack(spacing: 12) {
-            // Status indicator
-            VStack {
-                Image(systemName: bar.status.icon)
-                    .font(.title2)
-                    .foregroundColor(bar.status.color)
-                
-                Text(bar.status.displayName)
-                    .font(.caption2)
-                    .foregroundColor(bar.status.color)
-            }
-            .frame(width: 60)
+            // Status indicator with liquid glass
+            LiquidGlassStatusIndicator(status: bar.status, size: 50)
             
             // Bar info
             VStack(alignment: .leading, spacing: 4) {
@@ -253,7 +285,7 @@ struct SearchBarRow: View {
                     }
                 }
                 
-                // UPDATED: Enhanced status and schedule info
+                // Enhanced status and schedule info
                 HStack(spacing: 8) {
                     // Status source indicator
                     if bar.isFollowingSchedule {
@@ -265,6 +297,9 @@ struct SearchBarRow: View {
                                 .font(.caption2)
                                 .foregroundColor(.green)
                         }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
                     } else {
                         HStack(spacing: 2) {
                             Image(systemName: "hand.raised.fill")
@@ -274,6 +309,9 @@ struct SearchBarRow: View {
                                 .font(.caption2)
                                 .foregroundColor(.orange)
                         }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
                     }
                     
                     // Today's schedule info
@@ -286,6 +324,12 @@ struct SearchBarRow: View {
                                 .font(.caption2)
                                 .foregroundColor(todaysSchedule.isOpen ? .blue : .gray)
                         }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(
+                            todaysSchedule.isOpen ? .blue.opacity(0.1) : .gray.opacity(0.1),
+                            in: RoundedRectangle(cornerRadius: 4)
+                        )
                     }
                     
                     // Auto-transition indicator
@@ -298,6 +342,9 @@ struct SearchBarRow: View {
                                 .font(.caption2)
                                 .foregroundColor(.orange)
                         }
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
             }
@@ -326,7 +373,9 @@ struct SearchBarRow: View {
             }
         }
         .padding(.vertical, 8)
-        .contentShape(Rectangle()) // Makes entire row tappable
+        .padding(.horizontal, 4)
+        .contentShape(Rectangle())
+        .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
     }
     
     private func timeAgo(_ date: Date) -> String {
