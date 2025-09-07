@@ -17,15 +17,11 @@ struct MainContentView: View {
     
     var body: some View {
         ZStack {
-            // BACKGROUND IMAGE - Main App Background
-            Image(backgroundManager.getBackgroundImage(for: "main_app"))
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .opacity(0.4)
-                .blur(radius: 2.0)
+            // BACKGROUND GRADIENT - Main App Background
+            backgroundManager.getBackgroundGradient(for: "main_app").gradient
                 .ignoresSafeArea(.all)
             
-            // Dark overlay for better readability
+            // Additional dark overlay for better readability
             LinearGradient(
                 colors: [
                     Color.black.opacity(0.1),
@@ -38,46 +34,31 @@ struct MainContentView: View {
             .ignoresSafeArea()
             
             TabView(selection: $selectedTab) {
-                // Home - backgroundimg01
-                StylishBackgroundView(
-                    imageName: "backgroundimg01",
-                    opacity: 0.3,
-                    blurRadius: 1.5
-                ) {
-                    HomeView(barViewModel: barViewModel)
-                }
-                .tabItem {
-                    Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
-                }
-                .tag(0)
+                // Home - gradient01
+                HomeView(barViewModel: barViewModel)
+                    .withStylishBackground("home_view")
+                    .tabItem {
+                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
+                    }
+                    .tag(0)
                 
-                // Discover - backgroundimg02
-                StylishBackgroundView(
-                    imageName: "backgroundimg02",
-                    opacity: 0.3,
-                    blurRadius: 1.5
-                ) {
-                    DiscoverTabView(barViewModel: barViewModel)
-                }
-                .tabItem {
-                    Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
-                }
-                .tag(1)
+                // Discover - gradient02
+                DiscoverTabView(barViewModel: barViewModel)
+                    .withStylishBackground("discover_view")
+                    .tabItem {
+                        Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
+                    }
+                    .tag(1)
                 
-                // My Account - backgroundimg03
-                StylishBackgroundView(
-                    imageName: "backgroundimg03",
-                    opacity: 0.3,
-                    blurRadius: 1.5
-                ) {
-                    MyAccountView(
-                        barViewModel: barViewModel,
-                        showingOwnerLogin: $showingOwnerLogin,
-                        showingBiometricAlert: $showingBiometricAlert,
-                        showingBiometricNotRegistered: $showingBiometricNotRegistered,
-                        biometricError: $biometricError
-                    )
-                }
+                // My Account - gradient03
+                MyAccountView(
+                    barViewModel: barViewModel,
+                    showingOwnerLogin: $showingOwnerLogin,
+                    showingBiometricAlert: $showingBiometricAlert,
+                    showingBiometricNotRegistered: $showingBiometricNotRegistered,
+                    biometricError: $biometricError
+                )
+                .withStylishBackground("account_view")
                 .tabItem {
                     Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
                 }
@@ -144,7 +125,7 @@ struct MainContentView: View {
     }
 }
 
-// MARK: - Updated HomeView with Background
+// MARK: - Updated HomeView with Gradient Background
 
 struct HomeView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -324,7 +305,7 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Updated DiscoverTabView with Background
+// MARK: - Updated DiscoverTabView with Gradient Background
 
 struct DiscoverTabView: View {
     @ObservedObject var barViewModel: BarViewModel
@@ -436,7 +417,7 @@ struct DiscoverTabView: View {
     }
 }
 
-// MARK: - Updated MyAccountView with Background
+// MARK: - Updated MyAccountView with Gradient Background
 
 struct MyAccountView: View {
     @ObservedObject var barViewModel: BarViewModel

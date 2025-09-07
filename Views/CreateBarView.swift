@@ -33,11 +33,9 @@ struct CreateBarView: View {
     
     var body: some View {
         NavigationView {
-            // Using backgroundimg05 for create bar
+            // Using gradient for create bar
             StylishBackgroundView(
-                imageName: "backgroundimg05",
-                opacity: 0.4,
-                blurRadius: 2.0
+                gradientName: "create_bar"
             ) {
                 VStack(spacing: 0) {
                     // Progress Bar with glass effect

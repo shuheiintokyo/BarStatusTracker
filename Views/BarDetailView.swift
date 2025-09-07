@@ -27,11 +27,9 @@ struct BarDetailView: View {
     
     var body: some View {
         NavigationView {
-            // Using backgroundimg01 for bar detail
+            // Using gradient for bar detail
             StylishBackgroundView(
-                imageName: "backgroundimg01",
-                opacity: 0.35,
-                blurRadius: 2.0
+                gradientName: "bar_detail"
             ) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {

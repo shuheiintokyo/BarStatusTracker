@@ -18,6 +18,7 @@ class BarViewModel: ObservableObject {
     private let biometricManager: BiometricAuthManager
     private var cancellables = Set<AnyCancellable>()
     private var statusUpdateTimer: Timer?
+    private var scheduleRefreshTimer: Timer?
     
     // MARK: - Initialization
     init(firebaseManager: FirebaseManager = FirebaseManager(),
@@ -27,6 +28,7 @@ class BarViewModel: ObservableObject {
         
         setupBindings()
         startPeriodicUpdates()
+        startScheduleRefresh()
     }
     
     // MARK: - Setup
@@ -34,7 +36,16 @@ class BarViewModel: ObservableObject {
         // Bind Firebase manager to local state
         firebaseManager.$bars
             .receive(on: DispatchQueue.main)
-            .assign(to: &$bars)
+            .sink { [weak self] newBars in
+                // FIXED: Refresh schedule dates for all bars when they come from Firebase
+                self?.bars = newBars.map { bar in
+                    var refreshedBar = bar
+                    // Force a schedule refresh when bars are loaded
+                    let _ = refreshedBar.weeklySchedule // This triggers the refresh
+                    return refreshedBar
+                }
+            }
+            .store(in: &cancellables)
         
         firebaseManager.$isLoading
             .receive(on: DispatchQueue.main)
@@ -63,8 +74,67 @@ class BarViewModel: ObservableObject {
         }
     }
     
+    // FIXED: Add schedule refresh timer to keep dates current
+    private func startScheduleRefresh() {
+        // Check for stale schedules every hour
+        scheduleRefreshTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.refreshAllScheduleDates()
+            }
+        }
+        
+        // Also refresh on app becoming active
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+    
+    @objc private func appDidBecomeActive() {
+        DispatchQueue.main.async {
+            self.refreshAllScheduleDates()
+        }
+    }
+    
+    // FIXED: Method to refresh all schedule dates
+    private func refreshAllScheduleDates() {
+        print("🔄 Refreshing all schedule dates...")
+        
+        for i in 0..<bars.count {
+            let oldBar = bars[i]
+            var updatedBar = oldBar
+            
+            // Access the weeklySchedule property to trigger refresh
+            let _ = updatedBar.weeklySchedule
+            
+            // Check if the schedule actually changed
+            if !Calendar.current.isDate(oldBar.weeklySchedule.schedules.first?.date ?? Date(),
+                                       equalTo: updatedBar.weeklySchedule.schedules.first?.date ?? Date(),
+                                       toGranularity: .day) {
+                print("📅 Updated schedule dates for bar: \(updatedBar.name)")
+                bars[i] = updatedBar
+                
+                // Update in Firebase if this bar has stale dates
+                updateBarInFirebase(updatedBar)
+            }
+        }
+        
+        // Update logged in bar if needed
+        if let loggedInBarId = loggedInBar?.id,
+           let updatedBar = bars.first(where: { $0.id == loggedInBarId }) {
+            loggedInBar = updatedBar
+        }
+        
+        // Refresh the UI
+        objectWillChange.send()
+    }
+    
     deinit {
         statusUpdateTimer?.invalidate()
+        scheduleRefreshTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
     }
     
     // MARK: - Bar Management
@@ -256,26 +326,31 @@ class BarViewModel: ObservableObject {
         return biometricManager.isAvailable
     }
     
-    // MARK: - Data Access
+    // MARK: - Data Access - FIXED: Return bars with refreshed schedules
     
     func getAllBars() -> [Bar] {
-        return bars
+        return bars.map { bar in
+            var refreshedBar = bar
+            let _ = refreshedBar.weeklySchedule // Trigger refresh
+            return refreshedBar
+        }
     }
     
     func getOwnerBars() -> [Bar] {
         guard let loggedInBar = loggedInBar else { return [] }
-        return bars.filter { $0.id == loggedInBar.id }
+        return getAllBars().filter { $0.id == loggedInBar.id }
     }
     
     func getBarsOpenNow() -> [Bar] {
-        return bars.filter { $0.status == .open || $0.status == .openingSoon }
+        return getAllBars().filter { $0.status == .open || $0.status == .openingSoon }
     }
     
     func getBarsOpenToday() -> [Bar] {
-        return bars.filter { $0.isOpenToday }
+        return getAllBars().filter { $0.isOpenToday }
     }
     
     func forceRefreshAllData() {
+        refreshAllScheduleDates()
         firebaseManager.fetchBars()
     }
     
@@ -326,7 +401,8 @@ class BarViewModel: ObservableObject {
     }
     
     private func refreshScheduleBasedStatuses() {
-        // This will trigger recalculation of schedule-based statuses
+        // FIXED: Also refresh schedule dates during status updates
+        refreshAllScheduleDates()
         objectWillChange.send()
     }
     

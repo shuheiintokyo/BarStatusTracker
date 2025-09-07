@@ -22,11 +22,9 @@ struct OwnerLoginView: View {
 
     var body: some View {
         NavigationView {
-            // Using backgroundimg04 for login
+            // Using gradient for login
             StylishBackgroundView(
-                imageName: "backgroundimg04",
-                opacity: 0.4,
-                blurRadius: 2.5
+                gradientName: "owner_login"
             ) {
                 GeometryReader { geometry in
                     ScrollView {

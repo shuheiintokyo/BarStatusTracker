@@ -1,155 +1,173 @@
 import SwiftUI
 
-// MARK: - Enhanced Background Image Manager
+// MARK: - Enhanced Background Gradient Manager (Replacing Images)
 class BackgroundImageManager: ObservableObject {
     static let shared = BackgroundImageManager()
     
-    private let backgroundImages = [
-        "backgroundimg01",
-        "backgroundimg02",
-        "backgroundimg03",
-        "backgroundimg04",
-        "backgroundimg05"
+    // Gradient configurations replacing background images
+    private let backgroundGradients: [BackgroundGradient] = [
+        BackgroundGradient(
+            name: "background01",
+            colors: [.blue.opacity(0.4), .purple.opacity(0.3), .indigo.opacity(0.4)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        ),
+        BackgroundGradient(
+            name: "background02",
+            colors: [.green.opacity(0.3), .mint.opacity(0.4), .teal.opacity(0.3)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        ),
+        BackgroundGradient(
+            name: "background03",
+            colors: [.orange.opacity(0.3), .pink.opacity(0.3), .red.opacity(0.2)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        ),
+        BackgroundGradient(
+            name: "background04",
+            colors: [.purple.opacity(0.3), .pink.opacity(0.4), .blue.opacity(0.3)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        ),
+        BackgroundGradient(
+            name: "background05",
+            colors: [.indigo.opacity(0.4), .blue.opacity(0.3), .cyan.opacity(0.3)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     ]
     
-    // Pre-assigned backgrounds for specific views for consistency
-    private let viewBackgroundMap: [String: String] = [
-        "main_app": "backgroundimg01",
-        "home_view": "backgroundimg01",
-        "discover_view": "backgroundimg02",
-        "account_view": "backgroundimg03",
-        "owner_login": "backgroundimg04",
-        "create_bar": "backgroundimg05",
-        "bar_detail": "backgroundimg01",
-        "search_bars": "backgroundimg02",
-        "location_browser": "backgroundimg03",
-        "welcome": "backgroundimg04",
-        "schedule_editor": "backgroundimg05"
+    // Pre-assigned gradients for specific views for consistency
+    private let viewGradientMap: [String: String] = [
+        "main_app": "background01",
+        "home_view": "background01",
+        "discover_view": "background02",
+        "account_view": "background03",
+        "owner_login": "background04",
+        "create_bar": "background05",
+        "bar_detail": "background01",
+        "search_bars": "background02",
+        "location_browser": "background03",
+        "welcome": "background04",
+        "schedule_editor": "background05"
     ]
     
-    // Cache for consistent random images per view type
-    private var randomImageCache: [String: String] = [:]
+    // Cache for consistent random gradients per view type
+    private var randomGradientCache: [String: String] = [:]
     
-    func getBackgroundImage(for viewIdentifier: String) -> String {
-        // First check if we have a pre-assigned background for this view
-        if let assignedImage = viewBackgroundMap[viewIdentifier] {
-            return assignedImage
+    func getBackgroundGradient(for viewIdentifier: String) -> BackgroundGradient {
+        // First check if we have a pre-assigned gradient for this view
+        if let assignedGradientName = viewGradientMap[viewIdentifier],
+           let gradient = backgroundGradients.first(where: { $0.name == assignedGradientName }) {
+            return gradient
         }
         
-        // If we already assigned a random image to this view type, use it
-        if let cachedImage = randomImageCache[viewIdentifier] {
-            return cachedImage
+        // If we already assigned a random gradient to this view type, use it
+        if let cachedGradientName = randomGradientCache[viewIdentifier],
+           let gradient = backgroundGradients.first(where: { $0.name == cachedGradientName }) {
+            return gradient
         }
         
         // Otherwise, randomly select one and cache it
-        let randomImage = backgroundImages.randomElement() ?? "backgroundimg01"
-        randomImageCache[viewIdentifier] = randomImage
-        return randomImage
+        let randomGradient = backgroundGradients.randomElement() ?? backgroundGradients[0]
+        randomGradientCache[viewIdentifier] = randomGradient.name
+        return randomGradient
     }
     
-    func getRandomBackgroundImage() -> String {
-        return backgroundImages.randomElement() ?? "backgroundimg01"
+    func getRandomBackgroundGradient() -> BackgroundGradient {
+        return backgroundGradients.randomElement() ?? backgroundGradients[0]
     }
     
-    // Get a specific background image by index (useful for testing)
-    func getBackgroundImage(at index: Int) -> String {
-        guard index >= 0 && index < backgroundImages.count else {
-            return "backgroundimg01"
+    // Get a specific gradient by index (useful for testing)
+    func getBackgroundGradient(at index: Int) -> BackgroundGradient {
+        guard index >= 0 && index < backgroundGradients.count else {
+            return backgroundGradients[0]
         }
-        return backgroundImages[index]
+        return backgroundGradients[index]
     }
     
-    // Get all available background images
-    func getAllBackgroundImages() -> [String] {
-        return backgroundImages
+    // Get all available gradients
+    func getAllBackgroundGradients() -> [BackgroundGradient] {
+        return backgroundGradients
     }
     
-    // Reset cache to get new random images
+    // Reset cache to get new random gradients
     func refreshBackgrounds() {
-        randomImageCache.removeAll()
+        randomGradientCache.removeAll()
     }
     
     // Debug: Print current assignments
     func debugPrintAssignments() {
-        print("📸 Background Image Assignments:")
+        print("🎨 Background Gradient Assignments:")
         print("📍 Pre-assigned:")
-        for (view, image) in viewBackgroundMap.sorted(by: { $0.key < $1.key }) {
-            print("   \(view): \(image)")
+        for (view, gradientName) in viewGradientMap.sorted(by: { $0.key < $1.key }) {
+            print("   \(view): \(gradientName)")
         }
         print("🎲 Random cache:")
-        for (view, image) in randomImageCache.sorted(by: { $0.key < $1.key }) {
-            print("   \(view): \(image)")
+        for (view, gradientName) in randomGradientCache.sorted(by: { $0.key < $1.key }) {
+            print("   \(view): \(gradientName)")
         }
     }
 }
 
-// MARK: - Enhanced Stylish Background View Component
+// MARK: - Background Gradient Model
+struct BackgroundGradient {
+    let name: String
+    let colors: [Color]
+    let startPoint: UnitPoint
+    let endPoint: UnitPoint
+    
+    var gradient: LinearGradient {
+        LinearGradient(
+            colors: colors,
+            startPoint: startPoint,
+            endPoint: endPoint
+        )
+    }
+}
+
+// MARK: - Enhanced Stylish Background View Component (Using Gradients)
 struct StylishBackgroundView<Content: View>: View {
-    let imageName: String
+    let gradient: BackgroundGradient
     let content: Content
-    let opacity: Double
-    let blurRadius: CGFloat
+    let additionalOpacity: Double
     
     init(
-        imageName: String,
-        opacity: Double = 0.3,
-        blurRadius: CGFloat = 2.0,
+        gradient: BackgroundGradient,
+        additionalOpacity: Double = 1.0,
         @ViewBuilder content: () -> Content
     ) {
-        self.imageName = imageName
-        self.opacity = opacity
-        self.blurRadius = blurRadius
+        self.gradient = gradient
+        self.additionalOpacity = additionalOpacity
+        self.content = content()
+    }
+    
+    // Convenience initializer with gradient name
+    init(
+        gradientName: String,
+        additionalOpacity: Double = 1.0,
+        @ViewBuilder content: () -> Content
+    ) {
+        let manager = BackgroundImageManager.shared
+        self.gradient = manager.getBackgroundGradient(for: gradientName)
+        self.additionalOpacity = additionalOpacity
         self.content = content()
     }
     
     var body: some View {
         ZStack {
-            // Background Image with validation
-            if UIImage(named: imageName) != nil {
-                Image(imageName)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .ignoresSafeArea()
-                    .blur(radius: blurRadius)
-                    .opacity(opacity)
-            } else {
-                // Fallback gradient if image not found
-                LinearGradient(
-                    colors: [
-                        Color.blue.opacity(0.3),
-                        Color.purple.opacity(0.2),
-                        Color.indigo.opacity(0.3)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+            // Background Gradient
+            gradient.gradient
                 .ignoresSafeArea()
-                .opacity(opacity)
-                
-                // Debug overlay in development
-                #if DEBUG
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Text("⚠️ Image '\(imageName)' not found")
-                            .font(.caption2)
-                            .foregroundColor(.red)
-                            .padding(4)
-                            .background(Color.white.opacity(0.8))
-                            .cornerRadius(4)
-                    }
-                }
-                .padding()
-                #endif
-            }
+                .opacity(additionalOpacity)
             
-            // Dark overlay for better text readability
+            // Additional dark overlay for better text readability
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.15),
+                    Color.black.opacity(0.1),
                     Color.black.opacity(0.05),
-                    Color.black.opacity(0.10)
+                    Color.black.opacity(0.1)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -166,108 +184,32 @@ struct StylishBackgroundView<Content: View>: View {
 extension View {
     func withStylishBackground(_ viewIdentifier: String) -> some View {
         let manager = BackgroundImageManager.shared
-        let imageName = manager.getBackgroundImage(for: viewIdentifier)
+        let gradient = manager.getBackgroundGradient(for: viewIdentifier)
         
-        return StylishBackgroundView(imageName: imageName) {
+        return StylishBackgroundView(gradient: gradient) {
             self
         }
     }
     
-    func withCustomBackground(_ imageName: String, opacity: Double = 0.3, blurRadius: CGFloat = 2.0) -> some View {
+    func withCustomGradient(_ gradient: BackgroundGradient, opacity: Double = 1.0) -> some View {
         return StylishBackgroundView(
-            imageName: imageName,
-            opacity: opacity,
-            blurRadius: blurRadius
+            gradient: gradient,
+            additionalOpacity: opacity
         ) {
             self
         }
     }
-}
-
-// MARK: - Background Testing View for Development
-#if DEBUG
-struct BackgroundTestView: View {
-    @StateObject private var backgroundManager = BackgroundImageManager.shared
     
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    Text("Background Image Test")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding()
-                    
-                    // Test each background image
-                    ForEach(Array(backgroundManager.getAllBackgroundImages().enumerated()), id: \.offset) { index, imageName in
-                        VStack(spacing: 8) {
-                            Text("Testing: \(imageName)")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            if UIImage(named: imageName) != nil {
-                                Image(imageName)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(height: 120)
-                                    .clipped()
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        HStack {
-                                            Text("✅ FOUND")
-                                                .font(.caption)
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.green)
-                                                .padding(4)
-                                                .background(Color.white.opacity(0.8))
-                                                .cornerRadius(4)
-                                            Spacer()
-                                        }
-                                        .padding(8),
-                                        alignment: .topLeading
-                                    )
-                            } else {
-                                Rectangle()
-                                    .fill(Color.red.opacity(0.6))
-                                    .frame(height: 120)
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        VStack {
-                                            Text("❌")
-                                                .font(.largeTitle)
-                                            Text("NOT FOUND")
-                                                .font(.caption)
-                                                .fontWeight(.bold)
-                                        }
-                                        .foregroundColor(.white)
-                                    )
-                            }
-                        }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(.regularMaterial)
-                        )
-                    }
-                    
-                    // Debug button
-                    Button("Print Assignments") {
-                        backgroundManager.debugPrintAssignments()
-                    }
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .cornerRadius(12)
-                    
-                    Spacer(minLength: 50)
-                }
-                .padding()
-            }
-            .withStylishBackground("background_test")
-            .navigationTitle("Background Test")
-            .navigationBarTitleDisplayMode(.inline)
+    func withSimpleGradient(colors: [Color], startPoint: UnitPoint = .topLeading, endPoint: UnitPoint = .bottomTrailing) -> some View {
+        let gradient = BackgroundGradient(
+            name: "custom",
+            colors: colors,
+            startPoint: startPoint,
+            endPoint: endPoint
+        )
+        
+        return StylishBackgroundView(gradient: gradient) {
+            self
         }
     }
 }
-#endif
