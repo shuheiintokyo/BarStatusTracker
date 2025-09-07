@@ -27,60 +27,56 @@ struct BarDetailView: View {
     
     var body: some View {
         NavigationView {
-            // Using gradient for bar detail
-            StylishBackgroundView(
-                gradientName: "bar_detail"
-            ) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        // Header with current status - glass effect
-                        headerSection
-                        
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    // Header with current status - Liquid Glass
+                    headerSection
+                    
+                    Divider()
+                        .background(.primary.opacity(0.2))
+                    
+                    // Owner quick controls (if applicable)
+                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                        ownerControlsSection
                         Divider()
-                            .background(Color.white.opacity(0.3))
-                        
-                        // Owner quick controls (if applicable)
-                        if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                            ownerControlsSection
-                            Divider()
-                                .background(Color.white.opacity(0.3))
-                        }
-                        
-                        // Schedule information
-                        scheduleSection
-                        
-                        Divider()
-                            .background(Color.white.opacity(0.3))
-                        
-                        // About section
-                        aboutSection
-                        
-                        Divider()
-                            .background(Color.white.opacity(0.3))
-                        
-                        // Social links
-                        socialLinksSection
-                        
-                        // Owner settings (if applicable)
-                        if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                            Divider()
-                                .background(Color.white.opacity(0.3))
-                            ownerSettingsSection
-                        }
-                        
-                        #if DEBUG
-                        if showingDebugInfo {
-                            Divider()
-                                .background(Color.white.opacity(0.3))
-                            debugSection
-                        }
-                        #endif
-                        
-                        Spacer(minLength: 50)
+                            .background(.primary.opacity(0.2))
                     }
-                    .padding()
+                    
+                    // Schedule information
+                    scheduleSection
+                    
+                    Divider()
+                        .background(.primary.opacity(0.2))
+                    
+                    // About section
+                    aboutSection
+                    
+                    Divider()
+                        .background(.primary.opacity(0.2))
+                    
+                    // Social links
+                    socialLinksSection
+                    
+                    // Owner settings (if applicable)
+                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                        Divider()
+                            .background(.primary.opacity(0.2))
+                        ownerSettingsSection
+                    }
+                    
+                    #if DEBUG
+                    if showingDebugInfo {
+                        Divider()
+                            .background(.primary.opacity(0.2))
+                        debugSection
+                    }
+                    #endif
+                    
+                    Spacer(minLength: 50)
                 }
+                .padding()
             }
+            .background(.regularMaterial)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -89,7 +85,7 @@ struct BarDetailView: View {
                         showingDebugInfo.toggle()
                     }
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.secondary)
                     #else
                     EmptyView()
                     #endif
@@ -97,7 +93,6 @@ struct BarDetailView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
-                        .foregroundColor(.white)
                 }
             }
         }
@@ -132,7 +127,7 @@ struct BarDetailView: View {
         }
     }
     
-    // MARK: - Header Section with Glass Effect
+    // MARK: - Header Section with Liquid Glass
     var headerSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -140,115 +135,92 @@ struct BarDetailView: View {
                     Text(currentBar.name)
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                     
                     if let location = currentBar.location {
                         HStack(spacing: 6) {
                             Image(systemName: "location.fill")
-                                .foregroundColor(.white)
+                                .foregroundColor(.blue)
                                 .font(.subheadline)
                             Text(location.displayName)
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundStyle(.primary)
                                 .fontWeight(.medium)
                         }
                     } else if !currentBar.address.isEmpty {
                         HStack(spacing: 6) {
                             Image(systemName: "mappin")
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundStyle(.secondary)
                                 .font(.subheadline)
                             Text(currentBar.address)
                                 .font(.subheadline)
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
                 
                 Spacer()
                 
-                // Large status indicator with glass effect
-                VStack(spacing: 8) {
-                    ZStack {
-                        Circle()
-                            .fill(.regularMaterial)
-                            .frame(width: 80, height: 80)
-                        
-                        Image(systemName: currentBar.status.icon)
-                            .font(.system(size: 32))
-                            .foregroundColor(currentBar.status.color)
-                    }
-                    
-                    Text(currentBar.status.displayName)
-                        .font(.caption)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                }
+                // Large status indicator with Liquid Glass
+                LiquidGlassStatusIndicator(status: currentBar.status, size: 80)
             }
             
-            // Status information card with glass effect
+            // Status information card with Liquid Glass
             statusInfoCard
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 8)
-        )
+        .liquidGlass(level: .ultra, cornerRadius: .extraLarge, shadow: .medium)
     }
     
     var statusInfoCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: currentBar.isFollowingSchedule ? "calendar" : "hand.raised.fill")
-                    .foregroundColor(currentBar.isFollowingSchedule ? Color.green : Color.orange)
+                    .foregroundColor(currentBar.isFollowingSchedule ? .green : .orange)
                     .font(.headline)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(currentBar.isFollowingSchedule ? "Following Schedule" : "Manual Override")
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                     
                     Text(currentBar.isFollowingSchedule ?
                          "Status updates automatically based on schedule" :
                          "Owner has manually set the current status")
                         .font(.caption)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
                 
                 Text("Updated \(timeAgo(currentBar.lastUpdated))")
                     .font(.caption2)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.tertiary)
             }
             
             // Show conflict warning if manual override differs from schedule
             if !currentBar.isFollowingSchedule && currentBar.status != currentBar.scheduleBasedStatus {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(Color.orange)
+                        .foregroundColor(.orange)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Status Override Active")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.primary)
                         
                         Text("Manual: \(currentBar.status.displayName) • Schedule: \(currentBar.scheduleBasedStatus.displayName)")
                             .font(.caption2)
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.secondary)
                     }
                     
                     Spacer()
                 }
                 .padding()
-                .background(
+                .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.orange.opacity(0.3))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.orange.opacity(0.5), lineWidth: 1)
-                        )
+                        .stroke(.orange.opacity(0.3), lineWidth: 1)
                 )
             }
             
@@ -256,55 +228,45 @@ struct BarDetailView: View {
             if currentBar.isAutoTransitionActive, let pendingStatus = currentBar.pendingStatus {
                 HStack {
                     Image(systemName: "timer")
-                        .foregroundColor(Color.blue)
+                        .foregroundColor(.blue)
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Automatic Change Scheduled")
                             .font(.caption)
                             .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.primary)
                         
                         if let timeRemaining = barViewModel.getTimeRemainingText(for: currentBar) {
                             Text("Will change to \(pendingStatus.displayName) in \(timeRemaining)")
                                 .font(.caption2)
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundStyle(.secondary)
                         }
                     }
                     
                     Spacer()
                 }
                 .padding()
-                .background(
+                .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.blue.opacity(0.3))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.blue.opacity(0.5), lineWidth: 1)
-                        )
+                        .stroke(.blue.opacity(0.3), lineWidth: 1)
                 )
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.thinMaterial)
-        )
+        .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
     }
     
-    // MARK: - Owner Controls Section with Glass Effect
+    // MARK: - Owner Controls Section with Liquid Glass
     var ownerControlsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Quick Actions")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
+            LiquidGlassSectionHeader("Quick Actions")
             
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 2), spacing: 12) {
                 if currentBar.status == .open {
                     DetailQuickActionButton(
                         title: "Close Now",
                         icon: "xmark.circle.fill",
-                        color: Color.red
+                        color: .red
                     ) {
                         barViewModel.setManualBarStatus(currentBar, newStatus: .closed)
                     }
@@ -312,7 +274,7 @@ struct BarDetailView: View {
                     DetailQuickActionButton(
                         title: "Open Now",
                         icon: "checkmark.circle.fill",
-                        color: Color.green
+                        color: .green
                     ) {
                         barViewModel.setManualBarStatus(currentBar, newStatus: .open)
                     }
@@ -321,7 +283,7 @@ struct BarDetailView: View {
                 DetailQuickActionButton(
                     title: "Follow Schedule",
                     icon: "calendar",
-                    color: Color.blue
+                    color: .blue
                 ) {
                     barViewModel.setBarToFollowSchedule(currentBar)
                 }
@@ -329,7 +291,7 @@ struct BarDetailView: View {
                 DetailQuickActionButton(
                     title: "Edit Schedule",
                     icon: "clock.badge.checkmark",
-                    color: Color.purple
+                    color: .purple
                 ) {
                     editingWeeklySchedule = currentBar.weeklySchedule
                     showingEditWeeklySchedule = true
@@ -339,45 +301,27 @@ struct BarDetailView: View {
                     DetailQuickActionButton(
                         title: "Cancel Timer",
                         icon: "timer.square",
-                        color: Color.orange
+                        color: .orange
                     ) {
                         barViewModel.cancelAutoTransition(for: currentBar)
                     }
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
-    // MARK: - Schedule Section with Glass Effect
+    // MARK: - Schedule Section with Liquid Glass
     var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Operating Hours")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                
-                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                    Spacer()
-                    Button("Edit") {
-                        editingWeeklySchedule = currentBar.weeklySchedule
-                        showingEditWeeklySchedule = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(Color.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.thinMaterial)
-                    )
-                }
-            }
+            LiquidGlassSectionHeader(
+                "Operating Hours",
+                action: isOwnerMode && barViewModel.canEdit(bar: currentBar) ? {
+                    editingWeeklySchedule = currentBar.weeklySchedule
+                    showingEditWeeklySchedule = true
+                } : nil,
+                actionTitle: "Edit"
+            )
             
             // Today's schedule (highlighted)
             if let todaysSchedule = currentBar.todaysSchedule {
@@ -389,119 +333,73 @@ struct BarDetailView: View {
                 Text("This Week")
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundStyle(.primary)
                 
                 VStack(spacing: 8) {
                     ForEach(currentBar.weeklySchedule.schedules) { schedule in
                         ScheduleRowCompact(schedule: schedule, isToday: schedule.isToday)
                     }
                 }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.thinMaterial)
-                )
+                .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
-    // MARK: - About Section with Glass Effect
+    // MARK: - About Section with Liquid Glass
     var aboutSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("About")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                
-                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                    Spacer()
-                    Button("Edit") {
-                        editingDescription = currentBar.description
-                        showingEditDescription = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(Color.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.thinMaterial)
-                    )
-                }
-            }
+            LiquidGlassSectionHeader(
+                "About",
+                action: isOwnerMode && barViewModel.canEdit(bar: currentBar) ? {
+                    editingDescription = currentBar.description
+                    showingEditDescription = true
+                } : nil,
+                actionTitle: "Edit"
+            )
             
             if currentBar.description.isEmpty {
                 if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                     VStack(spacing: 8) {
                         Text("No description yet")
                             .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.secondary)
                         
                         Text("Add a description to tell customers about your bar")
                             .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.tertiary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.thinMaterial)
-                    )
+                    .background(.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                 } else {
                     Text("No description available.")
                         .font(.body)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                 }
             } else {
                 Text(currentBar.description)
                     .font(.body)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.thinMaterial)
-                    )
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
-    // MARK: - Social Links Section with Glass Effect
+    // MARK: - Social Links Section with Liquid Glass
     var socialLinksSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Connect")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
-                
-                if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
-                    Spacer()
-                    Button("Edit") {
-                        editingSocialLinks = currentBar.socialLinks
-                        showingEditSocialLinks = true
-                    }
-                    .font(.caption)
-                    .foregroundColor(Color.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.thinMaterial)
-                    )
-                }
-            }
+            LiquidGlassSectionHeader(
+                "Connect",
+                action: isOwnerMode && barViewModel.canEdit(bar: currentBar) ? {
+                    editingSocialLinks = currentBar.socialLinks
+                    showingEditSocialLinks = true
+                } : nil,
+                actionTitle: "Edit"
+            )
             
             let hasAnyLinks = !currentBar.socialLinks.instagram.isEmpty ||
                              !currentBar.socialLinks.twitter.isEmpty ||
@@ -511,86 +409,62 @@ struct BarDetailView: View {
             if hasAnyLinks {
                 SocialLinksView(socialLinks: currentBar.socialLinks)
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(.thinMaterial)
-                    )
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
             } else {
                 if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
                     VStack(spacing: 8) {
                         Text("No social links set up")
                             .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.secondary)
                         
                         Text("Add your social media links to help customers connect with you")
                             .font(.caption)
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.tertiary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.thinMaterial)
-                    )
+                    .background(.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                 } else {
                     Text("No social links available")
                         .font(.body)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                         .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.thinMaterial)
-                        )
+                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
                 }
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
-    // MARK: - Owner Settings Section with Glass Effect
+    // MARK: - Owner Settings Section with Liquid Glass
     var ownerSettingsSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Account Settings")
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
+            LiquidGlassSectionHeader("Account Settings")
             
             VStack(spacing: 12) {
                 SettingsRow(
                     title: "Change Password",
                     subtitle: "Update your 4-digit login password",
                     icon: "key.fill",
-                    color: Color.blue
+                    color: .blue
                 ) {
                     editingPassword = currentBar.password
                     showingEditPassword = true
                 }
             }
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.thinMaterial)
-            )
+            .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
-    // MARK: - DEBUG Section (Only in Debug Builds) with Glass Effect
+    // MARK: - DEBUG Section with Liquid Glass
     #if DEBUG
     var debugSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("🔍 Debug Information")
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
             
             if let todaysSchedule = currentBar.todaysSchedule {
                 let scheduleStatus = currentBar.scheduleBasedStatus
@@ -602,57 +476,44 @@ struct BarDetailView: View {
                         debugInfoRow("Schedule", todaysSchedule.displayText)
                         debugInfoRow("Schedule Status", scheduleStatus.displayName, color: scheduleStatus.color)
                         debugInfoRow("Actual Status", currentBar.status.displayName, color: currentBar.status.color)
-                        debugInfoRow("Following Schedule", currentBar.isFollowingSchedule ? "YES" : "NO", color: currentBar.isFollowingSchedule ? Color.green : Color.orange)
+                        debugInfoRow("Following Schedule", currentBar.isFollowingSchedule ? "YES" : "NO", color: currentBar.isFollowingSchedule ? .green : .orange)
                         
                         if let manualStatus = currentBar.currentManualStatus {
-                            debugInfoRow("Manual Override", manualStatus.displayName, color: Color.orange)
+                            debugInfoRow("Manual Override", manualStatus.displayName, color: .orange)
                         }
                     }
                 }
                 .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.thinMaterial)
-                )
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
                 
                 // Full debug output
                 Text(currentBar.debugScheduleStatus())
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.secondary)
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.ultraThinMaterial)
-                    )
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
             } else {
                 Text("No schedule available for debugging")
                     .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.secondary)
                     .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(.thinMaterial)
-                    )
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
             }
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.regularMaterial)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     private func debugInfoRow(_ label: String, _ value: String, color: Color? = nil) -> some View {
         HStack {
             Text("\(label):")
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.secondary)
                 .frame(width: 120, alignment: .leading)
             
             Text(value)
                 .font(.caption)
                 .fontWeight(.medium)
-                .foregroundColor(color ?? .white)
+                .foregroundColor(color ?? .primary)
             
             Spacer()
         }
@@ -679,7 +540,7 @@ struct BarDetailView: View {
     }
 }
 
-// MARK: - Missing Supporting Components for BarDetailView
+// MARK: - Supporting Components for BarDetailView with Liquid Glass
 
 struct DetailQuickActionButton: View {
     let title: String
@@ -697,21 +558,17 @@ struct DetailQuickActionButton: View {
                 Text(title)
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.thinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(color.opacity(0.5), lineWidth: 1)
-                    )
-            )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(color.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
@@ -726,17 +583,17 @@ struct TodaysScheduleCard: View {
                         Text("Today")
                             .font(.subheadline)
                             .fontWeight(.bold)
-                            .foregroundColor(Color.blue)
+                            .foregroundColor(.blue)
                         
                         Text("(\(schedule.dayName))")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.primary)
                     }
                     
                     Text(schedule.displayDate)
                         .font(.caption)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
@@ -744,23 +601,20 @@ struct TodaysScheduleCard: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
                         .font(.title2)
-                        .foregroundColor(schedule.isOpen ? Color.green : Color.red)
+                        .foregroundColor(schedule.isOpen ? .green : .red)
                     
                     Text(schedule.displayText)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(schedule.isOpen ? Color.green : Color.red)
+                        .foregroundColor(schedule.isOpen ? .green : .red)
                 }
             }
         }
         .padding()
-        .background(
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .fill(.thinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.blue.opacity(0.5), lineWidth: 2)
-                )
+                .stroke(.blue.opacity(0.3), lineWidth: 2)
         )
     }
 }
@@ -777,23 +631,22 @@ struct ScheduleRowCompact: View {
                     Text(schedule.shortDayName)
                         .font(.caption)
                         .fontWeight(.medium)
-                        .foregroundColor(isToday ? Color.blue : .white)
+                        .foregroundColor(isToday ? .blue : .primary)
                     
                     if isToday {
                         Text("TODAY")
                             .font(.caption2)
                             .fontWeight(.bold)
-                            .foregroundColor(Color.blue)
+                            .foregroundColor(.blue)
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
-                            .background(Color.blue.opacity(0.2))
-                            .cornerRadius(4)
+                            .background(.blue.opacity(0.2), in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
                 
                 Text(schedule.displayDate)
                     .font(.caption2)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.secondary)
             }
             .frame(width: 60, alignment: .leading)
             
@@ -802,24 +655,24 @@ struct ScheduleRowCompact: View {
             // Status
             HStack(spacing: 8) {
                 Image(systemName: schedule.isOpen ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundColor(schedule.isOpen ? Color.green : Color.red)
+                    .foregroundColor(schedule.isOpen ? .green : .red)
                     .font(.caption)
                 
                 Text(schedule.displayText)
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(schedule.isOpen ? Color.green : Color.red)
+                    .foregroundColor(schedule.isOpen ? .green : .red)
             }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
         .background(
+            isToday ? Color.blue.opacity(0.1) : Color.clear,
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isToday ? Color.blue.opacity(0.1) : Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isToday ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
-                )
+                .stroke(isToday ? .blue.opacity(0.3) : .clear, lineWidth: 1)
         )
     }
 }
@@ -843,25 +696,21 @@ struct SettingsRow: View {
                     Text(title)
                         .font(.subheadline)
                         .fontWeight(.medium)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                     
                     Text(subtitle)
                         .font(.caption)
-                        .foregroundColor(.white.opacity(0.8))
+                        .foregroundStyle(.secondary)
                 }
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.tertiary)
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.thinMaterial)
-            )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
     }
 }

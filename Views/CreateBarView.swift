@@ -33,29 +33,24 @@ struct CreateBarView: View {
     
     var body: some View {
         NavigationView {
-            // Using gradient for create bar
-            StylishBackgroundView(
-                gradientName: "create_bar"
-            ) {
-                VStack(spacing: 0) {
-                    // Progress Bar with glass effect
-                    progressBarView
-                    
-                    if currentStep == 1 {
-                        essentialInfoStep
-                    } else {
-                        optionalSetupStep
-                    }
-                    
-                    // Navigation Buttons
-                    navigationButtonsView
+            VStack(spacing: 0) {
+                // Progress Bar with Liquid Glass
+                progressBarView
+                
+                if currentStep == 1 {
+                    essentialInfoStep
+                } else {
+                    optionalSetupStep
                 }
-                // Keyboard handling improvements
-                .onTapGesture {
-                    hideKeyboard()
-                }
-                .ignoresSafeArea(.keyboard, edges: .bottom)
+                
+                // Navigation Buttons
+                navigationButtonsView
             }
+            .background(.regularMaterial)
+            .onTapGesture {
+                hideKeyboard()
+            }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationTitle("Create Bar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -64,7 +59,6 @@ struct CreateBarView: View {
                         hideKeyboard()
                         dismiss()
                     }
-                    .foregroundColor(.white)
                 }
             }
         }
@@ -98,53 +92,42 @@ struct CreateBarView: View {
         }
     }
     
-    // MARK: - Progress Bar with Glass Effect
+    // MARK: - Progress Bar with Liquid Glass
     var progressBarView: some View {
         VStack(spacing: 12) {
             // Step indicator
             HStack {
                 Text("Step \(currentStep) of 2")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.secondary)
                 
                 Spacer()
                 
                 Text(currentStep == 1 ? "Essential Info" : "Optional Setup")
                     .font(.caption)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
             }
             
-            // Progress bar - separated for better type inference
-            progressBar
-        }
-        .padding()
-        .background(progressBarBackground)
-        .padding(.horizontal)
-    }
-    
-    // MARK: - Progress Bar Components
-    private var progressBar: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                // Background
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white.opacity(0.3))
-                    .frame(height: 6)
-                
-                // Progress
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.white)
-                    .frame(width: geometry.size.width * progressValue, height: 6)
-                    .animation(.easeInOut(duration: 0.3), value: currentStep)
+            // Progress bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.tertiary)
+                        .frame(height: 6)
+                    
+                    // Progress
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.blue)
+                        .frame(width: geometry.size.width * progressValue, height: 6)
+                        .animation(.easeInOut(duration: 0.3), value: currentStep)
+                }
             }
+            .frame(height: 6)
         }
-        .frame(height: 6)
-    }
-    
-    private var progressBarBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(.thinMaterial)
+        .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
+        .padding(.horizontal)
     }
     
     private var progressValue: CGFloat {
@@ -186,20 +169,14 @@ struct CreateBarView: View {
             Text("Let's get started!")
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
             
             Text("Just the basics to create your bar profile")
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(headerBackground)
-    }
-    
-    private var headerBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.ultraThinMaterial)
+        .liquidGlass(level: .ultra, cornerRadius: .large, shadow: .subtle)
     }
     
     private var barNameSection: some View {
@@ -207,21 +184,20 @@ struct CreateBarView: View {
             HStack {
                 Text("Bar Name")
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
                 Text("*")
                     .foregroundColor(.red)
             }
             
             TextField("Enter your bar name", text: $barName)
-                .textFieldStyle(ImprovedGlassCreateBarTextFieldStyle())
+                .textFieldStyle(LiquidGlassTextFieldStyle())
                 .autocapitalization(.words)
                 .submitLabel(.next)
                 .onSubmit {
                     hideKeyboard()
                 }
         }
-        .padding()
-        .background(sectionBackground)
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     private var locationSection: some View {
@@ -229,7 +205,7 @@ struct CreateBarView: View {
             HStack {
                 Text("Location")
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
                 Text("*")
                     .foregroundColor(.red)
             }
@@ -244,8 +220,7 @@ struct CreateBarView: View {
                 selectedLocationDisplay(country: country, city: city)
             }
         }
-        .padding()
-        .background(sectionBackground)
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     private var countryButton: some View {
@@ -257,22 +232,25 @@ struct CreateBarView: View {
                 if let country = selectedCountry {
                     Text(country.flag)
                     Text(country.name)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 } else {
                     Image(systemName: "globe")
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                     Text("Country")
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.down")
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.tertiary)
                     .font(.caption)
             }
             .padding()
-            .background(buttonBackground(isSelected: selectedCountry != nil))
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(selectedCountry != nil ? .blue.opacity(0.3) : .clear, lineWidth: 1)
+        )
     }
     
     private var cityButton: some View {
@@ -285,37 +263,28 @@ struct CreateBarView: View {
             HStack {
                 if let city = selectedCity {
                     Image(systemName: "building.2")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                     Text(city.name)
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 } else {
                     Image(systemName: "building.2")
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                     Text("City")
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.down")
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.tertiary)
                     .font(.caption)
             }
             .padding()
-            .background(buttonBackground(isSelected: selectedCity != nil, isEnabled: selectedCountry != nil))
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
         .disabled(selectedCountry == nil)
-    }
-    
-    private func buttonBackground(isSelected: Bool, isEnabled: Bool = true) -> some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(isEnabled ? .thinMaterial : .thinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(
-                        isSelected ? Color.white.opacity(0.4) : Color.white.opacity(0.2),
-                        lineWidth: 1
-                    )
-            )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(selectedCity != nil ? .blue.opacity(0.3) : .clear, lineWidth: 1)
+        )
     }
     
     private func selectedLocationDisplay(country: Country, city: City) -> some View {
@@ -325,20 +294,15 @@ struct CreateBarView: View {
             Text("\(city.name), \(country.name)")
                 .font(.subheadline)
                 .fontWeight(.medium)
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(selectedLocationBackground)
-    }
-    
-    private var selectedLocationBackground: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(Color.green.opacity(0.2))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.green.opacity(0.4), lineWidth: 1)
-            )
+        .background(.green.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(.green.opacity(0.3), lineWidth: 1)
+        )
     }
     
     private var passwordSection: some View {
@@ -346,13 +310,13 @@ struct CreateBarView: View {
             HStack {
                 Text("4-Digit Password")
                     .font(.headline)
-                    .foregroundColor(.white)
+                    .foregroundStyle(.primary)
                 Text("*")
                     .foregroundColor(.red)
             }
             
             SecureField("1234", text: $password)
-                .textFieldStyle(ImprovedGlassCreateBarTextFieldStyle())
+                .textFieldStyle(LiquidGlassTextFieldStyle())
                 .keyboardType(.numberPad)
                 .submitLabel(.done)
                 .onChange(of: password) { _, newValue in
@@ -373,47 +337,45 @@ struct CreateBarView: View {
             // Password validation feedback
             HStack {
                 Image(systemName: password.count == 4 ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(password.count == 4 ? .green : .white.opacity(0.6))
+                    .foregroundColor(password.count == 4 ? .green : .secondary)
                     .font(.caption)
                 
                 Text("Must be exactly 4 digits")
                     .font(.caption)
-                    .foregroundColor(password.count == 4 ? .green : .white.opacity(0.8))
+                    .foregroundColor(password.count == 4 ? .green : .secondary)
             }
             .animation(.easeInOut(duration: 0.2), value: password.count)
         }
-        .padding()
-        .background(sectionBackground)
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     private var quickAccessSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Quick Access")
                 .font(.headline)
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundStyle(.primary)
             
             Toggle(isOn: $enableQuickAccess) {
                 HStack {
                     Image(systemName: "faceid")
-                        .foregroundColor(.white)
+                        .foregroundColor(.blue)
                         .font(.title2)
                     
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Enable \(barViewModel.biometricAuthInfo.displayName)")
                             .font(.subheadline)
                             .fontWeight(.medium)
-                            .foregroundColor(.white)
+                            .foregroundStyle(.primary)
                         
                         Text("Skip password next time")
                             .font(.caption)
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
             .toggleStyle(SwitchToggleStyle())
         }
-        .padding()
-        .background(sectionBackground)
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     // MARK: - Step 2: Optional Setup
@@ -440,68 +402,58 @@ struct CreateBarView: View {
             Text("Almost done!")
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
             
             Text("These are optional but help customers find you")
                 .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(headerBackground)
+        .liquidGlass(level: .ultra, cornerRadius: .large, shadow: .subtle)
     }
     
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Description (Optional)")
                 .font(.headline)
-                .foregroundColor(.white.opacity(0.9))
+                .foregroundStyle(.primary)
             
             TextEditor(text: $description)
                 .frame(height: 80)
                 .padding(8)
-                .background(textEditorBackground)
-                .foregroundColor(.white)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(.primary.opacity(0.15), lineWidth: 0.5)
+                )
                 .onTapGesture {
                     // Allow text editor to get focus
                 }
             
             Text("Tell customers what makes your bar special")
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.secondary)
         }
-        .padding()
-        .background(sectionBackground)
-    }
-    
-    private var textEditorBackground: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(.thinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     private var scheduleSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Opening Hours")
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
             
             VStack(spacing: 12) {
                 defaultScheduleOption
                 customScheduleOption
             }
-            .padding()
-            .background(scheduleOptionsBackground)
+            .liquidGlass(level: .thin, cornerRadius: .medium, shadow: .subtle)
             
             Text("You can always change these later in settings")
                 .font(.caption)
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundStyle(.secondary)
         }
-        .padding()
-        .background(sectionBackground)
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
     }
     
     private var defaultScheduleOption: some View {
@@ -509,9 +461,9 @@ struct CreateBarView: View {
             Button(action: { useDefaultSchedule = true }) {
                 HStack {
                     Image(systemName: useDefaultSchedule ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(useDefaultSchedule ? .blue : .white.opacity(0.7))
+                        .foregroundColor(useDefaultSchedule ? .blue : .secondary)
                     Text("Use typical bar hours (6 PM - 2 AM)")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 }
             }
             .buttonStyle(PlainButtonStyle())
@@ -524,19 +476,14 @@ struct CreateBarView: View {
             Button(action: { useDefaultSchedule = false }) {
                 HStack {
                     Image(systemName: !useDefaultSchedule ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(!useDefaultSchedule ? .blue : .white.opacity(0.7))
+                        .foregroundColor(!useDefaultSchedule ? .blue : .secondary)
                     Text("I'll set custom hours")
-                        .foregroundColor(.white)
+                        .foregroundStyle(.primary)
                 }
             }
             .buttonStyle(PlainButtonStyle())
             Spacer()
         }
-    }
-    
-    private var scheduleOptionsBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(.thinMaterial)
     }
     
     // MARK: - Navigation Buttons
@@ -549,7 +496,7 @@ struct CreateBarView: View {
                         currentStep = 1
                     }
                 }
-                .foregroundColor(.white)
+                .foregroundStyle(.primary)
                 .padding()
             }
             
@@ -572,17 +519,15 @@ struct CreateBarView: View {
             }
         }
         .disabled(!canProceedStep1)
-        .foregroundColor(canProceedStep1 ? .white : .white.opacity(0.5))
+        .foregroundColor(canProceedStep1 ? .white : .secondary)
         .fontWeight(.semibold)
         .padding(.horizontal, 24)
         .padding(.vertical, 12)
-        .background(nextButtonBackground)
+        .background(
+            canProceedStep1 ? .blue : .secondary.opacity(0.3),
+            in: RoundedRectangle(cornerRadius: 12)
+        )
         .padding()
-    }
-    
-    private var nextButtonBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(canProceedStep1 ? .thinMaterial : .thinMaterial)
     }
     
     private var createButton: some View {
@@ -601,32 +546,22 @@ struct CreateBarView: View {
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .padding()
-            .background(createButtonBackground)
-        }
-        .disabled(isCreating)
-        .padding()
-    }
-    
-    private var createButtonBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(
+            .background(
                 LinearGradient(
-                    colors: [.green.opacity(0.8), .blue.opacity(0.8)],
+                    colors: [.green, .blue],
                     startPoint: .leading,
                     endPoint: .trailing
-                )
+                ),
+                in: RoundedRectangle(cornerRadius: 12)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(.thinMaterial)
-                    .opacity(0.3)
+                    .opacity(0.2)
             )
-    }
-    
-    // MARK: - Common Styles
-    private var sectionBackground: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .fill(.regularMaterial)
+        }
+        .disabled(isCreating)
+        .padding()
     }
     
     // MARK: - Helper Methods
@@ -696,50 +631,5 @@ struct CreateBarView: View {
                 showingAlert = true
             }
         }
-    }
-}
-
-// MARK: - Improved Text Field Style with Keyboard Handling
-
-struct ImprovedGlassCreateBarTextFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .padding()
-            .background(textFieldBackground)
-            .foregroundColor(.white)
-            .onSubmit {
-                // Automatically dismiss keyboard on submit
-                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                               to: nil, from: nil, for: nil)
-            }
-    }
-    
-    private var textFieldBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(.thinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
-    }
-}
-
-// MARK: - Legacy Text Field Style (for compatibility)
-
-struct GlassCreateBarTextFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .padding()
-            .background(textFieldBackground)
-            .foregroundColor(.white)
-    }
-    
-    private var textFieldBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(.thinMaterial)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
-            )
     }
 }

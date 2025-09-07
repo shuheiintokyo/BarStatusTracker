@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		05274FD62E6DA197000188D9 /* LiquidGlassManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05274FD52E6DA184000188D9 /* LiquidGlassManager.swift */; };
 		057326922E23F5BE00E474C6 /* LocationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057326912E23F5B800E474C6 /* LocationModels.swift */; };
 		0597E3972E19F5AE00C367FF /* BasicDeviceAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */; };
 		0597E39F2E1A12D000C367FF /* CreateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0597E39E2E1A12C700C367FF /* CreateBarView.swift */; };
@@ -72,6 +73,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		05274FD52E6DA184000188D9 /* LiquidGlassManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassManager.swift; sourceTree = "<group>"; };
 		057326912E23F5B800E474C6 /* LocationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationModels.swift; sourceTree = "<group>"; };
 		0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicDeviceAnalytics.swift; sourceTree = "<group>"; };
 		0597E39E2E1A12C700C367FF /* CreateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateBarView.swift; sourceTree = "<group>"; };
@@ -212,6 +214,7 @@
 		05A13C392E18C05700A69687 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				05274FD52E6DA184000188D9 /* LiquidGlassManager.swift */,
 				05FDBDCE2E2E076F003F6DB1 /* BackgroundImageManager.swift */,
 				0597E3962E19F58E00C367FF /* BasicDeviceAnalytics.swift */,
 				05A13C642E1953B400A69687 /* UserPreferencesManager.swift */,
@@ -411,6 +414,7 @@
 				05A13C1C2E18BBE900A69687 /* BarStatusTrackerApp.swift in Sources */,
 				05A13C652E1953B800A69687 /* UserPreferencesManager.swift in Sources */,
 				0597E3B02E23CCE200C367FF /* SearchBarsView.swift in Sources */,
+				05274FD62E6DA197000188D9 /* LiquidGlassManager.swift in Sources */,
 				05A13C1D2E18BBE900A69687 /* ContentView.swift in Sources */,
 				057326922E23F5BE00E474C6 /* LocationModels.swift in Sources */,
 				05A13C492E18C5BC00A69687 /* BarGridView.swift in Sources */,

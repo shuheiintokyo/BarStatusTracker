@@ -2,7 +2,6 @@ import SwiftUI
 
 struct MainContentView: View {
     @StateObject private var barViewModel = BarViewModel()
-    @StateObject private var backgroundManager = BackgroundImageManager.shared
     @State private var selectedTab = 0
     @State private var showingOwnerLogin = false
     @State private var showingWelcome = false
@@ -16,64 +15,38 @@ struct MainContentView: View {
     @AppStorage("hasLaunchedBefore") private var hasLaunchedBefore = false
     
     var body: some View {
-        ZStack {
-            // BACKGROUND GRADIENT - Main App Background
-            backgroundManager.getBackgroundGradient(for: "main_app").gradient
-                .ignoresSafeArea(.all)
-            
-            // Additional dark overlay for better readability
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.1),
-                    Color.black.opacity(0.05),
-                    Color.black.opacity(0.1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            TabView(selection: $selectedTab) {
-                // Home - gradient01
-                HomeView(barViewModel: barViewModel)
-                    .withStylishBackground("home_view")
-                    .tabItem {
-                        Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
-                    }
-                    .tag(0)
-                
-                // Discover - gradient02
-                DiscoverTabView(barViewModel: barViewModel)
-                    .withStylishBackground("discover_view")
-                    .tabItem {
-                        Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
-                    }
-                    .tag(1)
-                
-                // My Account - gradient03
-                MyAccountView(
-                    barViewModel: barViewModel,
-                    showingOwnerLogin: $showingOwnerLogin,
-                    showingBiometricAlert: $showingBiometricAlert,
-                    showingBiometricNotRegistered: $showingBiometricNotRegistered,
-                    biometricError: $biometricError
-                )
-                .withStylishBackground("account_view")
+        TabView(selection: $selectedTab) {
+            // Home Tab
+            HomeView(barViewModel: barViewModel)
                 .tabItem {
-                    Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
+                    Label("Home", systemImage: selectedTab == 0 ? "house.fill" : "house")
                 }
-                .tag(2)
-            }
-            .background(Color.clear)
-            .accentColor(.blue)
+                .tag(0)
             
-            // Welcome overlay for first-time users
-            if showingWelcome {
-                WelcomeOverlay(isPresented: $showingWelcome)
+            // Discover Tab
+            DiscoverTabView(barViewModel: barViewModel)
+                .tabItem {
+                    Label("Discover", systemImage: selectedTab == 1 ? "location.fill" : "location")
+                }
+                .tag(1)
+            
+            // My Account Tab
+            MyAccountView(
+                barViewModel: barViewModel,
+                showingOwnerLogin: $showingOwnerLogin,
+                showingBiometricAlert: $showingBiometricAlert,
+                showingBiometricNotRegistered: $showingBiometricNotRegistered,
+                biometricError: $biometricError
+            )
+            .tabItem {
+                Label("Account", systemImage: selectedTab == 2 ? "person.fill" : "person")
             }
+            .tag(2)
         }
+        .background(.regularMaterial)
+        .accentColor(.blue)
         .onAppear {
-            setupTransparentAppearances()
+            LiquidGlassNavigationStyle.apply()
             
             if !hasLaunchedBefore {
                 showingWelcome = true
@@ -101,32 +74,15 @@ struct MainContentView: View {
         } message: {
             Text("Quick Access is not set up for any bar. Please log in manually first to enable this feature.")
         }
-    }
-    
-    private func setupTransparentAppearances() {
-        // Tab Bar Appearance
-        let tabBarAppearance = UITabBarAppearance()
-        tabBarAppearance.configureWithTransparentBackground()
-        tabBarAppearance.backgroundColor = UIColor.clear
-        UITabBar.appearance().standardAppearance = tabBarAppearance
-        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
-        
-        // Navigation Bar Appearance
-        let navBarAppearance = UINavigationBarAppearance()
-        navBarAppearance.configureWithTransparentBackground()
-        navBarAppearance.backgroundColor = UIColor.clear
-        navBarAppearance.shadowColor = UIColor.clear
-        
-        UINavigationBar.appearance().standardAppearance = navBarAppearance
-        UINavigationBar.appearance().compactAppearance = navBarAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = navBarAppearance
-        UINavigationBar.appearance().isTranslucent = true
-        UINavigationBar.appearance().backgroundColor = UIColor.clear
+        .overlay {
+            if showingWelcome {
+                WelcomeOverlay(isPresented: $showingWelcome)
+            }
+        }
     }
 }
 
-// MARK: - Updated HomeView with Fixed Schedule Display
-
+// MARK: - Updated HomeView with Liquid Glass
 struct HomeView: View {
     @ObservedObject var barViewModel: BarViewModel
     @State private var showingCreateBar = false
@@ -135,11 +91,9 @@ struct HomeView: View {
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
 
     var displayBars: [Bar] {
-        let allBars = barViewModel.getAllBars()  // This now returns refreshed schedules
+        let allBars = barViewModel.getAllBars()
 
-        // FIXED: Check BOTH isOwnerMode AND loggedInBar existence
         if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
-            // Owner mode: prioritize the logged-in bar
             var refreshedLoggedInBar = loggedInBar
             let _ = refreshedLoggedInBar.refreshScheduleIfNeeded()
             
@@ -148,19 +102,19 @@ struct HomeView: View {
             return bars
         }
 
-        // Guest mode: show all bars in normal order
         return allBars
     }
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Quick stats header with glass effect - FIXED: Real-time stats
-                if !displayBars.isEmpty {
-                    quickStatsView
-                }
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Quick stats header with Liquid Glass
+                    if !displayBars.isEmpty {
+                        quickStatsView
+                            .padding(.top)
+                    }
 
-                ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(displayBars) { bar in
                             BarGridItem(
@@ -174,15 +128,11 @@ struct HomeView: View {
                             )
                         }
                     }
-                    .padding()
+                    .padding(.horizontal)
 
                     if displayBars.isEmpty {
                         emptyHomeState
                     }
-                }
-
-                if barViewModel.loggedInBar != nil {
-                    quickActionsFAB
                 }
             }
             .navigationTitle("Bar Status Tracker")
@@ -192,17 +142,19 @@ struct HomeView: View {
                     Button(action: { showingCreateBar = true }) {
                         Image(systemName: "plus")
                             .font(.title2)
-                            .foregroundColor(.blue)
                     }
                 }
             }
             .refreshable {
-                // FIXED: Force refresh both data and schedules
                 barViewModel.forceRefreshAllData()
             }
             .onAppear {
-                // FIXED: Refresh schedules when view appears
                 barViewModel.forceRefreshAllData()
+            }
+            .overlay(alignment: .bottomTrailing) {
+                if barViewModel.loggedInBar != nil {
+                    quickActionsFAB
+                }
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
@@ -216,7 +168,6 @@ struct HomeView: View {
         }
     }
 
-    // FIXED: Real-time stats calculation
     private var quickStatsView: some View {
         let openNowCount = displayBars.filter {
             let status = $0.status
@@ -224,7 +175,6 @@ struct HomeView: View {
         }.count
         
         let openTodayCount = displayBars.filter { bar in
-            // Force refresh to get accurate today's schedule
             var refreshedBar = bar
             let _ = refreshedBar.refreshScheduleIfNeeded()
             return refreshedBar.isOpenToday
@@ -252,12 +202,7 @@ struct HomeView: View {
                 icon: "calendar"
             )
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(.ultraThinMaterial)
-                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .large, shadow: .medium)
         .padding(.horizontal)
     }
 
@@ -267,17 +212,16 @@ struct HomeView: View {
 
             Image(systemName: "building.2")
                 .font(.system(size: 64))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundStyle(.secondary)
 
             VStack(spacing: 12) {
                 Text("Welcome to Bar Status!")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundColor(.white)
 
                 Text("Create your first bar or discover bars in your area")
                     .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -291,46 +235,37 @@ struct HomeView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.blue)
-                    .cornerRadius(12)
+                    .background(.blue, in: RoundedRectangle(cornerRadius: 12))
                 }
 
                 Text("Or browse the Discover tab to find bars near you")
                     .font(.caption)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 40)
 
             Spacer()
         }
         .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(.regularMaterial)
-                .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
-        )
+        .liquidGlass(level: .regular, cornerRadius: .extraLarge, shadow: .prominent)
         .padding()
     }
 
     private var quickActionsFAB: some View {
-        HStack {
-            Spacer()
-            Button(action: { showingQuickActions = true }) {
-                Image(systemName: "bolt.fill")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(Color.blue)
-                    .clipShape(Circle())
-                    .shadow(radius: 4)
-            }
-            .padding(.trailing)
+        Button(action: { showingQuickActions = true }) {
+            Image(systemName: "bolt.fill")
+                .font(.title2)
+                .foregroundColor(.white)
+                .frame(width: 56, height: 56)
+                .background(.blue, in: Circle())
+                .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
         }
+        .padding(.trailing)
+        .padding(.bottom, 100) // Account for tab bar
     }
 }
 
-// MARK: - Updated DiscoverTabView with Gradient Background
-
+// MARK: - Updated DiscoverTabView with Liquid Glass
 struct DiscoverTabView: View {
     @ObservedObject var barViewModel: BarViewModel
     @State private var showingSearch = false
@@ -340,30 +275,25 @@ struct DiscoverTabView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header with glass effect
+                    // Header with Liquid Glass
                     VStack(spacing: 16) {
                         Image(systemName: "location.magnifyingglass")
                             .font(.system(size: 50))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.blue)
 
                         Text("Discover Bars")
                             .font(.title)
                             .fontWeight(.bold)
-                            .foregroundColor(.white)
 
                         Text("Find bars in your area or search by name and location")
                             .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 40)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(.ultraThinMaterial)
-                    )
+                    .liquidGlass(level: .ultra, cornerRadius: .extraLarge, shadow: .subtle)
 
-                    // Discovery options with glass effect
+                    // Discovery options with Liquid Glass
                     VStack(spacing: 16) {
                         DiscoveryOptionCard(
                             icon: "magnifyingglass",
@@ -393,13 +323,10 @@ struct DiscoverTabView: View {
                         }
                     }
 
-                    // Quick stats with glass effect
+                    // Quick stats with Liquid Glass
                     if !barViewModel.getAllBars().isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Quick Stats")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            LiquidGlassSectionHeader("Quick Stats")
 
                             HStack(spacing: 12) {
                                 QuickStatCard(
@@ -417,11 +344,7 @@ struct DiscoverTabView: View {
                                 )
                             }
                         }
-                        .padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(.regularMaterial)
-                        )
+                        .liquidGlass(level: .regular, cornerRadius: .large)
                     }
 
                     Spacer(minLength: 50)
@@ -441,8 +364,7 @@ struct DiscoverTabView: View {
     }
 }
 
-// MARK: - Updated MyAccountView with Gradient Background
-
+// MARK: - Updated MyAccountView with Liquid Glass
 struct MyAccountView: View {
     @ObservedObject var barViewModel: BarViewModel
     @Binding var showingOwnerLogin: Bool
@@ -452,19 +374,14 @@ struct MyAccountView: View {
 
     @State private var showingSignOutOptions = false
 
-    // FIXED: MyAccountView body in MainContentView.swift
-    // Replace the existing body with this:
-
     var body: some View {
         NavigationView {
             List {
-                // FIXED: Check BOTH isOwnerMode AND loggedInBar existence
                 if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
                     ownerSection(for: loggedInBar)
                 } else {
                     guestSection
                     
-                    // FIXED: Add quick return section if user switched to guest view but has logged in bar
                     if !barViewModel.isOwnerMode && barViewModel.loggedInBar != nil {
                         quickReturnSection
                     }
@@ -475,12 +392,12 @@ struct MyAccountView: View {
                         Text("Version")
                         Spacer()
                         Text("1.1")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(Color.clear)
+            .background(.regularMaterial)
             .navigationTitle("My Account")
             .navigationBarTitleDisplayMode(.large)
         }
@@ -519,11 +436,11 @@ struct MyAccountView: View {
                                 .foregroundColor(.blue)
                             Text("Switch back to owner mode")
                                 .font(.caption)
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                 }
@@ -546,7 +463,7 @@ struct MyAccountView: View {
                             .foregroundColor(.blue)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                 }
@@ -569,7 +486,7 @@ struct MyAccountView: View {
                                 .foregroundColor(.blue)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .foregroundColor(.secondary)
+                                .foregroundStyle(.secondary)
                                 .font(.caption)
                         }
                     }
@@ -589,7 +506,7 @@ struct MyAccountView: View {
                             .foregroundColor(.blue)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                 }
@@ -606,7 +523,7 @@ struct MyAccountView: View {
                             .foregroundColor(.red)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                 }
@@ -628,7 +545,7 @@ struct MyAccountView: View {
                         .foregroundColor(.blue)
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .font(.caption)
                 }
             }
@@ -646,7 +563,7 @@ struct MyAccountView: View {
                             .foregroundColor(.blue)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .font(.caption)
                     }
                 }
@@ -670,8 +587,7 @@ struct MyAccountView: View {
     }
 }
 
-// MARK: - Supporting Components
-
+// MARK: - Supporting Components with Liquid Glass
 struct StatBadge: View {
     let title: String
     let value: String
@@ -691,12 +607,11 @@ struct StatBadge: View {
 
             Text(title)
                 .font(.caption2)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .background(color.opacity(0.1))
-        .cornerRadius(8)
+        .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -718,27 +633,20 @@ struct DiscoveryOptionCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
 
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
-            .padding()
-            .background(color.opacity(0.1))
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(color.opacity(0.3), lineWidth: 1)
-            )
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(LiquidGlassButtonStyle(glassLevel: .thin, cornerRadius: .medium))
     }
 }
 
@@ -761,12 +669,11 @@ struct QuickStatCard: View {
 
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(color.opacity(0.1))
-        .cornerRadius(8)
+        .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -812,6 +719,7 @@ struct QuickActionsSheet: View {
                     }
                 }
             }
+            .background(.regularMaterial)
             .navigationTitle("Quick Actions")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -838,7 +746,7 @@ struct QuickActionRow: View {
                     .frame(width: 24)
 
                 Text(title)
-                    .foregroundColor(.primary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
             }
@@ -890,7 +798,7 @@ struct WelcomeOverlay: View {
                     Button("Skip") {
                         isPresented = false
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                     Spacer()
 
@@ -910,14 +818,12 @@ struct WelcomeOverlay: View {
                         .fontWeight(.semibold)
                         .padding(.horizontal, 24)
                         .padding(.vertical, 12)
-                        .background(Color.blue)
-                        .cornerRadius(8)
+                        .background(.blue, in: RoundedRectangle(cornerRadius: 8))
                     }
                 }
                 .padding()
             }
-            .background(Color.white)
-            .cornerRadius(20)
+            .liquidGlass(level: .regular, cornerRadius: .extraLarge, shadow: .prominent)
             .padding()
         }
     }
@@ -947,7 +853,7 @@ struct WelcomePageView: View {
 
                 Text(page.subtitle)
                     .font(.body)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
@@ -971,7 +877,7 @@ struct OwnerBarCard: View {
                     if let location = bar.location {
                         Text(location.displayName)
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -997,13 +903,12 @@ struct OwnerBarCard: View {
 
                     Text("Today: \(todaysSchedule.displayText)")
                         .font(.caption)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
         .padding()
-        .background(Color.blue.opacity(0.05))
-        .cornerRadius(12)
+        .background(.blue.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
     }
 }
 

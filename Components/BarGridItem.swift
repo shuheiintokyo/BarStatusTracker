@@ -8,10 +8,9 @@ struct BarGridItem: View {
     
     @State private var isPressed = false
     
-    // FIXED: Get current bar state with automatic schedule refresh
+    // Get current bar state with automatic schedule refresh
     private var currentBar: Bar {
         var foundBar = barViewModel.bars.first { $0.id == bar.id } ?? bar
-        // Always refresh schedule when displaying to ensure current info
         let _ = foundBar.refreshScheduleIfNeeded()
         return foundBar
     }
@@ -33,104 +32,131 @@ struct BarGridItem: View {
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
         }) {
-            ZStack {
-                // Card background
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(currentBar.status.color)
-                    .frame(height: 140)
+            VStack(spacing: 0) {
+                // Status indicator with Liquid Glass
+                HStack {
+                    Spacer()
+                    LiquidGlassStatusIndicator(status: currentBar.status, size: 50)
+                        .padding(.top)
+                    Spacer()
+                }
                 
-                VStack(spacing: 0) {
+                // Bar information
+                VStack(spacing: 8) {
+                    // Bar name
+                    Text(currentBar.name)
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
                     
-                    // Bottom section - Bar name, status, and schedule info
-                    VStack(spacing: 4) {
-                        Text(currentBar.name)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-                        
-                        // FIXED: Always show current, refreshed schedule info
-                        if let todaysSchedule = currentBar.todaysSchedule {
-                            HStack(spacing: 4) {
-                                Image(systemName: todaysSchedule.isOpen ? "calendar" : "moon")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.8))
-                                
-                                Text(todaysSchedule.isOpen ? "Open today" : "Closed today")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.8))
-                            }
-                            .padding(.top, 2)
-                        } else {
-                            HStack(spacing: 4) {
-                                Image(systemName: "calendar.badge.exclamationmark")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.6))
-                                
-                                Text("No schedule")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                            .padding(.top, 2)
+                    // Schedule info with enhanced Liquid Glass styling
+                    if let todaysSchedule = currentBar.todaysSchedule {
+                        HStack(spacing: 4) {
+                            Image(systemName: todaysSchedule.isOpen ? "calendar" : "moon")
+                                .font(.caption2)
+                                .foregroundColor(todaysSchedule.isOpen ? .green : .orange)
+                            
+                            Text(todaysSchedule.isOpen ? "Open today" : "Closed today")
+                                .font(.caption2)
+                                .foregroundColor(todaysSchedule.isOpen ? .green : .orange)
+                                .fontWeight(.medium)
                         }
-                        
-                        // FIXED: Enhanced schedule context for owner mode
-                        if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            (todaysSchedule.isOpen ? Color.green : Color.orange).opacity(0.1),
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "calendar.badge.exclamationmark")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            
+                            Text("No schedule")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.secondary.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    
+                    // Enhanced owner mode info
+                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) {
+                        VStack(spacing: 4) {
                             if !currentBar.isFollowingSchedule {
                                 HStack(spacing: 2) {
                                     Image(systemName: "hand.raised.fill")
                                         .font(.caption2)
-                                        .foregroundColor(.white.opacity(0.9))
-                                    
+                                        .foregroundColor(.orange)
                                     Text("Manual override")
                                         .font(.caption2)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white.opacity(0.9))
+                                        .foregroundColor(.orange)
+                                        .fontWeight(.medium)
                                 }
                                 .padding(.horizontal, 6)
-                                .padding(.vertical, 1)
-                                .background(Color.orange.opacity(0.3))
-                                .cornerRadius(4)
+                                .padding(.vertical, 2)
+                                .background(.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 4))
                             } else if let todaysSchedule = currentBar.todaysSchedule, todaysSchedule.isOpen {
                                 Text(todaysSchedule.displayText)
                                     .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
+                            
+                            // Auto-transition indicator
+                            if currentBar.isAutoTransitionActive {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "timer")
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                    Text("Auto-change")
+                                        .font(.caption2)
+                                        .foregroundColor(.blue)
+                                        .fontWeight(.medium)
+                                }
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.blue.opacity(0.15), in: RoundedRectangle(cornerRadius: 4))
+                            }
                         }
-                        
-                        // FIXED: Show last updated time for debugging
-                        #if DEBUG
-                        Text("Updated: \(timeAgo(currentBar.lastUpdated))")
-                            .font(.caption2)
-                            .foregroundColor(.white.opacity(0.6))
-                        #endif
                     }
-                    .padding(.bottom, 16)
+                    
+                    // Last updated info
+                    Text("Updated \(timeAgo(currentBar.lastUpdated))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
+                .padding()
+                .padding(.bottom, 8)
             }
-            .scaleEffect({
-                let scale = isPressed ? 0.95 : 1.0
-                return scale.isFinite ? max(0.5, min(2.0, scale)) : 1.0
-            }())
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
-            
-            // FIXED: Add subtle overlay for status conflicts (owner mode only)
-            .overlay(
-                Group {
-                    if isOwnerMode && barViewModel.canEdit(bar: currentBar) && currentBar.isStatusConflictingWithSchedule {
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.orange, lineWidth: 2)
-                            .opacity(0.7)
-                    }
-                }
-            )
         }
         .buttonStyle(PlainButtonStyle())
+        .liquidGlass(
+            level: .regular,
+            cornerRadius: .large,
+            shadow: isPressed ? .subtle : .medium,
+            borderOpacity: currentBar.isStatusConflictingWithSchedule ? 0.3 : 0.1
+        )
+        .scaleEffect(isPressed ? 0.96 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: isPressed)
+        
+        // Status conflict indicator for owner mode
+        .overlay(
+            Group {
+                if isOwnerMode && barViewModel.canEdit(bar: currentBar) && currentBar.isStatusConflictingWithSchedule {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(.orange, lineWidth: 2)
+                        .opacity(0.7)
+                }
+            }
+        )
     }
     
-    // FIXED: Helper function for time display
+    // Helper function for time display
     private func timeAgo(_ date: Date) -> String {
         let interval = Date().timeIntervalSince(date)
         
