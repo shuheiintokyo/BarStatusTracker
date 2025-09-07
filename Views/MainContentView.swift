@@ -134,12 +134,12 @@ struct HomeView: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
 
-    // FIXED: Always get fresh data with schedule refresh
     var displayBars: [Bar] {
         let allBars = barViewModel.getAllBars()  // This now returns refreshed schedules
 
-        if let loggedInBar = barViewModel.loggedInBar {
-            // Ensure logged in bar also has refreshed schedule
+        // FIXED: Check BOTH isOwnerMode AND loggedInBar existence
+        if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
+            // Owner mode: prioritize the logged-in bar
             var refreshedLoggedInBar = loggedInBar
             let _ = refreshedLoggedInBar.refreshScheduleIfNeeded()
             
@@ -148,6 +148,7 @@ struct HomeView: View {
             return bars
         }
 
+        // Guest mode: show all bars in normal order
         return allBars
     }
 
@@ -451,13 +452,22 @@ struct MyAccountView: View {
 
     @State private var showingSignOutOptions = false
 
+    // FIXED: MyAccountView body in MainContentView.swift
+    // Replace the existing body with this:
+
     var body: some View {
         NavigationView {
             List {
-                if let loggedInBar = barViewModel.loggedInBar {
+                // FIXED: Check BOTH isOwnerMode AND loggedInBar existence
+                if barViewModel.isOwnerMode, let loggedInBar = barViewModel.loggedInBar {
                     ownerSection(for: loggedInBar)
                 } else {
                     guestSection
+                    
+                    // FIXED: Add quick return section if user switched to guest view but has logged in bar
+                    if !barViewModel.isOwnerMode && barViewModel.loggedInBar != nil {
+                        quickReturnSection
+                    }
                 }
 
                 Section("App") {
@@ -491,7 +501,37 @@ struct MyAccountView: View {
             )
         }
     }
-
+    
+    private var quickReturnSection: some View {
+        Section("Quick Return") {
+            if let loggedInBar = barViewModel.loggedInBar {
+                Button(action: {
+                    withAnimation {
+                        barViewModel.isOwnerMode = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.uturn.left")
+                            .foregroundColor(.blue)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Return to \(loggedInBar.name)")
+                                .foregroundColor(.blue)
+                            Text("Switch back to owner mode")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+    }
+    
     private func ownerSection(for bar: Bar) -> some View {
         Group {
             Section {

@@ -310,8 +310,22 @@ class BarViewModel: ObservableObject {
     }
     
     func switchToGuestView() {
-        isOwnerMode = false
-        // Keep loggedInBar for potential quick return
+        // Explicitly trigger UI update by setting on main thread
+        DispatchQueue.main.async {
+            self.isOwnerMode = false
+            // Keep loggedInBar for potential quick return
+            print("✅ Switched to guest view. Owner mode: \(self.isOwnerMode), Logged in bar: \(self.loggedInBar?.name ?? "none")")
+        }
+    }
+
+    // ALSO ADD: Method to return to owner mode
+    func returnToOwnerMode() {
+        guard loggedInBar != nil else { return }
+        
+        DispatchQueue.main.async {
+            self.isOwnerMode = true
+            print("✅ Returned to owner mode for bar: \(self.loggedInBar?.name ?? "unknown")")
+        }
     }
     
     // MARK: - Helper Methods
